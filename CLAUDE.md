@@ -176,6 +176,26 @@ docker compose down
 
 **数据库**：`pgvector/pgvector:pg16` 镜像（自带 pgvector 扩展）。迁移脚本在 `/docker-entrypoint-initdb.d` 首次启动时自动执行。
 
+## CLI
+
+```bash
+# 开发模式（tsx）
+pnpm cli search --query "machine learning"
+pnpm cli collect --source openalex
+pnpm cli sources
+pnpm cli jobs
+pnpm cli stats
+pnpm cli health
+pnpm cli migrate
+pnpm cli serve --port 3400
+
+# 生产模式（编译后）
+data-platform search --query "transformer"
+data-platform collect --all
+```
+
+**8 个命令**：`search` / `collect` / `sources` / `jobs` / `stats` / `health` / `migrate` / `serve`。
+
 ## 常用命令
 
 ```bash

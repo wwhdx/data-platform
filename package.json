@@ -5,8 +5,12 @@
   "description": "望野数据采集/存储/RAG 引擎",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "data-platform": "./dist/cli/index.js"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "cli": "tsx src/cli/index.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
