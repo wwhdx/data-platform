@@ -3,8 +3,14 @@ import { query } from "../db";
 
 // ── CRUD ──
 
-export async function insertRawDocuments(docs: RawDocument[]): Promise<number> {
-  if (docs.length === 0) return 0;
+export interface InsertedDoc {
+  id: number;
+  title: string;
+  abstract: string;
+}
+
+export async function insertRawDocuments(docs: RawDocument[]): Promise<InsertedDoc[]> {
+  if (docs.length === 0) return [];
 
   const values: string[] = [];
   const params: unknown[] = [];
@@ -22,11 +28,18 @@ export async function insertRawDocuments(docs: RawDocument[]): Promise<number> {
       SET raw_json = EXCLUDED.raw_json,
           fetched_at = now(),
           collection_job_id = COALESCE(EXCLUDED.collection_job_id, raw_documents.collection_job_id)
-    RETURNING id
+    RETURNING id, raw_json
   `;
 
   const result = await query(sql, params);
-  return result.rowCount ?? 0;
+  return result.rows.map(row => {
+    const raw = row.raw_json as Record<string, unknown>;
+    return {
+      id: Number(row.id),
+      title: String(raw.title ?? ""),
+      abstract: String(raw.abstract ?? ""),
+    };
+  });
 }
 
 export async function findExistingIds(
@@ -48,13 +61,27 @@ export async function findExistingIds(
 
 // ── 关键词搜索（Phase 1 唯一检索方式）──
 
+export interface InternalSearchHit {
+  docId: number;
+  title: string;
+  url: string;
+  snippet: string;
+  sourceId: string;
+  sourceName: string;
+  publishedAt?: string;
+  score: number;
+  license: string;
+  commercialUse: boolean;
+}
+
 export async function keywordSearch(
   searchQuery: string,
   opts?: SearchOptions,
-): Promise<SearchResult[]> {
+): Promise<InternalSearchHit[]> {
   const maxResults = opts?.maxResults ?? 10;
   const sql = `
     SELECT
+      rd.id AS doc_id,
       rd.source_id,
       ds.name AS source_name,
       ds.license,
@@ -73,6 +100,7 @@ export async function keywordSearch(
   return result.rows.map((row: Record<string, unknown>) => {
     const raw = row.raw_json as Record<string, unknown>;
     return {
+      docId: Number(row.doc_id),
       title: String(raw.title ?? "Untitled"),
       url: extractUrl(raw),
       snippet: String(raw.abstract ?? "").slice(0, 300),

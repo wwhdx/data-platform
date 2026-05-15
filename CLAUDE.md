@@ -12,7 +12,7 @@ TypeScript 数据平台，负责多源数据采集、清洗存储、知识图谱
 |------|------|
 | 运行时 | Node.js 20+, TypeScript 5.x |
 | 数据库 | PostgreSQL 16+ (主存储) |
-| 向量库 | Qdrant (语义检索) |
+| 向量扩展 | pgvector (PostgreSQL 扩展) |
 | 图数据库 | Neo4j (知识图谱，Phase 3+) |
 | 调度 | node-cron (MVP) → BullMQ (生产) |
 | HTTP 框架 | Express / Fastify |
@@ -43,11 +43,11 @@ src/
 │   ├── enrich.ts         # 富化（实体抽取、分类标注）
 │   ├── chunk.ts          # 文本分块（用于 Embedding）
 │   └── index.ts          # 流水线编排
-├── rag/                  # RAG 检索系统
-│   ├── embed.ts          # Embedding 生成（Voyage AI / OpenAI）
-│   ├── vectorStore.ts    # Qdrant 向量库 CRUD
-│   ├── retriever.ts      # 检索器（语义/关键词/混合）
-│   └── rerank.ts         # 重排序
+├── rag/                  # RAG 检索系统 (pgvector)
+│   ├── embed.ts          # Embedding 生成（OpenAI text-embedding-3-small）
+│   ├── vectorStore.ts    # pgvector CRUD + 语义搜索
+│   ├── retriever.ts      # 混合检索器（语义 + 关键词 + RRF）
+│   └── index.ts          # 导出
 ├── api/                  # REST API 服务
 │   ├── server.ts         # HTTP 服务启动
 │   ├── routes/

@@ -108,7 +108,7 @@ RAG 检索 ──→ 语义搜索 + 关键词 ──→ 混合排序 ──→ A
 | 层 | 技术 | 选型理由 |
 |----|------|---------|
 | 数据库 | PostgreSQL 16 | 成熟稳定，支持 JSONB，与望野现有基础设施一致 |
-| 向量库 | Qdrant (自托管) | Rust 实现，性能好，支持混合检索，API 简洁 |
+| 向量库 | pgvector (PostgreSQL 扩展) | 零新基础设施，混合检索一条 SQL |
 | 图数据库 | Neo4j (Phase 3) | 知识图谱建模标准选择 |
 | 调度 | node-cron → BullMQ | MVP 简单，生产可靠 |
 | HTTP | Fastify | 性能好，TypeScript 生态好 |
@@ -377,52 +377,45 @@ function chunk(text: string, options?: {
 // - 新闻：每 2-3 段一块
 ```
 
-### 5.5 Stage 4：Embedding
+### 5.5 Stage 4：Embedding + pgvector 存储
+
+新文档入库后，异步生成 embedding 并写入 `document_chunks` 表：
 
 ```typescript
-// 对每个 DocumentChunk 生成向量
-async function embed(
-  chunks: DocumentChunk[],
-  model: string = "voyage-3-large",
-): Promise<{ chunkId: string; embedding: number[] }[]>;
+// dedup 流水线自动触发
+const inserted = await insertRawDocuments(fresh);
+embedDocuments(inserted.filter(d => d.title)).catch(console.error);
 
-// 写入 Qdrant
-// Collection: "documents"
-// Payload: { docId, chunkIndex, title, snippet, sourceId, url, publishedAt }
+// embedDocuments 内部：
+//   1. title + abstract 拼接文本
+//   2. OpenAI text-embedding-3-small (1536d) 批量生成向量
+//   3. INSERT INTO document_chunks (doc_id, chunk_index, text, embedding)
 ```
 
----
+### 5.6 混合检索（RRF + pgvector）
 
-## 六、RAG 检索系统
+```typescript
+// POST /api/search 实际执行路径
+async function hybridSearch(query: string, opts?: SearchOptions): Promise<SearchResult[]> {
+  // 1. 并行
+  const [queryVec, keywordHits] = await Promise.all([
+    embedQuery(query),                           // OpenAI embedding
+    keywordSearch(query, { maxResults: 50 }),    // PostgreSQL tsvector
+  ]);
 
-### 6.1 检索策略
+  // 2. 语义搜索
+  const semanticHits = await semanticSearch(queryVec.embedding, 50);
 
-| 策略 | 适用场景 | 实现 |
-|------|---------|------|
-| **语义检索** | 概念性问题、"类似 xxx" | Qdrant 向量相似度 |
-| **关键词检索** | 精确匹配、名称查询 | PostgreSQL `tsvector` / BM25 |
-| **混合检索** | 大多数场景 | 语义 + 关键词 + RRF 融合 |
-| **图检索** | 关联查询 (Phase 3) | Neo4j 图遍历 |
+  // 3. RRF 融合
+  const rrfScores = fuse(semanticHits, keywordHits);
 
-### 6.2 检索流程
+  // 4. 按 docId 批量加载文档
+  const sortedDocIds = [...rrfScores.entries()]
+    .sort((a, b) => b[1] - a[1]).slice(0, topK);
+  return fetchDocumentsById(sortedDocIds);
+}
 
-```
-用户查询
-  ↓
-Query Understanding (可选 LLM 改写/扩展)
-  ↓
-并行检索:
-  ├── Qdrant 语义搜索 (topK=50)
-  ├── PostgreSQL full-text (topK=30)
-  └── [Neo4j 图遍历 (Phase 3)]
-  ↓
-RRF (Reciprocal Rank Fusion) 融合排序
-  ↓
-重排序 (Cross-encoder reranker, Phase 2+)
-  ↓
-结果过滤 (去重、许可检查、时效性)
-  ↓
-返回 topK 结果 + 溯源信息
+// RRF: score = Σ 1/(k + rank_position), k=60
 ```
 
 ### 6.3 SearchProvider 兼容适配
@@ -825,16 +818,15 @@ ctx.state.dataPlatformResults = data.results.map(r => ({
 
 **交付物**：可独立运行的 HTTP 服务，engine-core 可切换 SearchProvider 消费
 
-### Phase 2：RAG 能力（4-8 周）
+### Phase 2：RAG 能力（✅ 实施中）
 
-**目标**：Embedding + Qdrant + 混合检索
+**目标**：Embedding + pgvector + 混合检索
 
-- [ ] Embedding 生成（Voyage AI text-embedding-3-large 或 OpenAI）
-- [ ] Qdrant 集成（自托管 Docker）
-- [ ] 文本分块器（Stage 3）
-- [ ] 混合检索（语义 Qdrant + 关键词 PG → RRF 融合）
-- [ ] 重排序（可选 Cohere Rerank 或开源 cross-encoder）
-- [ ] 富化处理器（Stage 2，简单字段提取版）
+- [x] pgvector 扩展 + document_chunks 表 + ivfflat 索引
+- [x] Embedding 生成（OpenAI text-embedding-3-small, 1536d）
+- [x] 文档分块（MVP: title + abstract 单 chunk）
+- [x] 混合检索（语义 pgvector + 关键词 tsvector → RRF 融合）
+- [x] dedup 流水线自动触发 embedding
 
 ### Phase 3：知识图谱（8-12 周）
 

@@ -110,6 +110,7 @@ export interface SearchResponse {
   results: SearchResult[];
   totalCount: number;
   tookMs: number;
+  error?: string;
 }
 
 // ── 数据源状态 ──

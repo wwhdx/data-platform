@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import type { SearchRequest, SearchResponse } from "../../types";
-import { keywordSearch } from "../../storage/models/rawDocument";
+import { hybridSearch } from "../../rag/retriever";
 
 export const searchRoutes: FastifyPluginAsync = async (app) => {
   app.post("/api/search", async (req, reply) => {
@@ -13,11 +13,14 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
         results: [],
         totalCount: 0,
         tookMs: 0,
-      });
+      } satisfies SearchResponse);
     }
 
     const start = Date.now();
-    const results = await keywordSearch(query, {
+
+    // Phase 2: 混合检索（语义 + 关键词 + RRF）
+    // 语义搜索失败时自动降级为纯关键词搜索
+    const results = await hybridSearch(query, {
       maxResults: body.maxResults ?? 10,
       filters: body.filters,
     });
