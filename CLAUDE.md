@@ -156,6 +156,26 @@ psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.
 
 **禁止从父项目 `DATABASE_URL` 回退**——`db.ts` 只读 `DATA_PLATFORM_DATABASE_URL`。
 
+## Docker 部署
+
+```bash
+# 生产模式
+docker compose up -d --build
+
+# 开发模式（挂载源码 + tsx watch 热重载）
+docker compose -f docker-compose.dev.yml up -d --build
+
+# 查看日志
+docker compose logs -f app
+
+# 停止
+docker compose down
+```
+
+**服务端口**：API `:3400`，PostgreSQL `:5433`（独立于父项目 `:5432`）。
+
+**数据库**：`pgvector/pgvector:pg16` 镜像（自带 pgvector 扩展）。迁移脚本在 `/docker-entrypoint-initdb.d` 首次启动时自动执行。
+
 ## 常用命令
 
 ```bash
@@ -164,7 +184,11 @@ pnpm build                 # TypeScript 编译
 pnpm exec tsc --noEmit     # 类型检查
 pnpm test                  # 运行测试
 pnpm test -- --run         # 单次运行
-psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.sql  # 执行迁移
+
+# 本地数据库（不使用 Docker 时）
+psql -U lumina -h localhost -d data_platform \
+  -f src/storage/migrations/001_init.sql \
+  -f src/storage/migrations/002_pgvector.sql
 ```
 
 ## Commit 铁律

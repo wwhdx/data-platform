@@ -1,0 +1,49 @@
+# 开发模式：挂载源码 + tsx watch 热重载
+networks:
+  dp-network:
+
+services:
+
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    networks:
+      - dp-network
+    environment:
+      POSTGRES_DB: data_platform
+      POSTGRES_USER: lumina
+      POSTGRES_PASSWORD: lumina_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - dev_pgdata:/var/lib/postgresql/data
+      - ./src/storage/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lumina -d data_platform"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    ports:
+      - "3400:3400"
+    networks:
+      - dp-network
+    volumes:
+      - ./src:/app/src
+    environment:
+      DATA_PLATFORM_DATABASE_URL: postgresql://lumina:lumina_pass@db:5432/data_platform
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENALEX_API_KEY: ${OPENALEX_API_KEY:-}
+      NODE_ENV: development
+      PORT: "3400"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  dev_pgdata:
