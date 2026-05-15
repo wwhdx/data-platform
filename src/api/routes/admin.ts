@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { listJobs } from "../../storage/models/collectionJob";
+import { query } from "../../storage/db";
 
 export const adminRoutes: FastifyPluginAsync = async (app) => {
   // 手动触发采集
@@ -23,11 +24,14 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       }
     }
 
-    // 触发所有已注册的 Connector
+    // 触发所有 active 数据源（动态查询 data_sources 表）
     const jobs = [];
-    for (const id of ["openalex", "semanticscholar", "patentsview"]) {
+    const result = await query(
+      `SELECT id FROM data_sources WHERE status = 'active' ORDER BY id`,
+    );
+    for (const row of result.rows) {
       try {
-        const job = await scheduler.trigger(id, body?.query ?? "");
+        const job = await scheduler.trigger(String(row.id), body?.query ?? "");
         jobs.push(job);
       } catch {
         // 某些 Connector 可能未注册

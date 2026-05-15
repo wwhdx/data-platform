@@ -623,9 +623,9 @@ const results = await dataPlatform.search(query, {
 | 优先级 | 改动 | 文件 | 工作量 |
 |--------|------|------|--------|
 | **P0** | Scheduler 批量消费（缓冲 200 条再 dedup） | `scheduler/index.ts` | 10 行 |
-| **P0** | admin.ts 动态查询 data_sources（替代硬编码列表） | `api/routes/admin.ts` | 5 行 |
+| **P0** | admin.ts 动态查询 data_sources（替代硬编码列表） | `api/routes/admin.ts` | ✅ 已随 CrossRef 接入完成 |
 | **P0** | BaseConnector 新增 `paginateOffset()` | `connectors/base.ts` | 15 行 |
-| **P0** | 实现 CrossRef Connector（零认证，P0 优先级最高） | `connectors/crossref.ts` | ~80 行 |
+| **P0** | 实现 CrossRef Connector（零认证，P0 优先级最高） | `connectors/crossref.ts` | ✅ 已完成 |
 
 ### 6.2 短期实施（2 周内）
 

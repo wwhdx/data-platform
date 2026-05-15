@@ -1,6 +1,7 @@
 import { createServer } from "./api/server";
 import { Scheduler } from "./scheduler";
 import { OpenAlexConnector } from "./connectors/openalex";
+import { CrossRefConnector } from "./connectors/crossref";
 import { getPool, closePool } from "./storage/db";
 
 async function main() {
@@ -18,18 +19,20 @@ async function main() {
   const openalex = new OpenAlexConnector({
     apiKey: process.env.OPENALEX_API_KEY,
   });
+  const crossref = new CrossRefConnector({
+    apiKey: process.env.CROSSREF_MAILTO,
+  });
 
   // 启动调度器
   const scheduler = new Scheduler();
-  scheduler.registerConnector({
-    id: "openalex",
-    create: () => openalex,
-  });
+  scheduler.registerConnector({ id: "openalex", create: () => openalex });
+  scheduler.registerConnector({ id: "crossref", create: () => crossref });
 
-  // 默认调度（每日早 7 点增量采集）
+  // 默认调度（每日增量采集）
   scheduler.schedule("openalex", "0 7 * * *", "");
+  scheduler.schedule("crossref", "0 8 * * *", "");
   scheduler.start();
-  console.log(`Scheduler started: openalex (daily 07:00)`);
+  console.log(`Scheduler started: openalex (daily 07:00), crossref (daily 08:00)`);
 
   // 启动 API
   const server = await createServer({

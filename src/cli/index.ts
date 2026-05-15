@@ -250,11 +250,16 @@ async function cmdServe(args: string[]) {
   const { createServer } = await import("../api/server");
   const { Scheduler } = await import("../scheduler");
   const { OpenAlexConnector } = await import("../connectors/openalex");
+  const { CrossRefConnector } = await import("../connectors/crossref");
 
   const scheduler = new Scheduler();
   scheduler.registerConnector({
     id: "openalex",
     create: () => new OpenAlexConnector({ apiKey: process.env.OPENALEX_API_KEY }),
+  });
+  scheduler.registerConnector({
+    id: "crossref",
+    create: () => new CrossRefConnector({ apiKey: process.env.CROSSREF_MAILTO }),
   });
   scheduler.start();
 
@@ -287,7 +292,7 @@ function printHelp() {
     --json                   JSON 格式输出
 
   collect:
-    --source <id>            数据源 ID (openalex, semanticscholar, patentsview)
+    --source <id>            数据源 ID (openalex, crossref, semanticscholar, patentsview)
     --all                    采集所有已注册数据源
     --query <文本>           搜索查询（可选）
 
@@ -306,6 +311,7 @@ function printHelp() {
   EMBED_BACKEND                ollama (默认) / voyage / openai
   EMBED_API_URL                Embedding 服务地址 (默认: http://localhost:11434)
   OPENALEX_API_KEY             OpenAlex API Key
+  CROSSREF_MAILTO              CrossRef polite pool email
 
 Embedding 后端:
   ollama (默认)   本地 bge-m3，免费，中英跨语言最优
