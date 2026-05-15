@@ -3,7 +3,7 @@ import { listJobs } from "../../storage/models/collectionJob";
 
 export const adminRoutes: FastifyPluginAsync = async (app) => {
   // 手动触发采集
-  app.post("/api/admin/collect", async (req, reply) => {
+  app.post("/collect", async (req, reply) => {
     const body = req.body as { sourceId?: string; query?: string } | null;
     const scheduler = app.scheduler;
 
@@ -38,14 +38,14 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // 采集任务历史
-  app.get("/api/admin/jobs", async (req, reply) => {
+  app.get("/jobs", async (req, reply) => {
     const limit = parseInt(String((req.query as Record<string, string>)?.limit ?? "20"), 10);
     const jobs = await listJobs(limit);
     return reply.send(jobs);
   });
 
   // 统计
-  app.get("/api/admin/stats", async (_req, reply) => {
+  app.get("/stats", async (_req, reply) => {
     const { query } = await import("../../storage/db");
     try {
       const [docCount, sourceCount, jobCount] = await Promise.all([

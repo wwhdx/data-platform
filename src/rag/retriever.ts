@@ -51,12 +51,23 @@ export async function hybridSearch(
     semanticResults = await semanticSearch(queryVec.embedding, 50).catch(() => []);
   }
 
-  if (semanticResults.length === 0) {
+  // 降级：仅语义结果
+  if (keywordHits.length === 0 && semanticResults.length > 0) {
+    const top = semanticResults.slice(0, topK);
+    return fetchDocumentsById(
+      top.map(s => s.docId),
+      top.map((_, i) => 1 / (60 + i + 1)),  // RRF 得分
+    );
+  }
+
+  // 降级：仅关键词结果（ts_rank 已含得分）
+  if (semanticResults.length === 0 && keywordHits.length > 0) {
     return keywordHits.slice(0, topK);
   }
 
-  if (keywordHits.length === 0) {
-    return fetchDocumentsById(semanticResults.map(s => s.docId).slice(0, topK));
+  // 都为空
+  if (semanticResults.length === 0 && keywordHits.length === 0) {
+    return [];
   }
 
   // RRF 融合

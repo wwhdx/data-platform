@@ -3,7 +3,7 @@ import type { SearchRequest, SearchResponse } from "../../types";
 import { hybridSearch } from "../../rag/retriever";
 
 export const searchRoutes: FastifyPluginAsync = async (app) => {
-  app.post("/api/search", async (req, reply) => {
+  app.post("/search", async (req, reply) => {
     const body = req.body as SearchRequest;
     const query = body?.query?.trim();
 
@@ -34,7 +34,7 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(resp);
   });
 
-  app.get("/api/sources", async (_req, reply) => {
+  app.get("/sources", async (_req, reply) => {
     const { query } = await import("../../storage/db");
     try {
       const result = await query(

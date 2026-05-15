@@ -3,7 +3,7 @@ import { query } from "../../storage/db";
 import type { HealthResponse, SourceStatus } from "../../types";
 
 export const healthRoute: FastifyPluginAsync = async (app) => {
-  app.get("/api/health", async (_req, reply) => {
+  app.get("/health", async (_req, reply) => {
     const dbOk = await query("SELECT 1")
       .then(() => "ok")
       .catch((e: Error) => e.message);
