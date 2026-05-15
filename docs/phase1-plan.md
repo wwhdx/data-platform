@@ -677,7 +677,7 @@ data-platform/
 | 实体抽取 / LLM 富化 | Phase 3 | Phase 3 |
 | 知识图谱 (Neo4j) | Phase 3 | Phase 3 |
 | 混合检索 (RRF) | Phase 2 | Phase 2 |
-| `/api/context` 端点 | 需要 RAG 先就绪 | Phase 2 |
+| 知识注入（engine-core summarizeContext） | engine-core 侧实现 | Phase 2+ |
 | 多语言搜索 | 先用 english tsvector | Phase 2+ |
 | OpenTelemetry / Grafana | MVP 不需要 | Phase 4 |
 

@@ -1,6 +1,6 @@
 # data-platform 数据平台设计方案
 
-> v0.1 — 架构规划与 MVP 路径
+> v0.2 — 职责边界澄清（/api/context 移除）+ MVP 路径
 > 基于望野项目 UODE（通用机遇探索引擎）理念与 16 个主流数据平台 API 协议设计。
 
 ---
@@ -55,6 +55,8 @@ data-platform 是望野三层架构（平台 → engine-core → data-platform�
 | DAG 工作流执行 | ✅ | ❌ |
 | Prompt 渲染 | ✅ | ❌ |
 | 引用校验 | ✅ | ❌ |
+| LLM 摘要生成 | ✅（summarizeContext 节点） | ❌（不持有 LLM 依赖） |
+| 实体/关系抽取 | ✅（LLM 抽取） | ✅（规则/NER 轻量抽取） |
 
 **对接协议**：data-platform 对外暴露 `SearchProvider` 兼容接口（`{ query → {title, url, snippet}[] }`），engine-core 无需改动即可消费。
 
@@ -572,14 +574,12 @@ engine-core DAG 工作流
     │     search_context → searchWithCitation → data-platform /api/search
     │     一行切换：createDataPlatformSearchProvider()
     │
-    ├── 接入点 2: 知识注入（buildPrompts 前预加载）
-    │     ctx.state.knowledgeContext ← data-platform /api/context
-    │     Prompt: {{state.knowledgeContext}} + {{state.searchResults}}
-    │
-    └── 接入点 3: SDK tool_use（LLM 主动检索）
+    └── 接入点 2: SDK tool_use（LLM 主动检索）
           sdkTools: [{ name: "retrieve_from_data_platform" }]
           LLM 自主决定何时检索、检索什么
 ```
+
+> **注意**：设计文档 v0.1 中原有"接入点 2: 知识注入（/api/context）"，该端点涉及 LLM 摘要生成，已从 data-platform 移除。知识注入逻辑改为 engine-core 侧 `summarizeContext` 节点，输入 data-platform 原始检索结果，输出 LLM 摘要后注入 prompt。详见 §9.4。
 
 ### 9.2 接入点 1：SearchProvider Adapter
 
@@ -680,23 +680,43 @@ export async function searchWithCitation(
 }
 ```
 
-### 9.4 接入点 2：知识注入
+### 9.4 知识注入（engine-core 侧）
 
-除了被动搜索，data-platform 在文章生成前预加载领域背景知识：
+> **2026-05-15 修订**：原设计在 data-platform 中规划了 `/api/context` 端点（LLM 摘要生成）。
+> 经职责边界澄清，该端点已从 data-platform 移除。
+> 原因：LLM 摘要属于内容生成，不属于数据检索。data-platform 是纯知识检索服务，不持有 LLM 依赖。
+
+data-platform 提供原始检索结果，engine-core 负责将其转化为 prompt 上下文：
+
+```
+data-platform.POST /api/search { query, maxResults: 20 }
+    ↓
+SearchResult[] (带 license/provenance 元数据)
+    ↓
+engine-core.summarizeContext(results, topic, style)  ← LLM 摘要节点
+    ↓
+ctx.state.knowledgeContext = "该领域当前关注...\n核心技术路线包括...\n"
+    ↓
+注入 Prompt: {{state.knowledgeContext}}
+```
+
+**engine-core 侧实现参考**（非 data-platform 代码）：
 
 ```typescript
-// 在工作流 createStandardBuildPrompts 中集成
+// engine-core 工作流 buildPrompts 节点
 async function buildPrompts(ctx: GeneratorContext) {
   const topic = readStateString(ctx, ["topic"]);
-  const industry = readStateString(ctx, ["industry"]);
 
-  // 预加载领域知识背景——data-platform 的独特价值
-  const context = await fetch(
-    `${DATA_PLATFORM_URL}/api/context?topic=${encodeURIComponent(topic)}&industry=${encodeURIComponent(industry)}`
-  ).then(r => r.json()).catch(() => null);
+  // ① 从 data-platform 获取原始知识
+  const searchResults = await ctx.services.searchProvider?.search(topic, { maxResults: 20 }) ?? [];
 
-  // 注入 state，Prompt 模板通过 {{state.knowledgeContext}} 引用
-  ctx.state.knowledgeContext = context?.summary ?? "";
+  // ② LLM 摘要（engine-core 节点，调用 LLM）
+  const summary = searchResults.length > 0
+    ? await summarizeContext(ctx, searchResults, topic)
+    : "";
+
+  // ③ 注入 state
+  ctx.state.knowledgeContext = summary;
 
   return {
     system: systemPrompt,
@@ -705,23 +725,9 @@ async function buildPrompts(ctx: GeneratorContext) {
 }
 ```
 
-`/api/context` 端点内部流程：
+**分工**：data-platform 负责"检索"（①② 之间），engine-core 负责"理解"（②）。分工线清晰，data-platform 零 LLM 依赖。
 
-```
-topic + industry
-    ↓
-① RAG 检索（semantic + keyword hybrid, topK=20）
-    ↓
-② 结果去重 + 按 relevance 排序
-    ↓
-③ LLM 汇总成 3-5 段"领域现状摘要"
-    ↓
-④ 返回文本块 + 引用源列表
-    ↓
-ctx.state.knowledgeContext = "该领域当前关注...\n核心技术路线包括...\n"
-```
-
-### 9.5 接入点 3：SDK Tool Use（LLM 主动检索）
+### 9.5 接入点 2（原 3）：SDK Tool Use（LLM 主动检索）
 
 对需要"检索后写作"的工作流（如 `ai_opportunity`），LLM 可将 data-platform 作为 tool 主动调用：
 
@@ -794,8 +800,8 @@ ctx.state.dataPlatformResults = data.results.map(r => ({
 | 场景 | 推荐接入点 | 延迟 | LLM 能见度 |
 |------|-----------|------|-----------|
 | 通用文章搜索 | 接入点 1（被动搜索） | 单次 API 调用 | 搜索结果注入 Prompt |
-| 深度行业分析 | 接入点 2（知识注入）+ 1 | 生成前 1 次 RAG | 领域背景 + 搜索结果 |
-| 交叉验证/勘探 | 接入点 3（LLM 主动 tool_use） | 多轮，LLM 自主控制 | LLM 逐轮看到每次检索结果 |
+| 深度行业分析 | 接入点 1 + engine-core summarizeContext | 1 次 RAG + 1 次 LLM | 领域背景 + 搜索结果 |
+| 交叉验证/勘探 | 接入点 2（LLM 主动 tool_use） | 多轮，LLM 自主控制 | LLM 逐轮看到每次检索结果 |
 | 批量生成 | 接入点 1 + 缓存 | 批量预热缓存 | 同 1 |
 
 ---
@@ -842,7 +848,6 @@ ctx.state.dataPlatformResults = data.results.map(r => ({
 
 **目标**：多消费者、监控、扩展
 
-- [ ] `/api/context` 领域背景注入端点
 - [ ] 采集仪表盘（Grafana / 内置页面）
 - [ ] Webhook 事件驱动采集
 - [ ] 扩展 Connector 到 16+ 源
@@ -871,7 +876,14 @@ ctx.state.dataPlatformResults = data.results.map(r => ({
 
 ---
 
-> **版本**: v0.1 | **状态**: 草案 | **最后更新**: 2025-05-15
+## 附录 C：变更记录
+
+| 日期 | 版本 | 变更 |
+|------|------|------|
+| 2025-05-15 | v0.1 | 初始草案 |
+| 2026-05-15 | v0.2 | 职责边界澄清：移除 `/api/context`（LLM 摘要生成 → engine-core）；§9.1 接入点从 3 个精简为 2 个；§1.2 边界表新增 LLM 摘要/实体抽取行；Phase 4 移除 `/api/context` |
+
+> **版本**: v0.2 | **状态**: 修订中 | **最后更新**: 2026-05-15
 >
 > 相关文档：
 > - engine-core 接口协议：`../engine-core/ENGINE_CONTRACTS.md`

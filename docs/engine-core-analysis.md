@@ -198,14 +198,17 @@ registry.register("narrative-framework", NARRATIVE_FRAGMENT);
 const systemPrompt = registry.compose(["quality-constraints", "narrative-framework"]);
 ```
 
-**对 data-platform 的启示**：data-platform 的领域知识注入可以复用模板机制：
+**对 data-platform 的启示**：data-platform 负责检索，engine-core 负责理解。领域知识注入由 engine-core 侧 `summarizeContext` 节点完成：
 
 ```typescript
-// data-platform 返回领域背景文本
-const context = await fetch(`http://data-platform/api/context?topic=${topic}`);
+// ① data-platform 原始检索（纯数据，无 LLM）
+const searchResults = await ctx.services.searchProvider?.search(topic, { maxResults: 20 });
+
+// ② engine-core LLM 摘要（内容生成）
+const summary = await summarizeContext(ctx, searchResults, topic);
 
 // 注入到 ctx.state
-ctx.state.knowledgeContext = context.summary;
+ctx.state.knowledgeContext = summary;
 
 // Prompt 模板中使用
 const userTemplate = `
@@ -243,8 +246,7 @@ const userTemplate = `
 │ │ data-platform                                       │  │  │
 │ │                                                     │  │  │
 │ │  POST /api/search  ← 兼容 SearchProvider 签名       │  │  │
-│ │  POST /api/context ← 领域背景知识注入                │  │  │
-│ │  POST /api/enrich  ← 文档富化（实体抽取）           │  │  │
+│ │  GET  /api/sources, /api/admin/*                     │  │  │
 │ └─────────────────────────────────────────────────────┘  │  │
 │                                                          │  │
 │ 接入点 2: SDK tool_use (LLM 主动调用)                   │  │
@@ -315,33 +317,37 @@ const searchProvider = createDataPlatformSearchProvider(
 
 ### 2.3 批量数据预加载（知识注入）
 
-除了被动搜索，data-platform 支持在文章生成前预加载领域知识：
+除了被动搜索，data-platform 支持在文章生成前提供领域知识：
+
+> **2026-05-15 修订**：`/api/context` 端点（LLM 摘要）已从 data-platform 移除。
+> 知识注入改为 engine-core 侧 `summarizeContext` 节点，输入 data-platform 原始检索结果。
 
 ```typescript
 // 在工作流 buildPrompts 中调用
 async function buildPrompts(ctx: GeneratorContext) {
   const topic = readStateString(ctx, ["topic"]);
-  const industry = readStateString(ctx, ["industry"]);
 
-  // 预加载领域背景知识
-  const context = await fetch(
-    `http://data-platform/api/context?topic=${encodeURIComponent(topic)}&industry=${encodeURIComponent(industry)}`
-  ).then(r => r.json()).catch(() => null);
+  // ① 从 data-platform 获取原始知识
+  const searchResults = await ctx.services.searchProvider?.search(topic, { maxResults: 20 }) ?? [];
+
+  // ② engine-core LLM 摘要（summarizeContext 节点）
+  const summary = searchResults.length > 0
+    ? await summarizeContext(ctx, searchResults, topic)
+    : "";
 
   // 注入到 state（Prompt 模板直接引用）
-  ctx.state.knowledgeContext = context?.summary ?? "";
+  ctx.state.knowledgeContext = summary;
 
   return {
     system: systemPrompt,
     user: renderTemplate(userTemplate, { state: ctx.state }),
   };
 }
-```
 
-`/api/context` 端点：
-1. 用 topic + industry 做 RAG 检索
-2. LLM 汇总成"领域现状摘要"（3-5段文本）
-3. 返回可直接注入 Prompt 的文本块
+// summarizeContext 流程（engine-core 侧）：
+//   1. 对 data-platform 返回的 SearchResult[] 做 LLM 摘要
+//   2. 返回可直接注入 Prompt 的文本块
+//   3. data-platform 零 LLM 依赖
 
 ### 2.4 增强版 searchWithCitation
 
