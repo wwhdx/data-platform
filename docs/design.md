@@ -567,12 +567,33 @@ async function incrementalCollect(
 
 ## 九、与 engine-core 对接
 
-### 9.1 作为 SearchProvider
+> engine-core 优秀设计模式分析详见 `docs/engine-core-analysis.md`。
+> 以下聚焦三个接入点的具体设计。
 
-data-platform 自带一个 `engine-core` 兼容的 SearchProvider adapter：
+### 9.1 接入点总览
+
+```
+engine-core DAG 工作流
+    │
+    ├── 接入点 1: SearchProvider contract（被动搜索）
+    │     search_context → searchWithCitation → data-platform /api/search
+    │     一行切换：createDataPlatformSearchProvider()
+    │
+    ├── 接入点 2: 知识注入（buildPrompts 前预加载）
+    │     ctx.state.knowledgeContext ← data-platform /api/context
+    │     Prompt: {{state.knowledgeContext}} + {{state.searchResults}}
+    │
+    └── 接入点 3: SDK tool_use（LLM 主动检索）
+          sdkTools: [{ name: "retrieve_from_data_platform" }]
+          LLM 自主决定何时检索、检索什么
+```
+
+### 9.2 接入点 1：SearchProvider Adapter
+
+data-platform 导出 engine-core 兼容的 `SearchProvider`，引擎零改动消费：
 
 ```typescript
-// data-platform 包内导出
+// @wangye/data-platform → engine-core SearchProvider
 export function createDataPlatformSearchProvider(
   baseUrl: string = "http://localhost:3400",
 ): SearchProvider {
@@ -586,11 +607,12 @@ export function createDataPlatformSearchProvider(
           query,
           maxResults: opts?.maxResults ?? 10,
           strategy: "hybrid",
+          filters: { commercialUse: true },
         }),
       });
       if (!res.ok) return [];
       const data = await res.json();
-      return data.results.map((r: any) => ({
+      return data.results.map(r => ({
         title: r.title,
         url: r.url,
         snippet: r.snippet,
@@ -600,38 +622,188 @@ export function createDataPlatformSearchProvider(
 }
 ```
 
-### 9.2 engine-core 消费方式
+引擎侧消费（一行切换）：
 
 ```typescript
-// 望野平台 services/adapters.ts 中
 import { createDataPlatformSearchProvider } from "@wangye/data-platform";
 
 const services: EngineServices = {
-  searchProvider: createDataPlatformSearchProvider(
-    process.env.DATA_PLATFORM_URL ?? "http://data-platform:3400"
-  ),
-  // ... 其他 services
+  callSerper: (q, opts) => dataPlatform.search(q, { maxResults: opts?.organicNum }),
+  // 或语义级切换
+  searchSemanticScholar: (q, limit) =>
+    dataPlatform.search(q, {
+      maxResults: limit,
+      filters: { sourceIds: ["openalex", "semanticscholar"] },
+    }),
 };
 ```
 
-### 9.3 知识注入方式（高级用法）
+### 9.3 增强版 searchWithCitation
 
-除了搜索接口，data-platform 还支持将领域知识背景注入 engine-core 工作流：
+当前 engine-core 的 `searchWithCitation` 仅支持 Serper 单源，可增强为多源路由 + 丰富 citation 元数据：
 
 ```typescript
-// 工作流 buildPrompts 中
-const context = await fetch(
-  `http://data-platform/api/context?topic=${topic}&industry=${industry}`
-).then(r => r.json());
+// engine-core 增强点：src/nodes/search.ts
+export async function searchWithCitation(
+  ctx: GeneratorContext,
+  query: string,
+  opts: SearchWithCitationOptions = {},
+): Promise<SearchResult[]> {
+  const { organicNum = 5, sourceEngine = "data-platform" } = opts;
 
-ctx.state.knowledgeContext = context.summary;
-// Prompt 模板中: {{state.knowledgeContext}}
+  if (sourceEngine === "data-platform") {
+    const res = await fetch(`${DATA_PLATFORM_URL}/api/search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query,
+        maxResults: organicNum,
+        strategy: "hybrid",
+      }),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+
+    // 写入 citationIndex（含数据源、许可等丰富元数据）
+    for (const r of data.results) {
+      if (r.url && !ctx.citationIndex.has(r.url)) {
+        ctx.citationIndex.set(r.url, {
+          url: r.url,
+          title: r.title,
+          snippet: r.snippet,
+          sourceEngine: mapSourceToEngine(r.sourceId),
+          fetchedAt: Date.now(),
+          // 扩展字段（data-platform 特有）
+          license: r.license,
+          score: r.score,
+        } as CitationEntry);
+      }
+    }
+    return data.results;
+  }
+
+  // fallback: 原有 serper 逻辑
+  return searchWithSerper(ctx, query, opts);
+}
 ```
 
-`/api/context` 端点会：
-1. 对 topic + industry 做 RAG 检索
-2. LLM 汇总成 3-5 段的"领域背景"文本
-3. 返回可直接注入 Prompt 的文本块
+### 9.4 接入点 2：知识注入
+
+除了被动搜索，data-platform 在文章生成前预加载领域背景知识：
+
+```typescript
+// 在工作流 createStandardBuildPrompts 中集成
+async function buildPrompts(ctx: GeneratorContext) {
+  const topic = readStateString(ctx, ["topic"]);
+  const industry = readStateString(ctx, ["industry"]);
+
+  // 预加载领域知识背景——data-platform 的独特价值
+  const context = await fetch(
+    `${DATA_PLATFORM_URL}/api/context?topic=${encodeURIComponent(topic)}&industry=${encodeURIComponent(industry)}`
+  ).then(r => r.json()).catch(() => null);
+
+  // 注入 state，Prompt 模板通过 {{state.knowledgeContext}} 引用
+  ctx.state.knowledgeContext = context?.summary ?? "";
+
+  return {
+    system: systemPrompt,
+    user: renderTemplate(userTemplate, { state: ctx.state }),
+  };
+}
+```
+
+`/api/context` 端点内部流程：
+
+```
+topic + industry
+    ↓
+① RAG 检索（semantic + keyword hybrid, topK=20）
+    ↓
+② 结果去重 + 按 relevance 排序
+    ↓
+③ LLM 汇总成 3-5 段"领域现状摘要"
+    ↓
+④ 返回文本块 + 引用源列表
+    ↓
+ctx.state.knowledgeContext = "该领域当前关注...\n核心技术路线包括...\n"
+```
+
+### 9.5 接入点 3：SDK Tool Use（LLM 主动检索）
+
+对需要"检索后写作"的工作流（如 `ai_opportunity`），LLM 可将 data-platform 作为 tool 主动调用：
+
+```typescript
+// 工作流定义
+export function createAiOpportunityWorkflow() {
+  return createStandardArticleWorkflow({
+    id: "ai_opportunity",
+    toolStrategy: "sdk_tool_use",
+    sdkTools: [{
+      name: "retrieve_knowledge",
+      description: "在数据平台检索论文、专利、公司、临床数据。支持按类型过滤。",
+      input_schema: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "检索查询" },
+          sourceType: {
+            type: "string",
+            enum: ["paper", "patent", "company", "clinical", "all"],
+          },
+        },
+        required: ["query"],
+      },
+    }],
+    toolHandlers: {
+      retrieve_knowledge: async (args, ctx) => {
+        const res = await fetch(`${DATA_PLATFORM_URL}/api/search`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: args.query,
+            filters: args.sourceType !== "all"
+              ? { contentType: [args.sourceType] }
+              : undefined,
+          }),
+        });
+        return res.json();
+      },
+    },
+    maxToolRounds: 3,
+    modelKey: "cr-default",
+  });
+}
+```
+
+### 9.6 CitationEntry 扩展（兼容方案）
+
+data-platform 返回的搜索结果包含更丰富的元数据。通过 `CitationEntry` 的 `sourceEngine` 泛化字段和 `ctx.state.search_raw` 携带扩展信息，避免破坏 engine-core 现有类型：
+
+```typescript
+// citationIndex 中 sourceEngine 映射
+const SOURCE_ENGINE_MAP: Record<string, CitationEntry["sourceEngine"]> = {
+  openalex: "semantic_scholar",     // 复用学术类标记
+  semanticscholar: "semantic_scholar",
+  pubmed: "semantic_scholar",
+  patentsview: "patents",
+  sec_edgar: "news",
+  clinicaltrials: "semantic_scholar",
+};
+
+// 扩展信息写入 ctx.state（不破坏现有类型）
+ctx.state.dataPlatformResults = data.results.map(r => ({
+  title: r.title, url: r.url, snippet: r.snippet,
+  sourceName: r.sourceName, license: r.license, score: r.score,
+}));
+```
+
+### 9.7 对接层次决策
+
+| 场景 | 推荐接入点 | 延迟 | LLM 能见度 |
+|------|-----------|------|-----------|
+| 通用文章搜索 | 接入点 1（被动搜索） | 单次 API 调用 | 搜索结果注入 Prompt |
+| 深度行业分析 | 接入点 2（知识注入）+ 1 | 生成前 1 次 RAG | 领域背景 + 搜索结果 |
+| 交叉验证/勘探 | 接入点 3（LLM 主动 tool_use） | 多轮，LLM 自主控制 | LLM 逐轮看到每次检索结果 |
+| 批量生成 | 接入点 1 + 缓存 | 批量预热缓存 | 同 1 |
 
 ---
 
