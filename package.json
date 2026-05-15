@@ -10,12 +10,17 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "test:run": "vitest --run",
-    "lint": "eslint src/"
+    "test:run": "vitest --run"
   },
-  "dependencies": {},
+  "dependencies": {
+    "fastify": "^4.28.0",
+    "node-cron": "^3.0.3",
+    "pg": "^8.13.0"
+  },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@types/node-cron": "^3.0.11",
+    "@types/pg": "^8.11.0",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0",
     "tsx": "^4.0.0"
