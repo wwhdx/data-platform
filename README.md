@@ -29,11 +29,14 @@
 ### Docker（推荐）
 
 ```bash
-# 生产模式
-OPENAI_API_KEY=sk-xxx docker compose up -d --build
+# 生产模式（bge-m3 本地 Embedding，零外部 API 依赖）
+docker compose up -d --build
 
 # 开发模式（源码热重载）
-OPENAI_API_KEY=sk-xxx docker compose -f docker-compose.dev.yml up -d --build
+docker compose -f docker-compose.dev.yml up -d --build
+
+# 首次启动自动拉取 bge-m3 模型（约 2.2 GB，仅一次）
+# 后续启动秒级就绪
 
 # 验证
 curl http://localhost:3400/api/health
@@ -50,14 +53,18 @@ psql -U lumina -h localhost -d data_platform \
   -f src/storage/migrations/001_init.sql \
   -f src/storage/migrations/002_pgvector.sql
 
-# 3. 配置环境变量
-cp .env.example .env
-# 编辑 .env 填入 OPENAI_API_KEY
+# 3. 启动 Ollama（如未安装）
+ollama pull bge-m3          # 拉取 bge-m3 模型（2.2 GB）
+ollama serve                # 启动 Ollama 服务（默认 :11434）
 
-# 4. 安装依赖
+# 4. 配置环境变量
+cp .env.example .env
+# 默认 EMBED_BACKEND=ollama，无需 API Key
+
+# 5. 安装依赖
 pnpm install
 
-# 5. 启动
+# 6. 启动
 pnpm dev
 ```
 
@@ -66,9 +73,12 @@ pnpm dev
 | 变量 | 必填 | 说明 |
 |------|------|------|
 | `DATA_PLATFORM_DATABASE_URL` | 是 | PostgreSQL 连接（独立数据库，不共享父项目） |
-| `OPENAI_API_KEY` | 是 | OpenAI API Key（Embedding 生成） |
+| `EMBED_BACKEND` | 否 | ollama（默认）/ voyage / openai |
+| `EMBED_API_URL` | 否 | Embedding 服务地址（默认 `http://localhost:11434`） |
 | `OPENALEX_API_KEY` | 否 | OpenAlex API Key（无 Key 可用但速率低） |
 | `PORT` | 否 | 服务端口（默认 3400） |
+
+默认使用 **bge-m3**（Ollama 本地），无需任何外部 API Key。
 
 ## CLI
 

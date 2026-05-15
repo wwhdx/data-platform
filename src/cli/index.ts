@@ -301,10 +301,16 @@ function printHelp() {
     --json                   JSON 格式输出
 
 环境变量:
-  DATA_PLATFORM_DATABASE_URL   数据库连接（migrate 命令必填）
+  DATA_PLATFORM_DATABASE_URL   数据库连接（migrate 必填）
   DATA_PLATFORM_URL            API 地址 (默认: http://localhost:3400)
-  OPENAI_API_KEY               OpenAI API Key
+  EMBED_BACKEND                ollama (默认) / voyage / openai
+  EMBED_API_URL                Embedding 服务地址 (默认: http://localhost:11434)
   OPENALEX_API_KEY             OpenAlex API Key
+
+Embedding 后端:
+  ollama (默认)   本地 bge-m3，免费，中英跨语言最优
+  voyage          Voyage AI voyage-3-large，学术文本强 ($0.06/M)
+  openai          OpenAI text-embedding-3-small ($0.02/M)
 
 示例:
   data-platform-cli search --query "transformer attention"
