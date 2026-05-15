@@ -4,4 +4,4 @@ export type { EmbedResult } from "./embed";
 export { embedDocuments, semanticSearch } from "./vectorStore";
 export type { DocumentChunk } from "./vectorStore";
 
-export { hybridSearch } from "./retriever";
+export { hybridSearch, fuse } from "./retriever";

@@ -12,9 +12,9 @@ import type { InternalSearchHit } from "../storage/models/rawDocument";
 /**
  * RRF 融合：rank = 1/(k + position)，k 默认 60。
  */
-function fuse(
+export function fuse(
   semantic: Array<{ docId: number; similarity: number }>,
-  keywordHits: InternalSearchHit[],
+  keywordHits: Array<{ docId: number; score?: number }>,
   k: number = 60,
 ): Map<number, number> {
   const scores = new Map<number, number>();
