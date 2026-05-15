@@ -4,9 +4,13 @@ let pool: Pool | null = null;
 
 export function getPool(): Pool {
   if (!pool) {
-    const url = process.env.DATA_PLATFORM_DATABASE_URL
-      ?? process.env.DATABASE_URL
-      ?? "postgresql://lumina:lumina_pass@localhost:5432/data_platform";
+    const url = process.env.DATA_PLATFORM_DATABASE_URL;
+    if (!url) {
+      throw new Error(
+        "DATA_PLATFORM_DATABASE_URL is required. " +
+        "Example: postgresql://user:pass@localhost:5432/data_platform"
+      );
+    }
 
     pool = new Pool({
       connectionString: url,

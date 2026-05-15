@@ -134,16 +134,37 @@ export class XxxConnector extends BaseConnector {
 }
 ```
 
+## 数据库
+
+**独立数据库，禁止使用父项目 `lumina_dev` 数据库。**
+
+```bash
+# 创建数据库
+psql -U lumina -h localhost -c "CREATE DATABASE data_platform OWNER lumina;"
+
+# 执行迁移
+psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.sql
+```
+
+## 环境变量
+
+| 变量 | 必须 | 说明 |
+|------|------|------|
+| `DATA_PLATFORM_DATABASE_URL` | 是 | 独立数据库，不共享父项目 |
+| `OPENALEX_API_KEY` | 否 | OpenAlex API Key（无 Key 可用但速率低） |
+| `PORT` | 否 | 服务端口（默认 3400） |
+
+**禁止从父项目 `DATABASE_URL` 回退**——`db.ts` 只读 `DATA_PLATFORM_DATABASE_URL`。
+
 ## 常用命令
 
 ```bash
-pnpm dev                  # 开发服务器（tsx watch）
-pnpm build                # TypeScript 编译
-pnpm exec tsc --noEmit    # 类型检查
-pnpm test                 # 运行测试
-pnpm test -- --run        # 单次运行
-pnpm db:migrate           # 数据库迁移
-pnpm db:studio            # Prisma Studio
+pnpm dev                   # 开发服务器（tsx watch src/index.ts）
+pnpm build                 # TypeScript 编译
+pnpm exec tsc --noEmit     # 类型检查
+pnpm test                  # 运行测试
+pnpm test -- --run         # 单次运行
+psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.sql  # 执行迁移
 ```
 
 ## Commit 铁律
