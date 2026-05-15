@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS document_chunks (
     doc_id BIGINT NOT NULL REFERENCES raw_documents(id) ON DELETE CASCADE,
     chunk_index INTEGER NOT NULL DEFAULT 0,
     text TEXT NOT NULL,
-    embedding vector(1536),
+    embedding vector(1024),
     embedding_model TEXT NOT NULL DEFAULT 'text-embedding-3-small',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE(doc_id, chunk_index)

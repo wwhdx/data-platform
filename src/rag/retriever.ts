@@ -38,12 +38,11 @@ function fuse(
 export async function hybridSearch(
   searchQuery: string,
   opts?: SearchOptions,
-  embedOpts?: { apiKey?: string },
 ): Promise<SearchResult[]> {
   const topK = opts?.maxResults ?? 10;
 
   const [queryVec, keywordHits] = await Promise.all([
-    embedQuery(searchQuery, embedOpts).catch(() => null),
+    embedQuery(searchQuery).catch(() => null),
     keywordSearch(searchQuery, { maxResults: 50 }).catch(() => [] as InternalSearchHit[]),
   ]);
 

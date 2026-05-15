@@ -3,7 +3,7 @@
  */
 
 import { query } from "../storage/db";
-import { embedBatch, EMBEDDING_MODEL } from "./embed";
+import { embedBatch, getEmbeddingModel } from "./embed";
 
 export interface DocumentChunk {
   id?: number;
@@ -20,7 +20,6 @@ export interface DocumentChunk {
  */
 export async function embedDocuments(
   docs: Array<{ id: number; title: string; abstract: string }>,
-  opts?: { apiKey?: string },
 ): Promise<number> {
   if (docs.length === 0) return 0;
 
@@ -31,8 +30,8 @@ export async function embedDocuments(
     return parts.join("\n\n");
   });
 
-  // 批量生成 embedding
-  const results = await embedBatch(texts, opts);
+  // 批量生成 embedding（后端由 EMBED_BACKEND 环境变量决定）
+  const results = await embedBatch(texts, "document");
 
   // 批量写入 document_chunks
   const values: string[] = [];
@@ -45,7 +44,7 @@ export async function embedDocuments(
       0, // chunk_index: MVP 每个文档只有一个 chunk
       texts[i]!,
       `[${results[i]!.embedding.join(",")}]`,
-      EMBEDDING_MODEL,
+      getEmbeddingModel(),
     );
   }
 

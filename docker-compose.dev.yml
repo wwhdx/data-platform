@@ -24,6 +24,33 @@ services:
       timeout: 5s
       retries: 5
 
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    networks:
+      - dp-network
+    volumes:
+      - dev_ollama_models:/root/.ollama
+    ports:
+      - "11434:11434"
+
+  ollama-init:
+    image: ollama/ollama:latest
+    networks:
+      - dp-network
+    volumes:
+      - dev_ollama_models:/root/.ollama
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Pulling bge-m3..."
+        ollama serve &
+        sleep 5
+        ollama pull bge-m3
+        echo "bge-m3 ready"
+    depends_on:
+      - ollama
+
   app:
     build:
       context: .
@@ -37,13 +64,17 @@ services:
       - ./src:/app/src
     environment:
       DATA_PLATFORM_DATABASE_URL: postgresql://lumina:lumina_pass@db:5432/data_platform
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      EMBED_BACKEND: ollama
+      EMBED_API_URL: http://ollama:11434
       OPENALEX_API_KEY: ${OPENALEX_API_KEY:-}
       NODE_ENV: development
       PORT: "3400"
     depends_on:
       db:
         condition: service_healthy
+      ollama-init:
+        condition: service_completed_successfully
 
 volumes:
   dev_pgdata:
+  dev_ollama_models:

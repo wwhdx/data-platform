@@ -1,10 +1,59 @@
 /**
- * Embedding 生成（OpenAI text-embedding-3-small）。
- * 1536 维，$0.02/1M tokens，适合 MVP。
+ * Embedding 生成 —— 多后端支持。
+ *
+ * 后端     默认模型             维度   认证
+ * ollama   bge-m3               1024   无需
+ * openai   text-embedding-3-small 1536  OPENAI_API_KEY
+ * voyage   voyage-3-large       1024   VOYAGE_API_KEY
+ *
+ * 环境变量：
+ *   EMBED_BACKEND=ollama|openai|voyage (default: ollama)
+ *   EMBED_MODEL=<model>              (可选，覆盖默认模型)
+ *   EMBED_API_URL=<url>              (Ollama: http://ollama:11434, OpenAI/Voyage 自动)
+ *   EMBED_API_KEY=<key>              (OpenAI/Voyage 必填)
  */
 
-const EMBEDDING_MODEL = "text-embedding-3-small";
-const EMBEDDING_DIMENSIONS = 1536;
+type Backend = "ollama" | "openai" | "voyage";
+
+interface BackendConfig {
+  backend: Backend;
+  model: string;
+  baseUrl: string;
+  apiKey: string;
+  dimensions: number;
+}
+
+function getConfig(): BackendConfig {
+  const backend = (process.env.EMBED_BACKEND ?? "ollama") as Backend;
+
+  switch (backend) {
+    case "openai":
+      return {
+        backend: "openai",
+        model: process.env.EMBED_MODEL ?? "text-embedding-3-small",
+        baseUrl: process.env.EMBED_API_URL ?? "https://api.openai.com/v1",
+        apiKey: process.env.EMBED_API_KEY ?? process.env.OPENAI_API_KEY ?? "",
+        dimensions: 1536,
+      };
+    case "voyage":
+      return {
+        backend: "voyage",
+        model: process.env.EMBED_MODEL ?? "voyage-3-large",
+        baseUrl: process.env.EMBED_API_URL ?? "https://api.voyageai.com/v1",
+        apiKey: process.env.EMBED_API_KEY ?? process.env.VOYAGE_API_KEY ?? "",
+        dimensions: 1024,
+      };
+    case "ollama":
+    default:
+      return {
+        backend: "ollama",
+        model: process.env.EMBED_MODEL ?? "bge-m3",
+        baseUrl: process.env.EMBED_API_URL ?? "http://localhost:11434",
+        apiKey: "", // Ollama 无需认证
+        dimensions: 1024,
+      };
+  }
+}
 
 export interface EmbedResult {
   embedding: number[];
@@ -12,66 +61,159 @@ export interface EmbedResult {
   dimensions: number;
 }
 
-/**
- * 生成单个查询的 embedding。
- */
-export async function embedQuery(
-  text: string,
-  opts?: { apiKey?: string; baseUrl?: string },
-): Promise<EmbedResult> {
-  return embed(text, opts);
+// ── 公开 API ──
+
+export async function embedQuery(text: string): Promise<EmbedResult> {
+  return embedSingle(text, "query");
 }
 
-/**
- * 批量生成 embedding。
- * 先截断超长文本（8192 token 上限 ≈ 32000 字符）。
- */
 export async function embedBatch(
   texts: string[],
-  opts?: { apiKey?: string; baseUrl?: string },
+  inputType: "document" | "query" = "document",
 ): Promise<EmbedResult[]> {
-  const apiKey = opts?.apiKey ?? process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("OPENAI_API_KEY is required for embedding");
+  if (texts.length === 0) return [];
 
-  const baseUrl = opts?.baseUrl ?? "https://api.openai.com/v1";
+  const cfg = getConfig();
+
+  switch (cfg.backend) {
+    case "ollama":
+      return embedBatchOllama(cfg, texts);
+    case "openai":
+      return embedBatchOpenAI(cfg, texts);
+    case "voyage":
+      return embedBatchVoyage(cfg, texts, inputType);
+    default:
+      throw new Error(`Unknown embed backend: ${cfg.backend}`);
+  }
+}
+
+export function getEmbeddingModel(): string {
+  return getConfig().model;
+}
+
+export function getEmbeddingDimensions(): number {
+  return getConfig().dimensions;
+}
+
+// ── 后端实现 ──
+
+async function embedSingle(text: string, inputType: "document" | "query"): Promise<EmbedResult> {
+  const results = await embedBatch([text], inputType);
+  return results[0]!;
+}
+
+// ── Ollama ────────────────────────────────────────────
+
+async function embedBatchOllama(cfg: BackendConfig, texts: string[]): Promise<EmbedResult[]> {
+  const results: EmbedResult[] = [];
+
+  // Ollama 不支持 batch，逐条发送（限并发 4）
+  const concurrency = 4;
+  for (let i = 0; i < texts.length; i += concurrency) {
+    const batch = texts.slice(i, i + concurrency);
+    const batchResults = await Promise.all(
+      batch.map(t => ollamaEmbed(cfg, t)),
+    );
+    results.push(...batchResults);
+  }
+
+  return results;
+}
+
+async function ollamaEmbed(cfg: BackendConfig, text: string): Promise<EmbedResult> {
+  const truncated = text.slice(0, 8192);
+
+  const res = await fetch(`${cfg.baseUrl}/api/embeddings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model: cfg.model, prompt: truncated }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Ollama embedding error ${res.status}: ${err}`);
+  }
+
+  const data = await res.json() as { embedding: number[] };
+  return {
+    embedding: data.embedding,
+    model: cfg.model,
+    dimensions: cfg.dimensions,
+  };
+}
+
+// ── OpenAI ────────────────────────────────────────────
+
+async function embedBatchOpenAI(cfg: BackendConfig, texts: string[]): Promise<EmbedResult[]> {
+  if (!cfg.apiKey) throw new Error("EMBED_API_KEY or OPENAI_API_KEY is required for OpenAI backend");
 
   const truncated = texts.map(t => t.slice(0, 32000));
 
-  const res = await fetch(`${baseUrl}/embeddings`, {
+  const res = await fetch(`${cfg.baseUrl}/embeddings`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
+      "Authorization": `Bearer ${cfg.apiKey}`,
     },
     body: JSON.stringify({
-      model: EMBEDDING_MODEL,
+      model: cfg.model,
       input: truncated,
-      dimensions: EMBEDDING_DIMENSIONS,
+      dimensions: cfg.dimensions,
     }),
   });
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`Embedding API error ${res.status}: ${err}`);
+    throw new Error(`OpenAI embedding error ${res.status}: ${err}`);
   }
 
   const data = await res.json() as {
-    data: Array<{ embedding: number[]; index: number }>;
+    data: Array<{ embedding: number[] }>;
   };
 
   return data.data.map(d => ({
     embedding: d.embedding,
-    model: EMBEDDING_MODEL,
-    dimensions: EMBEDDING_DIMENSIONS,
+    model: cfg.model,
+    dimensions: cfg.dimensions,
   }));
 }
 
-async function embed(
-  text: string,
-  opts?: { apiKey?: string; baseUrl?: string },
-): Promise<EmbedResult> {
-  const results = await embedBatch([text], opts);
-  return results[0]!;
-}
+// ── Voyage AI ─────────────────────────────────────────
 
-export { EMBEDDING_MODEL, EMBEDDING_DIMENSIONS };
+async function embedBatchVoyage(
+  cfg: BackendConfig,
+  texts: string[],
+  inputType: "document" | "query",
+): Promise<EmbedResult[]> {
+  if (!cfg.apiKey) throw new Error("EMBED_API_KEY or VOYAGE_API_KEY is required for Voyage backend");
+
+  const truncated = texts.map(t => t.slice(0, 32000));
+
+  const res = await fetch(`${cfg.baseUrl}/embeddings`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${cfg.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: cfg.model,
+      input: truncated,
+      input_type: inputType,  // Voyage 特有：区分 query 和 document
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Voyage embedding error ${res.status}: ${err}`);
+  }
+
+  const data = await res.json() as {
+    data: Array<{ embedding: number[] }>;
+  };
+
+  return data.data.map(d => ({
+    embedding: d.embedding,
+    model: cfg.model,
+    dimensions: cfg.dimensions,
+  }));
+}

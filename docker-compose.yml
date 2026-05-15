@@ -24,6 +24,41 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Ollama (本地 Embedding) ──────────────
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    networks:
+      - dp-network
+    volumes:
+      - ollama_models:/root/.ollama
+    ports:
+      - "11434:11434"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ── 模型拉取（一次性）────────────────────
+  ollama-init:
+    image: ollama/ollama:latest
+    networks:
+      - dp-network
+    volumes:
+      - ollama_models:/root/.ollama
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Pulling bge-m3..."
+        ollama serve &
+        sleep 5
+        ollama pull bge-m3
+        echo "bge-m3 ready"
+    depends_on:
+      - ollama
+
   # ── data-platform API 服务 ────────────────
   app:
     build:
@@ -36,13 +71,17 @@ services:
       - dp-network
     environment:
       DATA_PLATFORM_DATABASE_URL: postgresql://lumina:lumina_pass@db:5432/data_platform
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      EMBED_BACKEND: ollama
+      EMBED_API_URL: http://ollama:11434
       OPENALEX_API_KEY: ${OPENALEX_API_KEY:-}
       NODE_ENV: production
       PORT: "3400"
     depends_on:
       db:
         condition: service_healthy
+      ollama-init:
+        condition: service_completed_successfully
 
 volumes:
   pgdata:
+  ollama_models:
