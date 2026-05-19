@@ -10,6 +10,16 @@ export interface CollectAllSkipped {
   reason: string;
 }
 
+/** 单次采集任务汇总（L1：进度/CLI；L2 将持久化至 collection_jobs.stats） */
+export interface CollectJobStats {
+  fetched: number;
+  inserted: number;
+  skippedDuplicate: number;
+  since: string;
+  query?: string;
+  batchCount?: number;
+}
+
 export type CollectProgressReporter = (event: CollectProgressEvent) => void;
 
 export type CollectProgressEvent =
@@ -28,9 +38,13 @@ export type CollectProgressEvent =
       sourceId: string;
       jobId: number;
       fetched: number;
+      /** 累计新入库条数（与 inserted 相同，保留兼容旧 CLI） */
       itemsCollected: number;
+      inserted: number;
+      skippedDuplicate: number;
+      batchIndex?: number;
     }
-  | { type: "source_done"; job: CollectionJob }
+  | { type: "source_done"; job: CollectionJob; stats: CollectJobStats }
   | {
       type: "source_failed";
       sourceId: string;

@@ -97,6 +97,15 @@ type CollectProgressEvent = {
   query?: string;
   fetched?: number;
   itemsCollected?: number;
+  inserted?: number;
+  skippedDuplicate?: number;
+  stats?: {
+    fetched: number;
+    inserted: number;
+    skippedDuplicate: number;
+    since?: string;
+    query?: string;
+  };
   job?: Record<string, unknown>;
   error?: string;
   reason?: string;
@@ -353,8 +362,10 @@ function printCollectProgressEvent(ev: CollectProgressEvent, jsonOutput: boolean
       );
       break;
     case "progress": {
-      const line = `  · ${ev.sourceId}  已抓取 ${ev.fetched ?? 0}，新入库 ${ev.itemsCollected ?? 0}`;
-      process.stdout.write(`\r${line.padEnd(72)}`);
+      const inserted = ev.inserted ?? ev.itemsCollected ?? 0;
+      const skipped = ev.skippedDuplicate ?? 0;
+      const line = `  · ${ev.sourceId}  已抓取 ${ev.fetched ?? 0}，新入库 ${inserted}，重复跳过 ${skipped}`;
+      process.stdout.write(`\r${line.padEnd(88)}`);
       progressLineActive = true;
       break;
     }
@@ -362,6 +373,15 @@ function printCollectProgressEvent(ev: CollectProgressEvent, jsonOutput: boolean
       clearProgressLine();
       const job = ev.job ?? {};
       printCollectJobLine(job);
+      const stats = ev.stats;
+      if (stats && stats.fetched > 0) {
+        console.log(
+          `     抓取 ${stats.fetched}，新入库 ${stats.inserted}，重复跳过 ${stats.skippedDuplicate}`,
+        );
+        if (stats.inserted === 0 && stats.skippedDuplicate > 0) {
+          console.log("     （库内已有相同 external_id，属正常去重）");
+        }
+      }
       break;
     }
     case "source_failed":

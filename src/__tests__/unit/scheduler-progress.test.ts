@@ -34,7 +34,7 @@ describe("Scheduler collect progress", () => {
   });
 
   it("emits source_start and source_done", async () => {
-    const events: string[] = [];
+    const events: Array<{ type: string; skippedDuplicate?: number }> = [];
     const scheduler = new Scheduler();
 
     scheduler.registerConnector({
@@ -57,10 +57,54 @@ describe("Scheduler collect progress", () => {
     });
 
     await scheduler.trigger("openalex", "", {
-      onProgress: (ev) => events.push(ev.type),
+      onProgress: (ev) => events.push({ type: ev.type, skippedDuplicate: ev.type === "progress" ? ev.skippedDuplicate : undefined }),
     });
 
-    expect(events).toContain("source_start");
-    expect(events).toContain("source_done");
+    expect(events.map((e) => e.type)).toContain("source_start");
+    expect(events.map((e) => e.type)).toContain("source_done");
+  });
+
+  it("progress includes skippedDuplicate from dedup", async () => {
+    vi.mocked(dedup).mockResolvedValue({ newDocs: [], skippedCount: 3 });
+
+    const progressEvents: Array<{ skippedDuplicate: number; inserted: number }> = [];
+    const scheduler = new Scheduler();
+
+    scheduler.registerConnector({
+      id: "openalex",
+      create: () =>
+        ({
+          meta: { id: "openalex" },
+          search: async () => [],
+          collect(_params: CollectParams) {
+            return (async function* () {
+              for (let i = 0; i < 3; i++) {
+                yield {
+                  sourceId: "openalex",
+                  externalId: `W${i}`,
+                  rawJson: {},
+                  fetchedAt: new Date(),
+                };
+              }
+            })();
+          },
+        }) as import("../../types").Connector,
+    });
+
+    await scheduler.trigger("openalex", "", {
+      onProgress: (ev) => {
+        if (ev.type === "progress") {
+          progressEvents.push({
+            skippedDuplicate: ev.skippedDuplicate,
+            inserted: ev.inserted,
+          });
+        }
+      },
+    });
+
+    expect(progressEvents.length).toBeGreaterThan(0);
+    const last = progressEvents[progressEvents.length - 1]!;
+    expect(last.skippedDuplicate).toBe(3);
+    expect(last.inserted).toBe(0);
   });
 });

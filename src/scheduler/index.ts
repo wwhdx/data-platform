@@ -1,6 +1,6 @@
 import cron from "node-cron";
 import type { CollectionJob, RawDocument } from "../types";
-import type { CollectProgressReporter } from "./progress";
+import type { CollectJobStats, CollectProgressReporter } from "./progress";
 import { throttledProgress } from "./progress";
 import { createCollectionJob, updateCollectionJob } from "../storage/models/collectionJob";
 import {
@@ -114,13 +114,25 @@ export class Scheduler {
       query: collectQuery || undefined,
     });
 
+    let inserted = 0;
+    let skippedDuplicate = 0;
+    let fetched = 0;
+    let batchCount = 0;
+
     try {
       await touchScheduleRunStart(sourceId);
       const connector = factory.create();
-      let total = 0;
-      let fetched = 0;
       const BUFFER_SIZE = 200;
       const buffer: RawDocument[] = [];
+
+      const buildStats = (): CollectJobStats => ({
+        fetched,
+        inserted,
+        skippedDuplicate,
+        since,
+        query: collectQuery || undefined,
+        batchCount,
+      });
 
       const emitProgress = () => {
         report?.({
@@ -128,7 +140,10 @@ export class Scheduler {
           sourceId,
           jobId: job.id,
           fetched,
-          itemsCollected: total,
+          itemsCollected: inserted,
+          inserted,
+          skippedDuplicate,
+          batchIndex: batchCount,
         });
       };
 
@@ -140,32 +155,47 @@ export class Scheduler {
         fetched++;
 
         if (buffer.length >= BUFFER_SIZE) {
-          const { newDocs } = await dedup(buffer);
-          total += newDocs.length;
+          const { newDocs, skippedCount } = await dedup(buffer);
+          inserted += newDocs.length;
+          skippedDuplicate += skippedCount;
+          batchCount++;
           buffer.length = 0;
-          await updateCollectionJob(job.id, { itemsCollected: total });
+          await updateCollectionJob(job.id, { itemsCollected: inserted });
           emitProgress();
         }
       }
 
       if (buffer.length > 0) {
-        const { newDocs } = await dedup(buffer);
-        total += newDocs.length;
+        const { newDocs, skippedCount } = await dedup(buffer);
+        inserted += newDocs.length;
+        skippedDuplicate += skippedCount;
+        batchCount++;
       }
 
-      await updateCollectionJob(job.id, { status: "success", itemsCollected: total });
+      await updateCollectionJob(job.id, { status: "success", itemsCollected: inserted });
       await markScheduleCollectionSuccess(sourceId);
       job.status = "success";
-      job.itemsCollected = total;
+      job.itemsCollected = inserted;
       emitProgress();
-      report?.({ type: "source_done", job });
+      report?.({ type: "source_done", job, stats: buildStats() });
       return job;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       await updateCollectionJob(job.id, { status: "failed", errorMessage: msg });
       job.status = "failed";
       job.errorMessage = msg;
-      report?.({ type: "source_done", job });
+      report?.({
+        type: "source_done",
+        job,
+        stats: {
+          fetched,
+          inserted,
+          skippedDuplicate,
+          since,
+          query: collectQuery || undefined,
+          batchCount,
+        },
+      });
       return job;
     }
   }
