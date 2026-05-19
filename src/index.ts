@@ -1,3 +1,4 @@
+import "./config/loadEnv";
 import { createServer } from "./api/server";
 import { Scheduler } from "./scheduler";
 import {

@@ -59,6 +59,7 @@ ollama serve                # 启动 Ollama 服务（默认 :11434）
 # 4. 配置环境变量
 cp .env.example .env
 # 默认 EMBED_BACKEND=ollama，无需 API Key
+# pnpm cli / pnpm dev 启动时会自动加载项目根目录 .env（仅此文件）
 
 # 5. 安装依赖
 pnpm install
@@ -68,6 +69,8 @@ pnpm dev
 ```
 
 ## 环境变量
+
+`pnpm cli` 与 `pnpm dev` 会在启动时读取**项目根目录**下的 `.env`（不加载 `.env.local` 等其它文件）；文件中定义的键会写入 `process.env` 并覆盖同名 shell 变量。无 `.env` 时行为与改前相同，仍可使用 shell `export`。
 
 | 变量 | 必填 | 说明 |
 |------|------|------|
@@ -97,8 +100,8 @@ pnpm cli collect --all
 # 信息查询
 pnpm cli sources          # 数据源列表
 pnpm cli jobs --limit 10  # 采集任务历史
-pnpm cli schedules       # cron 调度计划（YAML + 下次执行 + 可选 DB）
-pnpm cli schedules --live  # 对照运行中 Scheduler（需 API）
+pnpm cli schedules       # cron 调度（YAML + 运行中 Scheduler 对照；API 不可达 exit 1）
+pnpm cli schedules --offline  # 仅 YAML，不请求 API
 pnpm cli stats             # 统计信息
 pnpm cli health --json     # 健康检查
 

@@ -50,7 +50,7 @@ fi
 
 echo "== L2: CLI 探活 =="
 pnpm cli health --json
-pnpm cli schedules --live --json | head -c 500
+pnpm cli schedules --json | head -c 500
 echo ""
 pnpm cli search --query "machine learning" --max-results 3 --json | head -c 800
 echo ""

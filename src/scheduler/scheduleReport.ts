@@ -25,14 +25,21 @@ export interface ScheduleReportRow {
   skipReason?: ScheduleSkipReason;
   nextRunAt?: string | null;
   liveActive?: boolean;
+  liveCronExpr?: string | null;
   lastJob?: ScheduleLastJob;
 }
 
 export interface ScheduleDriftWarning {
   sourceId: string;
-  kind: "config_active_not_live" | "live_not_config_active";
+  kind:
+    | "config_active_not_live"
+    | "live_not_config_active"
+    | "cron_expr_mismatch";
   message: string;
 }
+
+/** 运行中 Scheduler 的 sourceId → cronExpr */
+export type LiveScheduleMap = ReadonlyMap<string, string>;
 
 export function resolveScheduleStatus(
   source: { id: string; enabled: boolean; schedule?: string },
@@ -94,15 +101,16 @@ export function attachNextRunTimes(
   });
 }
 
-/** 对照运行中 Scheduler，标记 liveActive 并检测配置漂移 */
+/** 对照运行中 Scheduler，标记 liveActive 并检测 YAML 漂移 */
 export function detectScheduleDrift(
   report: ScheduleReportRow[],
-  liveSourceIds: ReadonlySet<string>,
+  liveSchedules: LiveScheduleMap,
 ): { report: ScheduleReportRow[]; drift: ScheduleDriftWarning[] } {
   const drift: ScheduleDriftWarning[] = [];
 
   const merged = report.map((row) => {
-    const liveActive = liveSourceIds.has(row.sourceId);
+    const liveCronExpr = liveSchedules.get(row.sourceId);
+    const liveActive = liveCronExpr !== undefined;
 
     if (row.status === "active" && !liveActive) {
       drift.push({
@@ -118,8 +126,21 @@ export function detectScheduleDrift(
         message: "运行中 Scheduler 仍在 cron，但 YAML 已 skip（需 restart app）",
       });
     }
+    if (
+      row.status === "active" &&
+      liveActive &&
+      row.cronExpr &&
+      liveCronExpr &&
+      row.cronExpr !== liveCronExpr
+    ) {
+      drift.push({
+        sourceId: row.sourceId,
+        kind: "cron_expr_mismatch",
+        message: `YAML cron「${row.cronExpr}」≠ 运行中「${liveCronExpr}」（需 restart app）`,
+      });
+    }
 
-    return { ...row, liveActive };
+    return { ...row, liveActive, liveCronExpr: liveActive ? liveCronExpr : null };
   });
 
   return { report: merged, drift };

@@ -76,7 +76,7 @@ describe("detectScheduleDrift", () => {
       },
     ];
 
-    const { drift, report } = detectScheduleDrift(rows, new Set());
+    const { drift, report } = detectScheduleDrift(rows, new Map());
     expect(drift).toHaveLength(1);
     expect(drift[0]!.kind).toBe("config_active_not_live");
     expect(report[0]!.liveActive).toBe(false);
@@ -94,8 +94,32 @@ describe("detectScheduleDrift", () => {
       },
     ];
 
-    const { drift } = detectScheduleDrift(rows, new Set(["worldbank"]));
+    const { drift } = detectScheduleDrift(
+      rows,
+      new Map([["worldbank", "0 4 * * 0"]]),
+    );
     expect(drift).toHaveLength(1);
     expect(drift[0]!.kind).toBe("live_not_config_active");
+  });
+
+  it("flags cron expression mismatch", () => {
+    const rows: ScheduleReportRow[] = [
+      {
+        sourceId: "openalex",
+        yamlEnabled: true,
+        hasConnector: true,
+        cronExpr: "0 7 * * *",
+        status: "active",
+      },
+    ];
+
+    const { drift, report } = detectScheduleDrift(
+      rows,
+      new Map([["openalex", "0 2 * * *"]]),
+    );
+    expect(drift).toHaveLength(1);
+    expect(drift[0]!.kind).toBe("cron_expr_mismatch");
+    expect(report[0]!.liveActive).toBe(true);
+    expect(report[0]!.liveCronExpr).toBe("0 2 * * *");
   });
 });

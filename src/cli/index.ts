@@ -9,6 +9,7 @@
  *   npx tsx src/cli/index.ts health
  */
 
+import "../config/loadEnv";
 import * as fs from "fs";
 import * as path from "path";
 import type { CollectionJob, SearchRequest } from "../types";
@@ -311,30 +312,47 @@ function formatNextRunSummary(nextRunAt: string | null | undefined): string {
   return nextRunAt.slice(0, 19).replace("T", " ");
 }
 
+function formatLiveScheduleSuffix(
+  row: import("../scheduler/scheduleReport").ScheduleReportRow,
+): string {
+  if (row.liveActive === undefined) return "";
+  if (!row.liveActive) return "  [not live]";
+  if (
+    row.liveCronExpr &&
+    row.cronExpr &&
+    row.liveCronExpr !== row.cronExpr
+  ) {
+    return `  [live: ${row.liveCronExpr}]`;
+  }
+  return "  [live]";
+}
+
 function printScheduleReport(
   report: import("../scheduler/scheduleReport").ScheduleReportRow[],
   opts: {
     mode: "config" | "live";
     configPath: string;
     jobsAttached: boolean;
+    apiReachable: boolean;
+    apiWarning?: string;
     drift?: import("../scheduler/scheduleReport").ScheduleDriftWarning[];
   },
 ): void {
   const activeCount = report.filter((r) => r.status === "active").length;
+  const modeLabel = opts.apiReachable
+    ? "live（已对照运行中 Scheduler）"
+    : opts.apiWarning
+      ? `config（API 不可达: ${opts.apiWarning}）`
+      : "config（--offline，未请求 API）";
   console.log(
-    `调度计划 (${opts.configPath}) · mode: ${opts.mode} · ${activeCount} 个 active cron\n`,
+    `调度计划 (${opts.configPath}) · ${modeLabel} · ${activeCount} 个 YAML active cron\n`,
   );
 
   for (const row of report) {
     const icon = row.status === "active" ? "✅" : "⏸ ";
     const cron = row.cronExpr ?? "—";
     const skip = row.skipReason ? `  skip: ${row.skipReason}` : "";
-    const live =
-      opts.mode === "live" && row.liveActive !== undefined
-        ? row.liveActive
-          ? "  [live]"
-          : "  [not live]"
-        : "";
+    const live = formatLiveScheduleSuffix(row);
     console.log(`  ${icon} ${row.sourceId.padEnd(18)} cron ${cron}${skip}${live}`);
     console.log(`     下次执行: ${formatNextRunSummary(row.nextRunAt)}`);
     console.log(`     上次采集: ${formatLastJobSummary(row.lastJob)}`);
@@ -395,7 +413,8 @@ async function buildConfigScheduleReport(configPath: string) {
 async function cmdSchedules(args: string[]) {
   const opts = parseArgs(args);
   const jsonOutput = opts.json === "true";
-  const liveMode = opts.live === "true";
+  const offlineMode =
+    opts.offline === "true" || opts["config-only"] === "true";
   const configPath = DEFAULT_CONFIG_PATH;
 
   const { detectScheduleDrift } = await import("../scheduler/scheduleReport");
@@ -411,22 +430,30 @@ async function cmdSchedules(args: string[]) {
   }
 
   let mode: "config" | "live" = "config";
+  let apiReachable = false;
+  let apiWarning: string | undefined;
   let drift: import("../scheduler/scheduleReport").ScheduleDriftWarning[] = [];
 
-  if (liveMode) {
-    mode = "live";
+  if (!offlineMode) {
     try {
       const live = await apiGet<{
         mode: string;
         active: Array<{ sourceId: string; cronExpr: string }>;
       }>("/api/admin/schedules");
-      const liveIds = new Set(live.active.map((a) => a.sourceId));
-      const result = detectScheduleDrift(report, liveIds);
+      const liveMap = new Map(
+        live.active.map((a) => [a.sourceId, a.cronExpr] as const),
+      );
+      const result = detectScheduleDrift(report, liveMap);
       report = result.report;
       drift = result.drift;
+      mode = "live";
+      apiReachable = true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`❌ live 模式需要 API 已启动: ${msg}`);
+      console.error(
+        `❌ 无法连接运行中 Scheduler（${getBaseUrl()}）: ${msg}`,
+      );
+      console.error("   请先启动 serve，或使用 --offline 仅查看 YAML");
       process.exit(1);
     }
   }
@@ -436,6 +463,8 @@ async function cmdSchedules(args: string[]) {
       JSON.stringify(
         {
           mode,
+          apiReachable,
+          apiWarning: apiWarning ?? null,
           configPath,
           jobsAttached,
           drift,
@@ -448,7 +477,14 @@ async function cmdSchedules(args: string[]) {
     return;
   }
 
-  printScheduleReport(report, { mode, configPath, jobsAttached, drift });
+  printScheduleReport(report, {
+    mode,
+    configPath,
+    jobsAttached,
+    apiReachable,
+    apiWarning,
+    drift,
+  });
 }
 
 const DEFAULT_CONFIG_PATH =
@@ -805,7 +841,7 @@ function printHelp() {
 命令（直连数据库 / 本地文件）:
   migrate   执行数据库迁移
   serve     启动 API 服务
-  schedules 查看 cron 调度计划（YAML；--live 需 API）
+  schedules 查看 cron 调度计划（需 API；不可达时 exit 1）
   config validate|sync|diff|export|profiles|list --by-profile
 
 选项:
@@ -828,7 +864,7 @@ function printHelp() {
 
   schedules:
     --source <id>[,id...]    仅显示指定源
-    --live                   对照运行中 Scheduler（需 API）
+    --offline                仅 YAML，不请求 API（跳过 live 对照）
     --json                   JSON 格式输出
 
   serve:
@@ -861,7 +897,7 @@ function printHelp() {
   data-platform collect --source openalex
   data-platform jobs --limit 10
   data-platform schedules
-  data-platform schedules --live
+  data-platform schedules --offline
   data-platform schedules --source openalex,crossref --json
   data-platform config list`);
 }
