@@ -53,7 +53,7 @@
 | **Source = 业务实例** | `id`、许可、商用、cron、enabled、源级 base_url 覆盖 |
 | **展开后真源不变** | DB 仍一行一 `source_id`；采集任务、RAG `sourceId` 不变 |
 | **优先级链不变** | `env > DB > YAML(展开后) > META`（见热更新方案 §6） |
-| **分类文档为目录** | profile id 与 [免费数据源接口分类分析](../knowledge/免费数据源接口分类分析.md) 章节一一对应 |
+| **分类文档为目录** | profile id 对齐 [免费数据源接口分类分析](../knowledge/免费数据源接口分类分析.md) 各章或子节；**允许一章多 profile**（如 §6 拆为 `rest_polite` / `rest_none`）、**允许 `extends`**（如 `ncbi_eutils`）；§7/§11 等待接入源再增 profile |
 
 ---
 
@@ -173,7 +173,7 @@ merged = { ...defaults（仅 timeout/ua 映射到 ConnectorConfig） }
 
 ## 5. interface_profiles 目录（与分类文档映射）
 
-> 真源对照：[免费数据源接口分类分析](../knowledge/免费数据源接口分类分析.md) 各章。下表为 **v1.1 首批 profile**（覆盖现有 `sources.yml` 11 源 + 预留）。
+> 真源对照：[免费数据源接口分类分析](../knowledge/免费数据源接口分类分析.md) 各章。下表为 **v1.1 首批 profile**（覆盖现有 `config/sources.yml` **12** 个逻辑源 + 预留）。
 
 | profile_id | 分类文档章节 | protocol | auth_type | 共享 base_url | 当前 sources |
 |------------|-------------|----------|-----------|---------------|--------------|
@@ -181,7 +181,8 @@ merged = { ...defaults（仅 timeout/ua 映射到 ConnectorConfig） }
 | `ncbi_eutils` | §2（PubMed 小节） | rest | query_param_key | `eutils.ncbi.nlm.nih.gov/...` | pubmed |
 | `rest_header_custom` | §3 Header Custom | rest | header_custom | — | semanticscholar, patentsview |
 | `rest_polite` | §6 礼貌标识 | rest | polite_id | — | crossref, sec_edgar |
-| `rest_none` | §6 无认证 | rest | none | — | worldbank, clinicaltrials, hackernews |
+| `rest_none` | §6 无认证 | rest | none | — | worldbank, clinicaltrials |
+| `firebase_rest` | §6（HN 小节） | firebase_rest | none | `hacker-news.firebaseio.com/v0/` | hackernews |
 | `rest_bearer` | §4 Bearer | rest | header_bearer | — | github |
 | `arxiv_legacy_rest` | §6 + arXiv | rest | none | `export.arxiv.org/api/query` | arxiv（Legacy；与 OAI 并存时拆 id） |
 | `oai_pmh` | §8 OAI-PMH | oai-pmh | none | `oaipmh.arxiv.org/oai` | （未来 arxiv_oai） |
@@ -228,13 +229,19 @@ ncbi_eutils:
 | B10.2 | `src/cli/index.ts` | `config validate`（仅校验 YAML，不连 DB） |
 | B10.3 | `src/cli/index.ts` | `config sync` / `diff` / `export`（承接原 B7，展开后 diff） |
 
-### Phase B11 — Connector 读 options（P1，与 B6 并行，~0.5 天）
+**B10.3 `config export`（v1.1 契约）**：
+
+- 写回 **分层** `config/sources.yml`（保留 `interface_profiles` + `sources[]`，**不**把 profile 字段拆平复制到每条 source）。
+- 自 DB 合并的列仅限展开后写入 `data_sources` 的字段：`name`、`base_url`、`auth_type`、`rate_limit`、`license`、`commercial_use`、`enabled`（→ YAML `enabled`）。
+- `diff` / `sync` 在内存中对 **展开后扁平** 视图与 DB 比较；与 [外部数据源配置热更新方案](./外部数据源配置热更新方案.md) §2.6 一致。
+
+### Phase B11 — Connector 读 options（P1；**统一原 B6**，~0.5 天）
 
 | 步骤 | 文件 | 内容 |
 |------|------|------|
 | B11.1 | `src/config/runtime.ts` | 启动后 `sourceOptionsCache: Map<id, options>` |
 | B11.2 | `src/connectors/base.ts` | `resolveRuntimeConfig(sourceId)`：env > DB > expanded YAML > META |
-| B11.3 | `src/connectors/*.ts` | 逐步用 `resolved.baseUrl` 替代硬编码 `META.baseUrl`（B6） |
+| B11.3 | `src/connectors/*.ts` | 逐步用 `resolved.baseUrl` 替代硬编码 `META.baseUrl`（原 B6 范围，不另建 `resolveBaseUrl`） |
 
 ### Phase B12 — 文档与示例（P0，与本节同步 ✅）
 
@@ -257,9 +264,11 @@ B9 (expand + types + sources.yml v1.1)
   └── A6 (PubMed Connector)            ← 推荐 profile ncbi_eutils + options.entrez_db
 
 B6/B7（热更新 P1 原任务）与 B9–B11 可并行，但 config sync/diff 应在 B9 之后接展开逻辑。
+
+**B6 与 B11**：不并行维护两套合并逻辑；**以 B11 `resolveRuntimeConfig` 为唯一入口**（含 `base_url`），B6 任务编号保留用于排期对照。
 ```
 
-**建议实施顺序**：B12（文档）→ **B9** → B10 → B6+B11 → 新 Connector（A4/A6）。
+**建议实施顺序**：B12（文档）→ **B9** → B10 → **B11**（含原 B6）→ 新 Connector（A4/A6）。
 
 ---
 
@@ -268,7 +277,7 @@ B6/B7（热更新 P1 原任务）与 B9–B11 可并行，但 config sync/diff �
 ### 8.1 机械迁移步骤
 
 1. `version: "1.0"` → `"1.1"`。
-2. 从现有 11 条 source 提取共性 → 写入 `interface_profiles`（见 §5 表）。
+2. 从现有 **12** 条 source 提取共性 → 写入 `interface_profiles`（见 §5 表）。
 3. 每条 source 删除与 profile 重复的 `auth_type`（保留 `base_url` 若与 profile 不同）。
 4. 添加 `profile: <id>`。
 5. 运行 `pnpm cli config validate`（B10 落地后）。
@@ -327,7 +336,7 @@ psql ... -c "SELECT id, base_url, auth_type, status FROM data_sources ORDER BY i
 |--------|---------------------------------------------|------|
 | B9 | （新增） | interface_profile + expand |
 | B10 | B7 部分 | CLI sync/diff/export/validate |
-| B11 | B6 增强 | resolveRuntimeConfig + options |
+| B11 | B6 并入 | `resolveRuntimeConfig`（含 base_url + options）；不单独实现 `resolveBaseUrl` |
 | B12 | （新增） | 文档同步 |
 
 ---
@@ -339,3 +348,4 @@ psql ... -c "SELECT id, base_url, auth_type, status FROM data_sources ORDER BY i
 | v1.0 | 2026-05-19 | 初稿：Schema v1.1、profile 目录、B9–B12 分阶段、迁移与测试计划 |
 | v1.0.1 | 2026-05-19 | 文档迁至 `docs/plans/`；共识类保留 `docs/knowledge/` |
 | v1.0.2 | 2026-05-19 | 文首代码落地对照表；链至 [实施进度总览](./实施进度总览.md) |
+| v1.0.3 | 2026-05-19 | 勘误：12 源计数；§6 拆 profile 表述；`firebase_rest`+HN；B10 export 契约；B11 吞并 B6 |

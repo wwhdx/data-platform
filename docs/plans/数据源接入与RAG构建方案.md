@@ -22,7 +22,7 @@
 | Scheduler 批量 dedup | ✅ | 200 条缓冲 |
 | 分块存储 | ⚠️ MVP | 每文档 1 chunk（title + abstract） |
 | 富化流水线 | ❌ | enrich.ts / chunk.ts 未实现 |
-| Connector 覆盖 | 🟡 **3/11**（YAML 登记） | 运行时注册 openalex、crossref、worldbank；S2/PatentsView 仅 export 注释 |
+| Connector 覆盖 | 🟡 **3/12**（YAML 登记） | 运行时注册 openalex、crossref、worldbank；S2/PatentsView 仅 export 注释 |
 
 ### 1.2 当前采集流程（端到端）
 

@@ -12,7 +12,7 @@
 ```
 data-platform/
 ├── package.json              # pg + fastify + node-cron + js-yaml
-├── config/sources.yml        # 11 源 YAML v1.0（启动 syncToDb）
+├── config/sources.yml        # 12 源 YAML v1.0（启动 syncToDb）
 ├── docs/plans/               # 项目设计 + 实施进度总览
 ├── docs/knowledge/           # 共识知识（API 协议、接口分类）
 ├── docker-compose.yml        # db(:5433) + ollama + app
