@@ -219,8 +219,10 @@ GET  /recommendations/v1/papers/{id}     # 推荐
   ✅ Semantic Scholar ← abstract + tldr（A4；YAML 默认 disabled；`SEMANTIC_SCHOLAR_API_KEY`）
   ✅ arXiv OAI-PMH    ← `arxiv_oai` 采集 + Legacy Atom 搜索（A7；YAML enabled）
 
+  ✅ PatentsView       ← patentsview.ts（需 PATENTSVIEW_API_KEY；YAML 默认 disabled）
+  ✅ ClinicalTrials   ← clinicaltrials.ts（无 Key；YAML 默认 disabled）
+
 RAG 质量优先（按摘要可用性排序）：
-  P2  PatentsView       ← 专利摘要，技术趋势分析（原 arXiv P2 已落地）
 
 平台价值优先（业务联通）：
   P0  DataPlatformClient（父仓）+ engine-core SearchProvider → C2/C3
@@ -232,6 +234,8 @@ RAG 质量优先（按摘要可用性排序）：
   FRED             ← 经济指标（不建议向量化）
   EPO OPS / Google Patents ← 欧洲/全球专利
   Hacker News / Reddit    ← 舆情
+
+详排期与分源接入清单 → [plans/剩余数据源接入实施方案.md](./plans/剩余数据源接入实施方案.md)
 ```
 
 ---

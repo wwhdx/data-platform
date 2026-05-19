@@ -10,8 +10,10 @@ export {
   SEMANTIC_SCHOLAR_META,
 } from "./semanticscholar";
 export { ArxivOaiConnector, ARXIV_OAI_META } from "./arxivOai";
+export { PatentsViewConnector, PATENTSVIEW_META } from "./patentsview";
+export {
+  ClinicalTrialsConnector,
+  CLINICALTRIALS_META,
+} from "./clinicaltrials";
 export { resolveConnectorConfig } from "./factory";
 export { registerDefaultConnectors } from "./bootstrap";
-
-// 未来扩展:
-// export { PatentsViewConnector } from "./patentsview";

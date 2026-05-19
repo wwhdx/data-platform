@@ -52,7 +52,10 @@ export async function runCollectOne(
 
   const summary: CollectAllResult = {
     jobs: [job],
-    failures: [],
+    failures:
+      job.status === "failed" && job.errorMessage
+        ? [{ sourceId, error: job.errorMessage }]
+        : [],
     skipped: [],
     activeCount: 1,
   };
@@ -103,6 +106,16 @@ export async function runCollectAll(
         maxItems: runOpts?.maxItems,
       });
       jobs.push(job);
+      if (job.status === "failed" && job.errorMessage) {
+        failures.push({ sourceId, error: job.errorMessage });
+        emit(report, {
+          type: "source_failed",
+          sourceId,
+          error: job.errorMessage,
+          index,
+          total,
+        });
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       failures.push({ sourceId, error: msg });

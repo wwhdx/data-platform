@@ -155,4 +155,33 @@ describe("Scheduler collect progress", () => {
       }),
     );
   });
+
+  it("patentsview 缺 Key 时 failed job 且不调用 collect", async () => {
+    delete process.env.PATENTSVIEW_API_KEY;
+
+    const collect = vi.fn();
+    const scheduler = new Scheduler();
+    scheduler.registerConnector({
+      id: "patentsview",
+      create: () =>
+        ({
+          meta: { id: "patentsview" },
+          search: async () => [],
+          collect,
+        }) as import("../../types").Connector,
+    });
+
+    const job = await scheduler.trigger("patentsview", "");
+
+    expect(job.status).toBe("failed");
+    expect(job.errorMessage).toMatch(/PATENTSVIEW_API_KEY/);
+    expect(collect).not.toHaveBeenCalled();
+    expect(collectionJob.updateCollectionJob).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({
+        status: "failed",
+        errorMessage: expect.stringMatching(/PATENTSVIEW_API_KEY/),
+      }),
+    );
+  });
 });

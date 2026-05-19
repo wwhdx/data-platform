@@ -83,6 +83,7 @@ export class SemanticScholarConnector extends BaseConnector {
 
     const url = `${this.runtimeBaseUrl}/paper/search?${params}`;
     const res = await this.fetch(url, { headers: this.authHeaders() });
+    if (this.apiKey) this.assertAuthorizedResponse(res);
     if (!res.ok) return [];
 
     const body = (await res.json()) as S2SearchResponse;
@@ -114,6 +115,7 @@ export class SemanticScholarConnector extends BaseConnector {
 
       const url = `${this.runtimeBaseUrl}/paper/search?${sp}`;
       const res = await this.fetch(url, { headers: this.authHeaders() });
+      if (this.apiKey) this.assertAuthorizedResponse(res);
       if (!res.ok) break;
 
       const body = (await res.json()) as S2SearchResponse;

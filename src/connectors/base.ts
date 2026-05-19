@@ -9,6 +9,7 @@ import type {
   SearchOptions,
 } from "../types";
 import { captureFromRequest } from "../lib/httpCapture";
+import { formatAuthHttpError } from "./credentials";
 import { RateLimiter } from "./rateLimiter";
 import { ExponentialBackoff } from "./backoff";
 
@@ -98,6 +99,13 @@ export abstract class BaseConnector implements Connector {
       },
       body: JSON.stringify(body),
     });
+  }
+
+  /** 401/403 视为 Key 缺失或错误，抛出后由 Scheduler 记入 failed job */
+  protected assertAuthorizedResponse(res: Response): void {
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(formatAuthHttpError(this.meta.id, res.status));
+    }
   }
 
   /**

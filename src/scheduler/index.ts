@@ -11,6 +11,7 @@ import {
   touchScheduleRunStart,
 } from "../storage/models/collectionSchedule";
 import { collectLogSkipSampleLimit } from "../collect/env";
+import { validateCredentialsForCollect } from "../connectors/credentials";
 import { dedup } from "../processors/dedup";
 import { insertCollectionJobEvent } from "../storage/models/collectionJobEvent";
 import { query } from "../storage/db";
@@ -129,6 +130,29 @@ export class Scheduler {
       since,
       query: collectQuery || undefined,
     });
+
+    const credentialError = validateCredentialsForCollect(sourceId);
+    if (credentialError) {
+      const stats: CollectJobStats = {
+        fetched: 0,
+        inserted: 0,
+        skippedDuplicate: 0,
+        since,
+        query: collectQuery || undefined,
+        batchCount: 0,
+        connectorId: sourceId,
+      };
+      await updateCollectionJob(job.id, {
+        status: "failed",
+        errorMessage: credentialError,
+        stats,
+      });
+      job.status = "failed";
+      job.errorMessage = credentialError;
+      job.stats = stats;
+      report?.({ type: "source_done", job, stats });
+      return job;
+    }
 
     let inserted = 0;
     let skippedDuplicate = 0;

@@ -1,3 +1,4 @@
+import { probeAuthHeaders } from "../connectors/credentials";
 import type { SourceStatus } from "../types";
 
 const PROBE_TIMEOUT_MS = 5000;
@@ -13,6 +14,8 @@ const PROBE_TARGETS: Record<string, string | ((baseUrl: string) => string)> = {
   pubmed: (base) =>
     `${base.replace(/\/$/, "")}/esearch.fcgi?db=pubmed&term=test&retmax=1`,
   semanticscholar: "/paper/search?query=test&limit=1",
+  patentsview: (base) => `${base.replace(/\/$/, "")}/patent`,
+  clinicaltrials: "/studies?pageSize=1&format=json",
   arxiv_oai: "?verb=Identify",
   arxiv: "https://export.arxiv.org/api/query?search_query=all:test&max_results=1",
 };
@@ -39,8 +42,23 @@ export async function probeExternalSource(
   const url = buildProbeUrl(sourceId, baseUrl);
   try {
     const res = await fetch(url, {
-      method: "GET",
-      headers: { "User-Agent": USER_AGENT },
+      method: sourceId === "patentsview" ? "POST" : "GET",
+      headers: {
+        "User-Agent": USER_AGENT,
+        ...probeAuthHeaders(sourceId),
+        ...(sourceId === "patentsview"
+          ? { "Content-Type": "application/json" }
+          : {}),
+      },
+      ...(sourceId === "patentsview"
+        ? {
+            body: JSON.stringify({
+              q: { _gte: { patent_date: "2020-01-01" } },
+              f: ["patent_id"],
+              o: { size: 1 },
+            }),
+          }
+        : {}),
       signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
     });
 

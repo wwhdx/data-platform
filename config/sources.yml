@@ -175,7 +175,7 @@ sources:
   - id: worldbank
     profile: rest_none
     name: World Bank Indicators
-    enabled: false
+    enabled: true
     base_url: https://api.worldbank.org/v2/
     rate_limit: "unlimited"
     license: "CC BY"

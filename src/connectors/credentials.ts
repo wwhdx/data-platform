@@ -1,0 +1,83 @@
+/**
+ * 数据源凭证策略：YAML enabled 可与缺 Key 并存；采集时显式失败并写入 job.error_message。
+ */
+
+export interface SourceCredentialSpec {
+  /** 环境变量名（与 factory guessApiKeyEnv 对齐） */
+  envVar: string;
+  /** 未配置时是否直接失败（不调用外网） */
+  required: boolean;
+}
+
+/** 需要 Key 的源；未列出者视为无强制 Key */
+export const SOURCE_CREDENTIAL_SPECS: Record<string, SourceCredentialSpec> = {
+  patentsview: { envVar: "PATENTSVIEW_API_KEY", required: true },
+  fred: { envVar: "FRED_API_KEY", required: true },
+  github: { envVar: "GITHUB_TOKEN", required: false },
+  semanticscholar: { envVar: "SEMANTIC_SCHOLAR_API_KEY", required: false },
+  pubmed: { envVar: "NCBI_API_KEY", required: false },
+  openalex: { envVar: "OPENALEX_API_KEY", required: false },
+};
+
+export function resolveApiKeyForSource(
+  sourceId: string,
+  injectedKey?: string,
+): string | undefined {
+  const trimmed = injectedKey?.trim();
+  if (trimmed) return trimmed;
+  const spec = SOURCE_CREDENTIAL_SPECS[sourceId];
+  if (!spec) return undefined;
+  return process.env[spec.envVar]?.trim() || undefined;
+}
+
+/**
+ * 采集前校验。required 且缺 Key 时返回错误文案（不抛错，由 Scheduler 写入 failed job）。
+ */
+export function validateCredentialsForCollect(
+  sourceId: string,
+  injectedKey?: string,
+): string | null {
+  const spec = SOURCE_CREDENTIAL_SPECS[sourceId];
+  if (!spec?.required) return null;
+
+  const key = resolveApiKeyForSource(sourceId, injectedKey);
+  if (key) return null;
+
+  return (
+    `${spec.envVar} 未配置：数据源「${sourceId}」在 sources.yml 中可为 enabled: true，` +
+    `本次采集不调用外网并已记录失败；配置 Key 后重试。`
+  );
+}
+
+export function formatAuthHttpError(sourceId: string, status: number): string {
+  const spec = SOURCE_CREDENTIAL_SPECS[sourceId];
+  const hint = spec
+    ? `请检查 ${spec.envVar} 是否正确`
+    : "请检查 API Key 或认证头";
+  return `数据源「${sourceId}」认证失败 (HTTP ${status})：${hint}`;
+}
+
+/** /health 探活附加头 */
+export function probeAuthHeaders(
+  sourceId: string,
+): Record<string, string> {
+  const key = resolveApiKeyForSource(sourceId);
+  if (!key) return {};
+
+  switch (sourceId) {
+    case "patentsview":
+      return { "X-Api-Key": key };
+    case "semanticscholar":
+      return { "x-api-key": key };
+    case "github":
+      return { Authorization: `Bearer ${key}` };
+    case "openalex":
+      return {};
+    case "pubmed":
+      return {};
+    case "fred":
+      return {};
+    default:
+      return {};
+  }
+}
