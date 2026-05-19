@@ -1,5 +1,6 @@
 @.cursor/rules/ai-task-integration.mdc
 @.cursor/rules/doc-progress-sync.mdc
+@.cursor/rules/doc-writing.mdc
 
 # CLAUDE.md — data-platform 开发规范
 

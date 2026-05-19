@@ -37,6 +37,7 @@
 | [bge-m3-deployment.md](./bge-m3-deployment.md) | Embedding 运行时 **运维** | 改 compose / Ollama 时 |
 | [engine-core-analysis.md](./engine-core-analysis.md) | engine-core **模式摘录**（参考） | 极少；接入以 plans 为准 |
 | [agent-workflow.md](./agent-workflow.md) | AI Agent 工作流与规则入口 | 改 `.mdc` / 接入清单时 |
+| [doc-writing-guide.md](./doc-writing-guide.md) | **文档编写规范** + Agent 提示词 | 增删文档类型或规范时 |
 
 ### `docs/plans/` — 设计与实施（会随任务迭代）
 
@@ -72,8 +73,15 @@
 
 ---
 
+## 编写规范
+
+新建或大幅修改文档前阅读 [doc-writing-guide.md](./doc-writing-guide.md)；Agent 自动加载 `.cursor/rules/doc-writing.mdc`。
+
+---
+
 ## 变更记录
 
 | 日期 | 说明 |
 |------|------|
+| 2026-05-19 | 增补 doc-writing-guide 与 doc-writing.mdc 索引 |
 | 2026-05-19 | 初版：建立文档索引；总览瘦身并重命名为 `overview.md` |

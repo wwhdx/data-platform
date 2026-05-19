@@ -6,6 +6,8 @@ alwaysApply: true
 
 # data-platform · 文档进度同步
 
+> 结构与落点：见 `doc-writing.mdc` · 人类详解：`docs/doc-writing-guide.md`
+
 1. **维护对象**：`docs/plans/实施进度总览.md`（代码↔任务真源，优先）、`docs/design.md`、`docs/phase1-plan.md`、`docs/plans/*.md`（项目设计）、`docs/knowledge/*.md`（共识知识）、`docs/data-sources.md` 的版本、Phase 勾选、§变更记录。
 2. **范围**：仅同步与本次提交同主题的章节。
 3. **勾 ✅ 前**：`rg` 验证代码已接入（如 Connector 已 export + 注册）。
