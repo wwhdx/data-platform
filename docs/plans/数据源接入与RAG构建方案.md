@@ -25,9 +25,9 @@
 | 增量采集 `last_collected_at` | ✅ A5 | `007_incremental_schedule.sql`；collect 传 `since` |
 | 采集可观测性 | ✅ L1–L6 | `stats` / `collection_job_events` / NDJSON |
 | admin 动态源列表 | ✅ | `POST /admin/collect` 查 DB `status=active` |
-| 分块存储 | ⚠️ MVP A8 □ | 每文档 1 chunk（`vectorStore.ts` title + abstract） |
-| 富化流水线 | ❌ | `enrich.ts` / `chunk.ts` 未实现（Stage 2 远期） |
-| Connector 覆盖 | 🟡 **5/12** | 运行时：openalex、crossref、worldbank、pubmed、semanticscholar；YAML 登记 7 源待实现 |
+| 分块存储 | ✅ A8 | `processors/chunk.ts`；长 abstract / fulltext 多 chunk |
+| 富化流水线 | ❌ | `enrich.ts` 未实现（Stage 2 远期） |
+| Connector 覆盖 | 🟡 **6/13** | 运行时 + `arxiv_oai`（A7）；Legacy `arxiv` 仅 YAML |
 | 内容层 A10/A11 | ✅ | 新文档：PubMed `efetchAbstracts`、OpenAlex `uninvertAbstract`；**存量**见 A12 □ |
 
 ### 1.2 当前采集流程（端到端）
@@ -601,11 +601,11 @@ const results = await dataPlatform.search(query, {
 
 | 优先级 | 改动 | 说明 | 状态 |
 |--------|------|------|------|
-| **P2** | Stage 3 分块策略 | `processors/chunk.ts` | □ A8 |
-| **P2** | arXiv OAI-PMH Connector | 含 `paginateResumptionToken` | □ A7 |
+| **P2** | Stage 3 分块策略 | `processors/chunk.ts` | ✅ A8 |
+| **P2** | arXiv OAI-PMH Connector | `arxiv_oai` + ResumptionToken | ✅ A7 |
 | **P2** | 存量 re-embed 回填 | A10/A11 前入库 openalex/pubmed | □ A12（可选 CLI） |
 | **P3** | Embedding 队列化 + 重试 | `embedding_tasks` 表 + worker | ⏸ A9 暂缓 |
-| **P3** | `paginateResumptionToken` / `paginateLinkHeader` | BaseConnector 扩展 | □ |
+| **P3** | `paginateResumptionToken` / `paginateLinkHeader` | BaseConnector 扩展 | 🟡 ResumptionToken ✅；LinkHeader □ |
 
 ### 6.4 长期规划（2 个月+）
 
@@ -621,12 +621,12 @@ const results = await dataPlatform.search(query, {
 | 轨 | ID | 条目 | 优先级 |
 |----|-----|------|--------|
 | RAG 质量 | **A12** | 存量 openalex/pubmed re-embed | P1 可选 |
-| RAG 架构 | **A8** | `processors/chunk.ts` 按类型分块 | P2 |
-| Connector | **A7** | arXiv OAI-PMH（前置 `paginateResumptionToken`） | P2 |
-| Connector | — | patentsview / sec_edgar / fred / clinicaltrials / github / hackernews | P3 按需 |
+| RAG 架构 | **A8** | `processors/chunk.ts` 按类型分块 | ✅ |
+| Connector | **A7** | arXiv OAI-PMH（`arxiv_oai`） | ✅ |
+| 运维 | **B8** | `/health` 外部 API 探活 | ✅ |
+| Connector | — | patentsview / sec_edgar / fred / clinicaltrials / github / hackernews | P3 |
 | 协议 | — | `last_cursor` 断点续传接线 | P3 |
-| 平台 | **C2→C3** | 父仓 DataPlatformClient + SearchProvider | P0（见 [实施进度 §4](./实施进度总览.md#4-下一阶段任务计划2026-05-19-定稿)） |
-| 运维 | **B8** | `/health` 外部 API 探活 | P2 |
+| 平台 | **C2→C3** | 父仓 DataPlatformClient + SearchProvider | P0 |
 | 明确不做 | **A9** | Embedding 队列 | ⏸ |
 
 ---
@@ -639,7 +639,7 @@ const results = await dataPlatform.search(query, {
 
 ### 7.1 embedding 文本质量
 
-`embedDocuments` 嵌入文本 = `title + "\n\n" + abstract`（`src/rag/vectorStore.ts`）。
+`embedDocuments` 按 `chunkDocument()` 分块后写入 `document_chunks`（`src/rag/vectorStore.ts` + `processors/chunk.ts`）。
 `abstract` 来自 `rawDocument.ts` `mapInsertedRow` → `String(raw.abstract ?? "")`。
 
 **新采集文档（A10/A11 ✅ 后）**：
@@ -772,3 +772,4 @@ rawJson = { ...esummaryRecord, abstract: "<AbstractText>" }
 | v1.1 | 2026-05-19 | §7 新增：内容层评估（PubMed esummary 无摘要、OpenAlex 倒排索引问题）、RSS vs API 分析、各信源 RAG 可用性表、A10/A11 修复方案 |
 | v1.2 | 2026-05-19 | A4：`SemanticScholarConnector`（search + offset 采集 + abstract/tldr）；bootstrap 注册；默认 YAML disabled |
 | v1.3 | 2026-05-19 | 代码对照同步：§1.1–§1.3、§3、§6 标 A1/A5/L1–L6 已完成；A10/A11 ✅；§7 区分新文档/存量；新增 §6.5 剩余任务摘要 |
+| v1.4 | 2026-05-19 | P2：A7 `arxiv_oai`、A8 `chunk.ts`、B8 `/health` 探活；`paginateResumptionToken`；迁移 `011` |

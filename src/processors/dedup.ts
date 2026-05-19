@@ -69,7 +69,15 @@ export async function dedup(
       // Stage 4: 对新文档生成 embedding
       const docsWithContent = inserted.filter(d => d.title);
       if (docsWithContent.length > 0) {
-        embedDocuments(docsWithContent).catch(err => {
+        embedDocuments(
+          docsWithContent.map((d) => ({
+            id: d.id,
+            title: d.title,
+            abstract: d.abstract,
+            sourceId: d.sourceId,
+            rawJson: d.rawJson,
+          })),
+        ).catch(err => {
           const msg = err instanceof Error ? err.message : String(err);
           logger.warn({ jobId, sourceId, err: msg }, "embedDocuments failed");
           if (jobId != null) {

@@ -147,4 +147,21 @@ export abstract class BaseConnector implements Connector {
       if (items.length < perPage) break;
     }
   }
+
+  /**
+   * OAI-PMH ResumptionToken 分页游走。
+   */
+  protected async *paginateResumptionToken<T>(
+    fetchBatch: (token?: string) => Promise<{ items: T[]; token?: string | null }>,
+  ): AsyncGenerator<T> {
+    let token: string | undefined;
+
+    do {
+      const { items, token: nextToken } = await fetchBatch(token);
+      for (const item of items) {
+        yield item;
+      }
+      token = nextToken ?? undefined;
+    } while (token);
+  }
 }

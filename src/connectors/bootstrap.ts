@@ -8,6 +8,7 @@ import {
   SemanticScholarConnector,
   SEMANTIC_SCHOLAR_META,
 } from "./semanticscholar";
+import { ArxivOaiConnector, ARXIV_OAI_META } from "./arxivOai";
 import { OPENALEX_META } from "./openalex";
 import { CROSSREF_META } from "./crossref";
 import { WORLD_BANK_META } from "./worldbank";
@@ -18,6 +19,7 @@ export {
   WORLD_BANK_META,
   PUBMED_META,
   SEMANTIC_SCHOLAR_META,
+  ARXIV_OAI_META,
 };
 
 /** 运行时已 registerConnector 的源 id（与 scheduleReport / B14 对齐） */
@@ -27,6 +29,7 @@ export const REGISTERED_CONNECTOR_IDS = [
   "worldbank",
   "pubmed",
   "semanticscholar",
+  "arxiv_oai",
 ] as const;
 
 export async function registerDefaultConnectors(
@@ -55,6 +58,9 @@ export async function registerDefaultConnectors(
       apiKey: process.env.SEMANTIC_SCHOLAR_API_KEY,
     }),
   );
+  const arxivOai = new ArxivOaiConnector(
+    await resolveConnectorConfig("arxiv_oai", ARXIV_OAI_META),
+  );
 
   scheduler.registerConnector({ id: "openalex", create: () => openalex });
   scheduler.registerConnector({ id: "crossref", create: () => crossref });
@@ -64,4 +70,5 @@ export async function registerDefaultConnectors(
     id: "semanticscholar",
     create: () => semanticscholar,
   });
+  scheduler.registerConnector({ id: "arxiv_oai", create: () => arxivOai });
 }

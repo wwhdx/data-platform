@@ -90,13 +90,14 @@ GET  /recommendations/v1/papers/{id}     # 推荐
 
 | 字段 | 值 |
 |------|-----|
-| Legacy API | `https://export.arxiv.org/api/query`（Atom XML） |
-| OAI-PMH | `https://oaipmh.arxiv.org/oai`（XML，ResumptionToken 分页） |
+| Legacy API | `https://export.arxiv.org/api/query`（Atom XML；YAML `id: arxiv`） |
+| OAI-PMH（A7 ✅） | `https://oaipmh.arxiv.org/oai`；运行时 `id: arxiv_oai`；`ArxivOaiConnector` |
 | 认证 | 无需 |
 | 速率 | ≥3秒间隔 |
 | 许可 | 元数据可用 |
-| **摘要可用性** | ✅ `<summary>` 字段（Atom/OAI-PMH）；HTML 全文可访问（大量开放获取） |
-| **RAG 适用性** | ⭐⭐⭐⭐⭐（AI/ML/物理类最强，含全文） |
+| **摘要可用性** | ✅ `<summary>` / OAI `<abstract>` |
+| **RAG 适用性** | ⭐⭐⭐⭐⭐ |
+| 代码 | `src/connectors/arxivOai.ts` · `arxivOaiHelpers.ts` |
 
 ---
 

@@ -2,6 +2,7 @@
  * pgvector 向量存储 CRUD。
  */
 
+import { chunkDocument } from "../processors/chunk";
 import { query } from "../storage/db";
 import { embedBatch, getEmbeddingModel } from "./embed";
 import { buildDocumentFilterClause } from "./searchFilters";
@@ -16,35 +17,49 @@ export interface DocumentChunk {
   embeddingModel?: string;
 }
 
+export interface EmbedDocumentInput {
+  id: number;
+  title: string;
+  abstract: string;
+  sourceId: string;
+  rawJson?: Record<string, unknown>;
+}
+
 /**
- * 为一组 RawDocument 生成 embedding 并写入 document_chunks。
- * 每个文档一个 chunk（title + abstract），MVP 不做段落级分块。
+ * 为一组文档按类型分块生成 embedding 并写入 document_chunks（A8）。
  */
-export async function embedDocuments(
-  docs: Array<{ id: number; title: string; abstract: string }>,
-): Promise<number> {
+export async function embedDocuments(docs: EmbedDocumentInput[]): Promise<number> {
   if (docs.length === 0) return 0;
 
-  // 构造文本：title + abstract
-  const texts = docs.map(d => {
-    const parts = [d.title];
-    if (d.abstract) parts.push(d.abstract);
-    return parts.join("\n\n");
-  });
+  const rows: Array<{ docId: number; chunkIndex: number; text: string }> = [];
+  for (const doc of docs) {
+    const texts = chunkDocument({
+      sourceId: doc.sourceId,
+      title: doc.title,
+      abstract: doc.abstract,
+      rawJson: doc.rawJson,
+    });
+    texts.forEach((text, chunkIndex) => {
+      rows.push({ docId: doc.id, chunkIndex, text });
+    });
+  }
 
-  // 批量生成 embedding（后端由 EMBED_BACKEND 环境变量决定）
-  const results = await embedBatch(texts, "document");
+  if (rows.length === 0) return 0;
 
-  // 批量写入 document_chunks
+  const results = await embedBatch(
+    rows.map((r) => r.text),
+    "document",
+  );
+
   const values: string[] = [];
   const params: unknown[] = [];
-  for (let i = 0; i < docs.length; i++) {
+  for (let i = 0; i < rows.length; i++) {
     const base = i * 5;
     values.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`);
     params.push(
-      docs[i]!.id,
-      0, // chunk_index: MVP 每个文档只有一个 chunk
-      texts[i]!,
+      rows[i]!.docId,
+      rows[i]!.chunkIndex,
+      rows[i]!.text,
       `[${results[i]!.embedding.join(",")}]`,
       getEmbeddingModel(),
     );
@@ -57,7 +72,7 @@ export async function embedDocuments(
   `;
 
   await query(sql, params);
-  return docs.length;
+  return rows.length;
 }
 
 /**

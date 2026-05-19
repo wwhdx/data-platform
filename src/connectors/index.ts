@@ -9,6 +9,7 @@ export {
   SemanticScholarConnector,
   SEMANTIC_SCHOLAR_META,
 } from "./semanticscholar";
+export { ArxivOaiConnector, ARXIV_OAI_META } from "./arxivOai";
 export { resolveConnectorConfig } from "./factory";
 export { registerDefaultConnectors } from "./bootstrap";
 

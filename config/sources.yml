@@ -125,7 +125,19 @@ sources:
     license: "metadata free"
     commercial_use: true
     schedule: "0 11 * * *"
-    description: "物理/数学/CS 预印本，OAI-PMH 批量采集"
+    description: "物理/数学/CS 预印本，Legacy Atom 搜索（采集见 arxiv_oai）"
+
+  - id: arxiv_oai
+    profile: oai_pmh
+    name: arXiv (OAI-PMH)
+    enabled: false
+    rate_limit: ">=3s interval"
+    license: "metadata free"
+    commercial_use: true
+    schedule: "0 11 * * *"
+    description: "arXiv 预印本 OAI-PMH 批量采集；搜索走 Legacy Atom API"
+    options:
+      search_base_url: https://export.arxiv.org/api/query
 
   - id: patentsview
     profile: rest_header_custom
