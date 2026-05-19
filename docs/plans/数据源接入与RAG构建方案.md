@@ -1,8 +1,8 @@
 # data-platform 数据源接入与 RAG 库构建方案
 
-> 设计分析 · 2026-05-15
+> **状态**：部分落地 · 2026-05-15 设计 · 2026-05-19 代码对照同步  
 > 聚焦：Connector 开发框架 → 采集协议 → RAG 库构建流水线  
-> **代码进度真源**：[实施进度总览.md](./实施进度总览.md)（2026-05-19 同步）
+> **代码进度真源**：[实施进度总览.md](./实施进度总览.md) §2–§3（2026-05-19）
 
 ---
 
@@ -21,47 +21,53 @@
 | dedup 处理器 | ✅ | (sourceId, externalId) 唯一键，自动触发 embedding |
 | RAG 混合检索 | ✅ | semantic + tsvector → RRF |
 | 多后端 Embedding | ✅ | Ollama bge-m3 / OpenAI / Voyage |
-| Scheduler 批量 dedup | ✅ | 200 条缓冲 |
-| 分块存储 | ⚠️ MVP | 每文档 1 chunk（title + abstract） |
-| 富化流水线 | ❌ | enrich.ts / chunk.ts 未实现 |
-| Connector 覆盖 | 🟡 **5/12**（YAML 登记） | 运行时注册 openalex、crossref、worldbank、pubmed、**semanticscholar**（A4 ✅） |
+| Scheduler 批量 dedup | ✅ A1 | `BUFFER_SIZE=200`；`scheduler/index.ts` |
+| 增量采集 `last_collected_at` | ✅ A5 | `007_incremental_schedule.sql`；collect 传 `since` |
+| 采集可观测性 | ✅ L1–L6 | `stats` / `collection_job_events` / NDJSON |
+| admin 动态源列表 | ✅ | `POST /admin/collect` 查 DB `status=active` |
+| 分块存储 | ⚠️ MVP A8 □ | 每文档 1 chunk（`vectorStore.ts` title + abstract） |
+| 富化流水线 | ❌ | `enrich.ts` / `chunk.ts` 未实现（Stage 2 远期） |
+| Connector 覆盖 | 🟡 **5/12** | 运行时：openalex、crossref、worldbank、pubmed、semanticscholar；YAML 登记 7 源待实现 |
+| 内容层 A10/A11 | ✅ | 新文档：PubMed `efetchAbstracts`、OpenAlex `uninvertAbstract`；**存量**见 A12 □ |
 
 ### 1.2 当前采集流程（端到端）
 
 ```
 ┌─ 触发 ──────────────────────────────────────────────────────────┐
-│  Cron: scheduler.schedule("openalex", "0 7 * * *", "")          │
-│  API:  POST /api/admin/collect { sourceId: "openalex" }         │
+│  Cron: registerSchedulesFromConfig（B13，读 YAML enabled+schedule）│
+│  API:  POST /api/admin/collect { sourceId } / 无 id → active 源 │
 │  CLI:  pnpm cli collect --source openalex                       │
 └──────────────────────┬──────────────────────────────────────────┘
                        ▼
 ┌─ Scheduler.runCollection("openalex") ───────────────────────────┐
-│  1. createCollectionJob({ status: "running" })                  │
-│  2. connector = factory.create()                                │
-│  3. for await (doc of connector.collect({ since })) {           │
-│       { newDocs } = await dedup([doc])   ← 逐条处理             │
-│       total += newDocs.length                                   │
-│     }                                                           │
-│  4. updateCollectionJob({ status: "success", itemsCollected })  │
+│  1. ensureScheduleRow → since = last_collected_at（A5）         │
+│  2. createCollectionJob + collection_job_events                 │
+│  3. buffer[]；collect({ since, query }) 逐条 yield              │
+│     buffer ≥ 200 → dedup(buffer) 批量（A1）                     │
+│  4. markScheduleCollectionSuccess；stats + errorMessage         │
 └──────────────────────┬──────────────────────────────────────────┘
                        ▼
-┌─ dedup([doc]) ──────────────────────────────────────────────────┐
-│  1. findExistingIds(sourceId, [externalId])  → 查重             │
-│  2. insertRawDocuments([newDoc])             → ON CONFLICT UPSERT│
-│  3. embedDocuments(inserted)                 → fire-and-forget   │
-│     └─ title + "\n\n" + abstract → bge-m3(1024d) → document_chunks│
+┌─ dedup(docs[]) ─────────────────────────────────────────────────┐
+│  1. findExistingIds(sourceId, externalIds[])  → 批量查重        │
+│  2. insertRawDocuments → ON CONFLICT UPSERT                     │
+│  3. mirrorInsertedDocuments（D2，可选）                         │
+│  4. embedDocuments → 异步；失败写 embed_fail 事件（仍无队列 A9）│
+│     └─ title + "\n\n" + abstract → embedding → document_chunks  │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.3 关键瓶颈
+### 1.3 关键瓶颈（2026-05-19 代码对照）
 
-| 瓶颈 | 影响 | 根因 |
-|------|------|------|
-| 逐条 dedup | 大规模采集慢 | `collect()` 每 yield 一个 doc 就查一次数据库 |
-| 单 chunk 策略 | 长文档检索精度低 | 论文全文 10+ 页压缩为一个 1024d 向量 |
-| fire-and-forget embedding | 失败无重试 | embedDocuments 的 .catch() 只打日志 |
-| 无富化层 | 无法按类型/实体过滤 | Stage 2 enrich 未实现 |
-| 无 Connector 开发模板 | 新增源成本高 | 每个 Connector 需从零实现 search + collect + 字段映射 |
+| 瓶颈 | 影响 | 状态 / 根因 |
+|------|------|------------|
+| ~~逐条 dedup~~ | — | ✅ A1 已批量 200 |
+| 单 chunk 策略 | 长文档检索精度低 | □ A8；`vectorStore.ts` 每文档 1 chunk |
+| embedding 无队列重试 | 失败需手工重跑 | 🟡 `embed_fail` 事件已记；A9 明确暂缓 |
+| 存量向量缺摘要 | openalex/pubmed 旧库检索差 | □ A12 re-embed CLI 未做 |
+| `last_cursor` 未接线 | 采集中断从头开始 | 🟡 列在 `007`；scheduler/Connector 未读写 |
+| 无富化层 | 无法按实体过滤 | □ Stage 2 enrich（远期） |
+| BaseConnector 认证/分页模板 | 新源开发成本高 | 🟡 `authHeaders`/`paginateResumptionToken` 仍分散或未实现 |
+| Connector 7/12 未注册 | 多源覆盖不足 | □ 优先 A7 arXiv |
 
 ---
 
@@ -254,89 +260,34 @@ protected async *paginateResumptionToken<T>(
 | `src/storage/migrations/003_layer2_views.sql` | 类型化视图 WHERE 条件 | ⚠️ 分类匹配时更新 |
 | `src/types.ts` | 如需新 AuthType / 字段 | 按需 |
 
-**建议优化**：admin.ts 中硬编码的 `["openalex", "semanticscholar", "patentsview"]` 应改为从数据库 `data_sources` 表动态查询 `WHERE status = 'active'`。
+**建议优化**：~~admin.ts 硬编码源列表~~ → ✅ 已改为查 `data_sources WHERE status = 'active'`。
 
 ---
 
 ## 3. 采集协议设计
 
-### 3.1 当前协议缺陷
+### 3.1 协议演进（A1 ✅ · 2026-05-19）
+
+~~逐条 dedup~~ 已改为 Scheduler 缓冲 200 条再调用 `dedup(docs[])`。OpenAlex 一次 API 200 条 → 约 1 次批量查重 + 1 次 INSERT。
+
+### 3.2 批量采集协议（✅ 已实现）
 
 ```
-当前: connector.collect() → 逐条 yield → 逐条 dedup → 逐条 INSERT + 异步 embed
-                ↑                ↑              ↑
-            1次API调用         1次DB查询      1次DB写入
-            (返回200条)        (查1条)        (插1条)
+connector.collect() → yield 单条 → buffer 累积 → buffer≥200 → dedup(batch) → embedBatch
+                              ↑                    ↑
+                         Connector 内分页      1 次 findExistingIds + INSERT
 ```
 
-**问题**：OpenAlex 一次 API 调用返回 200 条，但逐条 dedup 导致 200 次数据库往返。
+**改造点 1：Scheduler 批量消费** — ✅ `src/scheduler/index.ts` `BUFFER_SIZE = 200`
 
-### 3.2 批量采集协议（建议改造）
+**改造点 2：dedup 批量查重** — ✅ 调用方已传批量；`dedup` 按 sourceId 分组一次查询
 
-```
-改造后: connector.collect() → 批量 yield → 批量 dedup → 批量 INSERT → 批量 embed
-               ↑                  ↑              ↑             ↑              ↑
-           1次API调用          缓冲N条        1次DB查询    1次INSERT      1次embedBatch
-          (返回200条)         (200条一批)     (200条去重)  (新文档)       (新文档)
-```
+**改造点 3：增量采集状态持久化** — 🟡 部分落地
 
-**改造点 1：Scheduler 批量消费**
-
-```typescript
-// src/scheduler/index.ts — runCollection() 改造
-private async runCollection(sourceId: string, searchQuery: string): Promise<CollectionJob> {
-  const job = await createCollectionJob({ sourceId, query: searchQuery });
-
-  try {
-    const connector = factory.create();
-    let total = 0;
-    const buffer: RawDocument[] = [];  // ← 新增缓冲
-
-    for await (const doc of connector.collect({})) {
-      buffer.push(doc);
-
-      if (buffer.length >= 200) {      // ← 批量阈值
-        const { newDocs } = await dedup(buffer);
-        total += newDocs.length;
-        buffer.length = 0;
-        await updateCollectionJob(job.id, { itemsCollected: total });
-      }
-    }
-
-    // 处理剩余
-    if (buffer.length > 0) {
-      const { newDocs } = await dedup(buffer);
-      total += newDocs.length;
-    }
-
-    await updateCollectionJob(job.id, { status: "success", itemsCollected: total });
-    return job;
-  } catch (err) { /* ... */ }
-}
-```
-
-**改造点 2：dedup 批量查重**
-
-当前 `dedup` 已支持批量输入（按 sourceId 分组 → `findExistingIds(sourceId, externalIds)` 一次查询）。但当前调用方每次只传 `[doc]` 单条。改造 Scheduler 的缓冲逻辑即可，**dedup 本身无需改动**。
-
-**改造点 3：增量采集状态持久化**
-
-当前 `connector.collect({ since })` 中的 `since` 默认是 24 小时前，且内存态，重启丢失。
-
-```sql
--- 新增字段到 collection_schedules
-ALTER TABLE collection_schedules ADD COLUMN last_collected_at TIMESTAMPTZ;
-ALTER TABLE collection_schedules ADD COLUMN last_cursor TEXT;  -- 支持 cursor 断点续传
-```
-
-```typescript
-// Scheduler 读取 last_collected_at 作为 since 参数
-const schedule = await getSchedule(sourceId);
-const since = schedule?.lastCollectedAt?.toISOString() ?? defaultSince;
-for await (const doc of connector.collect({ since })) { /* ... */ }
-// 采集完成后更新
-await updateSchedule(sourceId, { lastCollectedAt: new Date() });
-```
+| 项 | 状态 | 说明 |
+|----|------|------|
+| `last_collected_at` | ✅ A5 | `007_incremental_schedule.sql`；`toCollectSinceDate` + `markScheduleCollectionSuccess` |
+| `last_cursor` 断点续传 | □ | 列已建；scheduler/Connector **未读写** |
 
 ### 3.3 采集协议规范（Connector 契约）
 
@@ -382,12 +333,13 @@ interface RawDocument {
 
 | 错误类型 | 策略 | 实现 |
 |---------|------|------|
-| 单条 API 调用失败 | 指数退避重试（最多 5 次） | ✅ BaseConnector.fetch |
-| 单条文档 INSERT 失败 | 跳过该条，继续采集 | ❌ 当前未处理 → 需 try-catch |
-| 单条 embedding 失败 | 跳过该条，记录日志 | ✅ embedDocuments.catch(console.error) |
-| 采集中途服务重启 | 从头开始（无断点续传） | ❌ 需 cursor 持久化 |
-| API 限流 (429) | 指数退避 + 等待 Retry-After | ✅ ExponentialBackoff |
-| API 认证失效 (401) | 停止采集，标记 job failed | ❌ 当前未处理 → 需检测 |
+| 单条 API 调用失败 | 指数退避重试（最多 5 次） | ✅ `BaseConnector.fetch` + `ExponentialBackoff` |
+| 单条文档 INSERT 失败 | 跳过该条，继续采集 | ❌ 批量 INSERT；失败整批失败 |
+| 单条 embedding 失败 | 跳过该条，记录日志 | 🟡 异步 + `collection_job_events` `embed_fail`（A9 队列暂缓） |
+| 采集中途服务重启 | 从头开始 | 🟡 `since` 可收窄；`last_cursor` □ 未接线 |
+| API 限流 (429) | 指数退避 | ✅ 默认 retryable |
+| API 认证失效 (401) | 停止采集，标记 job failed | 🟡 401 不重试 → Connector 抛错 → `errorMessage`（无专门语义） |
+| 采集 job 级失败 | 写入 error_message + stats | ✅ `scheduler/index.ts` catch → `updateCollectionJob` |
 
 ---
 
@@ -624,33 +576,36 @@ const results = await dataPlatform.search(query, {
 
 ## 6. 实施建议
 
-### 6.1 立即实施（本周）
+> **2026-05-19**：§6.1–§6.2 主体项已落地；剩余见 §6.5。
 
-| 优先级 | 改动 | 文件 | 工作量 |
-|--------|------|------|--------|
-| **P0** | Scheduler 批量消费（缓冲 200 条再 dedup） | `scheduler/index.ts` | 10 行 |
-| **P0** | admin.ts 动态查询 data_sources（替代硬编码列表） | `api/routes/admin.ts` | ✅ 已随 CrossRef 接入完成 |
-| **P0** | BaseConnector 新增 `paginateOffset()` | `connectors/base.ts` | 15 行 |
-| **P0** | 实现 CrossRef Connector（零认证，P0 优先级最高） | `connectors/crossref.ts` | ✅ 已完成 |
+### 6.1 立即实施（本周）— ✅ 已完成
 
-### 6.2 短期实施（2 周内）
+| 优先级 | 改动 | 文件 | 状态 |
+|--------|------|------|------|
+| **P0** | Scheduler 批量消费（缓冲 200 条再 dedup） | `scheduler/index.ts` | ✅ A1 |
+| **P0** | admin 动态查询 `data_sources` | `api/routes/admin.ts` | ✅ |
+| **P0** | BaseConnector `paginateOffset()` | `connectors/base.ts` | ✅ A2 |
+| **P0** | CrossRef Connector | `connectors/crossref.ts` | ✅ |
 
-| 优先级 | 改动 | 文件 |
-|--------|------|------|
-| **P1** | 实现 World Bank Connector（零认证） | `connectors/worldbank.ts` |
-| ~~**P1**~~ | ~~实现 Semantic Scholar Connector（Header Key）~~ | ✅ `connectors/semanticscholar.ts`（2026-05-19） |
-| **P1** | 增量采集 `last_collected_at` 持久化 | 迁移 + `scheduler/index.ts` |
-| **P1** | 采集错误日志写入 collection_jobs.error_message | `scheduler/index.ts` |
+### 6.2 短期实施（2 周内）— ✅ 已完成
+
+| 优先级 | 改动 | 文件 | 状态 |
+|--------|------|------|------|
+| **P1** | World Bank Connector | `connectors/worldbank.ts` | ✅ A3 |
+| **P1** | Semantic Scholar Connector | `connectors/semanticscholar.ts` | ✅ A4 |
+| **P1** | 增量 `last_collected_at` | `007` + `scheduler/index.ts` | ✅ A5 |
+| **P1** | PubMed Connector + efetch 摘要 | `connectors/pubmed.ts` | ✅ A6 + A10 |
+| **P1** | 采集错误写入 `collection_jobs.error_message` | `scheduler/index.ts` | ✅ |
 
 ### 6.3 中期实施（1 个月内）
 
-| 优先级 | 改动 | 说明 |
-|--------|------|------|
-| **P2** | Stage 3 分块策略（按文档类型分段） | `processors/chunk.ts` |
-| **P2** | 实现 arXiv OAI-PMH Connector | 含 ResumptionToken 分页 |
-| **P2** | 实现 PubMed Connector | 含 WebEnv 分页 |
-| **P3** | Embedding 队列化 + 重试 | embedding_tasks 表 + worker |
-| **P3** | BaseConnector 新增 `paginateResumptionToken()` / `paginateLinkHeader()` | 完善分页模式 |
+| 优先级 | 改动 | 说明 | 状态 |
+|--------|------|------|------|
+| **P2** | Stage 3 分块策略 | `processors/chunk.ts` | □ A8 |
+| **P2** | arXiv OAI-PMH Connector | 含 `paginateResumptionToken` | □ A7 |
+| **P2** | 存量 re-embed 回填 | A10/A11 前入库 openalex/pubmed | □ A12（可选 CLI） |
+| **P3** | Embedding 队列化 + 重试 | `embedding_tasks` 表 + worker | ⏸ A9 暂缓 |
+| **P3** | `paginateResumptionToken` / `paginateLinkHeader` | BaseConnector 扩展 | □ |
 
 ### 6.4 长期规划（2 个月+）
 
@@ -661,35 +616,57 @@ const results = await dataPlatform.search(query, {
 | Cross-encoder 重排序 | bge-reranker-v2-m3 |
 | 向量索引自动维护 | Cron REINDEX |
 
+### 6.5 剩余任务摘要（代码对照 · 2026-05-19）
+
+| 轨 | ID | 条目 | 优先级 |
+|----|-----|------|--------|
+| RAG 质量 | **A12** | 存量 openalex/pubmed re-embed | P1 可选 |
+| RAG 架构 | **A8** | `processors/chunk.ts` 按类型分块 | P2 |
+| Connector | **A7** | arXiv OAI-PMH（前置 `paginateResumptionToken`） | P2 |
+| Connector | — | patentsview / sec_edgar / fred / clinicaltrials / github / hackernews | P3 按需 |
+| 协议 | — | `last_cursor` 断点续传接线 | P3 |
+| 平台 | **C2→C3** | 父仓 DataPlatformClient + SearchProvider | P0（见 [实施进度 §4](./实施进度总览.md#4-下一阶段任务计划2026-05-19-定稿)） |
+| 运维 | **B8** | `/health` 外部 API 探活 | P2 |
+| 明确不做 | **A9** | Embedding 队列 | ⏸ |
+
 ---
 
 ## 7. 内容层评估与 RAG 可用性分析
 
 > 2026-05-19 评估。补充自：现有 PubMed/OpenAlex 导出记录实测 + 代码追踪（`rawDocument.ts` 字段提取路径）。
 
-### 7.1 核心问题：embedding 文本质量
+> 2026-05-19 评估；**v1.3（2026-05-19）**：A10/A11 已落地，区分新文档 vs 存量。
 
-`embedDocuments` 嵌入的文本 = `title + "\n\n" + abstract`（`src/rag/vectorStore.ts:30`）。
-`abstract` 字段来自 `mapInsertedRow` 中的 `String(raw.abstract ?? "")`（`rawDocument.ts:66`）。
+### 7.1 embedding 文本质量
 
-**已确认的静默问题（2026-05-19）**：
+`embedDocuments` 嵌入文本 = `title + "\n\n" + abstract`（`src/rag/vectorStore.ts`）。
+`abstract` 来自 `rawDocument.ts` `mapInsertedRow` → `String(raw.abstract ?? "")`。
 
-| 信源 | rawJson 中 abstract 字段 | embedding 文本实际内容 | 严重程度 |
-|------|------------------------|----------------------|---------|
-| **PubMed**（当前） | ❌ `esummary` 不含摘要 | 仅标题 | 🔴 严重 |
-| **OpenAlex** | ❌ `abstract_inverted_index`（对象）而非字符串 | 仅标题（`String({...})` → `""` 或 `"[object Object]"`） | 🔴 严重 |
-| **CrossRef** | 🟡 约 20% 有 `abstract`，其余无 | 仅标题（多数） | 🟡 中等 |
-| **World Bank** | ✅ 经济指标名称；无摘要概念 | 系列名 + 指标描述（够用） | ✅ 可接受 |
+**新采集文档（A10/A11 ✅ 后）**：
 
-**后果**：已入库的 PubMed + OpenAlex 记录的向量均基于纯标题，语义检索效果极差。
+| 信源 | rawJson.abstract | 新文档 embedding | 状态 |
+|------|------------------|-----------------|------|
+| **PubMed** | ✅ `efetch` 合并 `<AbstractText>` | title + abstract | ✅ A10 |
+| **OpenAlex** | ✅ `uninvertAbstract(inverted_index)` | title + abstract | ✅ A11 |
+| **Semantic Scholar** | ✅ 字符串 abstract + tldr | title + abstract | ✅ A4 |
+| **CrossRef** | 🟡 约 20% 有 abstract | 多数仅标题 | 接受，不单独修 |
+| **World Bank** | ✅ 指标描述 | 够用 | ✅ |
+
+**存量数据（A10/A11 前已入库）**：
+
+| 信源 | 问题 | 修复 |
+|------|------|------|
+| openalex / pubmed | 向量基于纯标题 | □ **A12** re-embed CLI（可选） |
+
+**后果**：新采集质量已恢复；未跑 A12 的存量 openalex/pubmed 检索仍偏差。
 
 ### 7.2 各信源内容层级完整评估
 
 | 信源 | 元数据 | 摘要（API 可获取） | 全文 | RAG 适用性 | 修复优先级 |
 |------|--------|-------------------|------|-----------|-----------|
-| **OpenAlex** | ✅ 丰富 | ✅ `abstract_inverted_index`（需反转还原） | ❌ | ⭐⭐⭐⭐ | 🔴 A11（已有数据，修复零成本） |
-| **PubMed (esummary)** | ✅ 书目完整 | ❌ 不在此端点 | ❌ | ⭐（当前） | 🔴 A10（需新增 `efetch` 调用） |
-| **PubMed (efetch)** | ✅ | ✅ `<AbstractText>` XML | ❌（需 PMC） | ⭐⭐⭐⭐ | — |
+| **OpenAlex** | ✅ 丰富 | ✅ `abstract_inverted_index` → `uninvertAbstract` | ❌ | ⭐⭐⭐⭐ | ✅ A11 |
+| **PubMed** | ✅ | ✅ `efetch` `<AbstractText>` | ❌（PMC 全文另议） | ⭐⭐⭐⭐ | ✅ A10 |
+| ~~PubMed (esummary only)~~ | — | — | — | — | ~~历史问题，已由 A10 替代~~ |
 | **Semantic Scholar** | ✅ | ✅ `abstract`（直接字符串） + `tldr.text` | ❌ | ⭐⭐⭐⭐⭐ | ✅ A4（`semanticscholar.ts`） |
 | **arXiv** | ✅ | ✅ `<summary>`（OAI-PMH） | ✅（HTML，部分） | ⭐⭐⭐⭐⭐ | A7 |
 | **CrossRef** | ✅ | 🟡 20% 有 | ❌ | ⭐⭐ | 不单独修复 |
@@ -728,15 +705,15 @@ function uninvertAbstract(
 }
 ```
 
-**修复方案（A11）**：在 `OpenAlexConnector.toRawDocument()` 中，取 `work.abstract_inverted_index` 反转后作为 `abstract` 字段写入 `rawJson`。OAWORK 接口需补充 `abstract_inverted_index?: Record<string, number[]>`。
+**修复方案（A11）** — ✅ 已落地：`OpenAlexConnector.toRawDocument()` 调用 `uninvertAbstract()` 写入 `rawJson.abstract`。
 
-**已入库数据修复**（A11b，可选）：对存量 openalex 记录跑一次 `UPDATE raw_documents SET raw_json = raw_json || '{"abstract": "..."}' WHERE source_id = 'openalex'` 的 CLI 脚本。
+**存量回填（A12）** — □ 可选：对 A11 前 openalex 记录从 `raw_json.abstract_inverted_index` 重算 abstract 并重跑 `embedDocuments`（尚无 CLI）。
 
 ### 7.4 PubMed 两阶段采集方案
 
 **问题**：`esummary.fcgi` 是书目摘要端点（publication date/journal/authors），**不含** `AbstractText`。
 
-**修复方案（A10）**：在 `collect()` 循环中，对每批 UID 额外调一次 `efetch.fcgi`：
+**修复方案（A10）** — ✅ 已落地：`pubmed.ts` `collect()` 在 esummary 后调用 `efetchAbstracts()`；`pubmedHelpers.ts` `parseEfetchAbstractXml`。
 
 ```
 esearch(term) → UIDs
@@ -767,23 +744,22 @@ rawJson = { ...esummaryRecord, abstract: "<AbstractText>" }
 
 **近期不实施**：当前 Connector 已有增量 `since` 参数（A5 ✅），RSS 优先级低于 A10/A11/A4。
 
-### 7.6 内容充实优先级
+### 7.6 内容充实优先级（2026-05-19 更新）
 
 ```
-立即修复（无新 Connector，仅代码修复）：
-  A11  OpenAlex abstract_inverted_index → 字符串反转（uninvertAbstract）
-       ↳ 修改 openalex.ts toRawDocument；已入库数据可选脚本回填
-  
-  A10  PubMed esummary → 追加 efetch 阶段获取 <AbstractText>
-       ↳ 修改 pubmed.ts collect()；合并 abstract 字段进 rawJson
+已完成（新文档质量）：
+  ✅ A11  OpenAlex uninvertAbstract → rawJson.abstract
+  ✅ A10  PubMed efetchAbstracts → rawJson.abstract
+  ✅ A4   Semantic Scholar abstract + tldr
 
-新增 Connector（按 RAG 质量排序）：
-  ~~A4~~ Semantic Scholar  ← ✅ 2026-05-19（abstract + tldr；`SEMANTIC_SCHOLAR_API_KEY`）
-  A7   arXiv OAI-PMH     ← 摘要 + 部分全文，P2
-  PatentsView            ← 专利摘要，P2
+待做（按 ROI）：
+  A12  存量 openalex/pubmed re-embed（可选 CLI）
+  A7   arXiv OAI-PMH（摘要 + 部分全文）
+  A8   段落级分块（有长文源后）
+  PatentsView（专利摘要，P2）
 
-向量数据库质量提升路径：
-  A11 + A10 → 存量记录 re-embed（重跑 embedDocuments）→ A8 段落分块
+明确不做（近期）：
+  A9 Embedding 队列 · RSS 哨兵 · CrossRef 摘要补全
 ```
 
 ---
@@ -795,3 +771,4 @@ rawJson = { ...esummaryRecord, abstract: "<AbstractText>" }
 | v1.0 | 2026-05-15 | 初版：Connector 框架、采集协议、RAG 流水线 |
 | v1.1 | 2026-05-19 | §7 新增：内容层评估（PubMed esummary 无摘要、OpenAlex 倒排索引问题）、RSS vs API 分析、各信源 RAG 可用性表、A10/A11 修复方案 |
 | v1.2 | 2026-05-19 | A4：`SemanticScholarConnector`（search + offset 采集 + abstract/tldr）；bootstrap 注册；默认 YAML disabled |
+| v1.3 | 2026-05-19 | 代码对照同步：§1.1–§1.3、§3、§6 标 A1/A5/L1–L6 已完成；A10/A11 ✅；§7 区分新文档/存量；新增 §6.5 剩余任务摘要 |
