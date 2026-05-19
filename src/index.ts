@@ -1,5 +1,9 @@
 import { createServer } from "./api/server";
 import { Scheduler } from "./scheduler";
+import {
+  formatSchedulesSummary,
+  registerSchedulesFromConfig,
+} from "./scheduler/bootstrap";
 import { registerDefaultConnectors } from "./connectors/bootstrap";
 import { getPool, closePool } from "./storage/db";
 import { loadConfig } from "./config/loader";
@@ -31,12 +35,12 @@ async function main() {
   const scheduler = new Scheduler();
   await registerDefaultConnectors(scheduler);
 
-  scheduler.schedule("openalex", "0 7 * * *", "");
-  scheduler.schedule("crossref", "0 8 * * *", "");
-  scheduler.schedule("worldbank", "0 4 * * 0", "");
+  const schedules = config
+    ? registerSchedulesFromConfig(scheduler, config)
+    : [];
   scheduler.start();
   console.log(
-    "Scheduler started: openalex (daily 07:00), crossref (daily 08:00), worldbank (weekly Sun 04:00); pubmed registered (YAML disabled)",
+    `Scheduler started (YAML): ${formatSchedulesSummary(schedules)}`,
   );
 
   const server = await createServer({

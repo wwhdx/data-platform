@@ -17,6 +17,15 @@ export class Scheduler {
     this.connectors.set(factory.id, factory);
   }
 
+  hasConnector(sourceId: string): boolean {
+    return this.connectors.has(sourceId);
+  }
+
+  /** 已注册的 cron 源 id（测试与启动日志） */
+  getScheduledSourceIds(): string[] {
+    return [...this.jobs.keys()];
+  }
+
   schedule(sourceId: string, cronExpr: string, searchQuery: string): void {
     if (this.jobs.has(sourceId)) return;
 

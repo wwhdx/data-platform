@@ -543,6 +543,10 @@ async function cmdServe(args: string[]) {
   // 直接启动 API 服务（复用 src/index.ts 的模块）
   const { createServer } = await import("../api/server");
   const { Scheduler } = await import("../scheduler");
+  const {
+    formatSchedulesSummary,
+    registerSchedulesFromConfig,
+  } = await import("../scheduler/bootstrap");
   const { registerDefaultConnectors } = await import("../connectors/bootstrap");
   const { loadConfig } = await import("../config/loader");
   const { syncToDb } = await import("../config/sync");
@@ -554,10 +558,17 @@ async function cmdServe(args: string[]) {
 
   const scheduler = new Scheduler();
   await registerDefaultConnectors(scheduler);
+
+  const schedules = config
+    ? registerSchedulesFromConfig(scheduler, config)
+    : [];
   scheduler.start();
 
   await createServer({ port, scheduler });
   console.log(`Data Platform 运行在 http://localhost:${port}`);
+  console.log(
+    `Scheduler (YAML): ${formatSchedulesSummary(schedules)}`,
+  );
 }
 
 // ── 帮助 ──
