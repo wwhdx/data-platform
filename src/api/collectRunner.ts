@@ -1,4 +1,4 @@
-import { withCollectLogSink } from "../collect/logWriter";
+import { resetCollectLogSession, withCollectLogSink } from "../collect/logWriter";
 import type { Scheduler } from "../scheduler";
 import type { CollectionJob } from "../types";
 import type {
@@ -40,6 +40,7 @@ export async function runCollectOne(
     throw new Error(`Unknown connector: ${sourceId}`);
   }
 
+  resetCollectLogSession();
   emit(report, { type: "run_start", sourceIds: [sourceId], activeCount: 1 });
 
   const job = await scheduler.trigger(sourceId, searchQuery, {
@@ -72,6 +73,7 @@ export async function runCollectAll(
   const sourceIds = result.rows.map((row) => String(row.id));
   const total = sourceIds.length;
 
+  resetCollectLogSession();
   emit(report, { type: "run_start", sourceIds, activeCount: total });
 
   let index = 0;

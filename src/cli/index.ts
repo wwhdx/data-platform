@@ -10,6 +10,8 @@
  */
 
 import "../config/loadEnv";
+import { appendCollectLogEvent, getJobLogFilePath, resetCollectLogSession } from "../collect/logWriter";
+import { getCollectLogRoot } from "../collect/env";
 import * as fs from "fs";
 import * as path from "path";
 import type { CollectionJob, SearchRequest } from "../types";
@@ -124,6 +126,8 @@ async function apiCollectStream(
   let summary: CollectAllResponse | null = null;
   let hadError = false;
 
+  resetCollectLogSession();
+
   const dispatch = (event: CollectProgressEvent): void => {
     if (event.type === "error") hadError = true;
     if (event.type === "run_done") {
@@ -134,6 +138,7 @@ async function apiCollectStream(
         activeCount: event.activeCount,
       };
     }
+    void appendCollectLogEvent(event);
     onEvent(event);
   };
 
@@ -342,26 +347,36 @@ function clearProgressLine(): void {
   }
 }
 
-function printCollectProgressEvent(ev: CollectProgressEvent, jsonOutput: boolean): void {
-  if (jsonOutput) {
+function printCollectProgressEvent(
+  ev: CollectProgressEvent,
+  opts: { jsonOutput: boolean; showProgress: boolean },
+): void {
+  if (opts.jsonOutput) {
     console.log(JSON.stringify(ev));
     return;
   }
 
+  const quiet = !opts.showProgress;
+
   switch (ev.type) {
     case "run_start":
-      clearProgressLine();
-      console.log(
-        `将采集 ${ev.activeCount ?? ev.sourceIds?.length ?? 0} 个信源: ${(ev.sourceIds ?? []).join(", ")}`,
-      );
+      if (!quiet) {
+        clearProgressLine();
+        console.log(
+          `将采集 ${ev.activeCount ?? ev.sourceIds?.length ?? 0} 个信源: ${(ev.sourceIds ?? []).join(", ")}`,
+        );
+      }
       break;
     case "source_start":
-      clearProgressLine();
-      console.log(
-        `\n▶ ${ev.sourceId}  job #${ev.jobId}  since=${ev.since}${ev.query ? `  query="${ev.query}"` : ""}`,
-      );
+      if (!quiet) {
+        clearProgressLine();
+        console.log(
+          `\n▶ ${ev.sourceId}  job #${ev.jobId}  since=${ev.since}${ev.query ? `  query="${ev.query}"` : ""}`,
+        );
+      }
       break;
     case "progress": {
+      if (quiet) break;
       const inserted = ev.inserted ?? ev.itemsCollected ?? 0;
       const skipped = ev.skippedDuplicate ?? 0;
       const line = `  · ${ev.sourceId}  已抓取 ${ev.fetched ?? 0}，新入库 ${inserted}，重复跳过 ${skipped}`;
@@ -372,15 +387,25 @@ function printCollectProgressEvent(ev: CollectProgressEvent, jsonOutput: boolean
     case "source_done": {
       clearProgressLine();
       const job = ev.job ?? {};
-      printCollectJobLine(job);
       const stats = ev.stats;
-      if (stats && stats.fetched > 0) {
+      const status = String(job.status ?? "unknown");
+      const icon = status === "success" ? "✅" : status === "failed" ? "❌" : "⏳";
+
+      if (quiet && stats) {
         console.log(
-          `     抓取 ${stats.fetched}，新入库 ${stats.inserted}，重复跳过 ${stats.skippedDuplicate}`,
+          `  ${icon} ${job.sourceId}  job #${job.id}: 抓取 ${stats.fetched}，新入库 ${stats.inserted}，重复跳过 ${stats.skippedDuplicate}`,
         );
-        if (stats.inserted === 0 && stats.skippedDuplicate > 0) {
-          console.log("     （库内已有相同 external_id，属正常去重）");
+        const logPath = getJobLogFilePath(String(job.sourceId), Number(job.id));
+        if (logPath) console.log(`     详细日志: ${logPath}`);
+      } else {
+        printCollectJobLine(job);
+        if (stats && stats.fetched > 0) {
+          console.log(
+            `     抓取 ${stats.fetched}，新入库 ${stats.inserted}，重复跳过 ${stats.skippedDuplicate}`,
+          );
         }
+        const logPath = getJobLogFilePath(String(job.sourceId), Number(job.id));
+        if (logPath) console.log(`     详细日志: ${logPath}`);
       }
       break;
     }
@@ -450,12 +475,18 @@ function reportCollectAll(
   return failures.length + jobFailed > 0 ? 1 : 0;
 }
 
+function printCollectLogDirHint(): void {
+  const root = getCollectLogRoot();
+  if (root) console.log(`\n完整日志目录: ${root}`);
+}
+
 async function runCollectWithStream(
   body: Record<string, unknown>,
   jsonOutput: boolean,
+  showProgress: boolean,
 ): Promise<number> {
   const { summary, hadError } = await apiCollectStream(body, (ev) => {
-    printCollectProgressEvent(ev, jsonOutput);
+    printCollectProgressEvent(ev, { jsonOutput, showProgress });
   });
 
   clearProgressLine();
@@ -467,7 +498,9 @@ async function runCollectWithStream(
   }
 
   if (!jsonOutput) {
-    return reportCollectAll(summary, { skipDetailLines: true });
+    const code = reportCollectAll(summary, { skipDetailLines: true });
+    printCollectLogDirHint();
+    return code;
   }
 
   const jobFailed =
@@ -490,6 +523,7 @@ async function cmdCollect(args: string[]) {
   const jsonOutput = opts.json === "true";
   const noStream = opts["no-stream"] === "true";
   const verbose = opts.verbose === "true";
+  const showProgress = opts.progress === "true";
 
   if (opts.all === "true") {
     if (noStream) {
@@ -508,6 +542,7 @@ async function cmdCollect(args: string[]) {
     const code = await runCollectWithStream(
       withCollectVerbose({ query }, verbose),
       jsonOutput,
+      showProgress,
     );
     if (code !== 0) throw new CliExit(code);
     return;
@@ -530,6 +565,7 @@ async function cmdCollect(args: string[]) {
   const code = await runCollectWithStream(
     withCollectVerbose({ sourceId, query }, verbose),
     jsonOutput,
+    showProgress,
   );
   if (code !== 0) throw new CliExit(code);
 }
@@ -1269,6 +1305,7 @@ function printHelp() {
     --query <文本>           搜索查询（可选）
     --json                   JSON 行流式输出（NDJSON，含 progress 事件）
     --no-stream              关闭实时进度，等待结束后一次性 JSON
+    --progress               终端显示逐批进度（默认仅结果；详情写入日志目录）
     --verbose                启用 skip_sample 抽样（每批最多 5 条重复 ID）
 
   jobs:

@@ -1,9 +1,19 @@
 import * as path from "node:path";
 
-/** 未设置时返回 null（采集 NDJSON 落盘关闭） */
+const DEFAULT_COLLECT_LOG_DIR = "./data/logs/collect";
+
+/** `DATA_PLATFORM_COLLECT_LOG_DIR=""` / `0` / `off` 时关闭落盘 */
+export function isCollectLogDisabled(): boolean {
+  const v = process.env.DATA_PLATFORM_COLLECT_LOG_DIR;
+  if (v === "" || v === "0" || v?.toLowerCase() === "off") return true;
+  return false;
+}
+
+/** 采集 NDJSON 落盘根目录；默认 `./data/logs/collect` */
 export function getCollectLogRoot(): string | null {
-  const v = process.env.DATA_PLATFORM_COLLECT_LOG_DIR?.trim();
-  return v ? path.resolve(v) : null;
+  if (isCollectLogDisabled()) return null;
+  const custom = process.env.DATA_PLATFORM_COLLECT_LOG_DIR?.trim();
+  return path.resolve(custom || DEFAULT_COLLECT_LOG_DIR);
 }
 
 /** 每批 dedup 写入 skip_sample 的抽样条数（0=关闭） */
