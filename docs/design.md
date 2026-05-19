@@ -822,7 +822,7 @@ ctx.state.dataPlatformResults = data.results.map(r => ({
 
 - [x] 项目初始化：tsconfig, package.json, vitest
 - [x] BaseConnector + RateLimiter + ExponentialBackoff + `paginateOffset`
-- [x] OpenAlexConnector + CrossRefConnector + WorldBankConnector（原草案 S2/PatentsView 未做，见 YAML 占位）
+- [x] OpenAlexConnector + CrossRefConnector + WorldBankConnector（Phase 1 MVP）；**扩展至 12 运行时 Connector**（见 [实施进度总览](plans/实施进度总览.md) §2.1）
 - [x] PostgreSQL 数据模型 + 迁移 `001`–`006`
 - [x] 去重处理器（Stage 1）+ Scheduler 200 条批量
 - [x] 搜索 API（`/api/search`，混合检索非纯关键词）
@@ -838,7 +838,7 @@ ctx.state.dataPlatformResults = data.results.map(r => ({
 
 - [x] pgvector 扩展 + document_chunks 表 + ivfflat 索引
 - [x] Embedding 生成（OpenAI text-embedding-3-small, 1536d）
-- [x] 文档分块（MVP: title + abstract 单 chunk）
+- [x] 文档分块（A8：`processors/chunk.ts` 段落级多 chunk；含 arxiv fulltext 可选）
 - [x] 混合检索（语义 pgvector + 关键词 tsvector → RRF 融合）
 - [x] dedup 流水线自动触发 embedding
 
@@ -934,6 +934,7 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-05-19 | v0.2.6 | 12 Connector 全景；Phase 2 分块标 A8；链 [实施进度总览](plans/实施进度总览.md) v3.1 |
 | 2026-05-19 | v0.2.5 | A4：`SemanticScholarConnector`（`src/connectors/semanticscholar.ts` + bootstrap）；附录 A 速查已对齐 |
 | 2026-05-19 | v0.2.4 | §十一 I 轨组件标 ✅（I1–I6 落地） |
 | 2026-05-19 | v0.2.3 | 新增 §十一 I 轨集成测试最小闭环；链至 `plans/集成测试最小闭环方案.md` |
@@ -942,7 +943,7 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 | 2025-05-15 | v0.1 | 初始草案 |
 | 2026-05-15 | v0.2 | 职责边界澄清：移除 `/api/context`（LLM 摘要生成 → engine-core）；§9.1 接入点从 3 个精简为 2 个；§1.2 边界表新增 LLM 摘要/实体抽取行；Phase 4 移除 `/api/context` |
 
-> **版本**: v0.2.4 | **状态**: Phase 1/2 + I 轨已落地 | **最后更新**: 2026-05-19
+> **版本**: v0.2.6 | **状态**: Phase 1/2 + 12 Connector + I 轨已落地 | **最后更新**: 2026-05-19
 >
 > 相关文档：
 > - 实施进度总览：`docs/plans/实施进度总览.md`

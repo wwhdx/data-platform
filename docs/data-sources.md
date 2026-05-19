@@ -217,7 +217,7 @@ GET  /recommendations/v1/papers/{id}     # 推荐
   ✅ World Bank     ← 经济指标（无摘要，不参与 RAG）
   ✅ PubMed         ← 生物医学（2026-05-19 补 efetch 摘要 A10）
   ✅ Semantic Scholar ← abstract + tldr（A4；YAML 默认 disabled；`SEMANTIC_SCHOLAR_API_KEY`）
-  ✅ arXiv OAI-PMH    ← `arxiv_oai` 采集 + Legacy Atom 搜索（A7；YAML enabled）
+  ✅ arXiv OAI-PMH    ← `arxiv_oai` 采集 + Legacy Atom 搜索（A7；YAML enabled；可选 `ARXIV_FULLTEXT_*`）
 
   ✅ PatentsView       ← patentsview.ts（需 PATENTSVIEW_API_KEY）
   ✅ ClinicalTrials   ← clinicaltrials.ts（无 Key）
@@ -237,10 +237,15 @@ RAG 质量优先（遗留增强）：
   SEC EDGAR Phase B        ← 申报 HTML 全文 + fulltext 分块
 
 详排期与分源接入清单 → [plans/剩余数据源接入实施方案.md](./plans/剩余数据源接入实施方案.md)
+
+默认定时采集（`sources.yml` enabled: true，2026-05-19）：
+  openalex · crossref · arxiv_oai · worldbank
+进度真源 → [plans/实施进度总览.md](./plans/实施进度总览.md) §2.1
 ```
 
 ---
 
 > **维护频率**：速率限制与认证策略每季度核查一次。最新变化见各平台官方文档。
 > **内容层评估**：2026-05-19 增补，详析见 [数据源接入与RAG构建方案.md §7](./plans/数据源接入与RAG构建方案.md#7-内容层评估与-rag-可用性分析)。
-> **A4 Semantic Scholar**：2026-05-19 落地 `semanticscholar.ts`；`SEMANTIC_SCHOLAR_API_KEY`；YAML 默认 `enabled: false`。
+> **A4 Semantic Scholar**：2026-05-19 落地 `semanticscholar.ts`；`SEMANTIC_SCHOLAR_API_KEY`；YAML 默认 `enabled: false`。  
+> **12 Connector 全景（2026-05-19）**：见 [实施进度总览 §2.1](./plans/实施进度总览.md#21-connector-运行时)。

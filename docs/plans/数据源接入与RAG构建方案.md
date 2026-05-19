@@ -1,8 +1,8 @@
 # data-platform 数据源接入与 RAG 库构建方案
 
-> **状态**：部分落地 · 2026-05-15 设计 · 2026-05-19 代码对照同步  
+> **状态**：部分落地 · 2026-05-15 设计 · 2026-05-19 代码对照同步（v1.6）  
 > 聚焦：Connector 开发框架 → 采集协议 → RAG 库构建流水线  
-> **代码进度真源**：[实施进度总览.md](./实施进度总览.md) §2–§3（2026-05-19）
+> **代码进度真源**：[实施进度总览.md](./实施进度总览.md) §2.1（12 Connector / 4 enabled / 测试 196）
 
 ---
 
@@ -15,9 +15,15 @@
 | BaseConnector 抽象类 | ✅ 完善 | fetch/fetchPost/paginate + RateLimiter + ExponentialBackoff |
 | OpenAlexConnector | ✅ | 搜索 + cursor 分页采集 |
 | CrossRefConnector | ✅ | Polite pool；单测 21 |
-| WorldBankConnector | ✅ | offset 分页；YAML 默认 disabled；单测 12 |
-| PubMedConnector | ✅ | esearch + esummary + efetch 摘要（A10） |
-| SemanticScholarConnector | ✅ | Header `x-api-key`；abstract/tldr；单测 9（A4）；YAML 默认 disabled |
+| WorldBankConnector | ✅ | offset 分页；YAML **enabled**；单测 12 |
+| PubMedConnector | ✅ | esearch + esummary + efetch 摘要（A10）；D5 provenance |
+| SemanticScholarConnector | ✅ | Header `x-api-key`；abstract/tldr；单测 9（A4）；YAML disabled |
+| ArxivOaiConnector | ✅ A7 | OAI-PMH + Legacy Atom 搜索；D5；可选 HTML 全文（`arxivFulltext.ts`） |
+| PatentsViewConnector | ✅ | 专利摘要；YAML disabled；须 `PATENTSVIEW_API_KEY` |
+| ClinicalTrialsConnector | ✅ | REST v2；单测 3 |
+| SecEdgarConnector | ✅ | 须 `SEC_EDGAR_USER_AGENT` |
+| GitHubConnector / HackerNewsConnector | ✅ | Bearer / Firebase；YAML disabled |
+| FredConnector | ✅ | 须 `FRED_API_KEY` |
 | dedup 处理器 | ✅ | (sourceId, externalId) 唯一键，自动触发 embedding |
 | RAG 混合检索 | ✅ | semantic + tsvector → RRF |
 | 多后端 Embedding | ✅ | Ollama bge-m3 / OpenAI / Voyage |
@@ -27,7 +33,9 @@
 | admin 动态源列表 | ✅ | `POST /admin/collect` 查 DB `status=active` |
 | 分块存储 | ✅ A8 | `processors/chunk.ts`；长 abstract / fulltext 多 chunk |
 | 富化流水线 | ❌ | `enrich.ts` 未实现（Stage 2 远期） |
-| Connector 覆盖 | 🟡 **6/13** | 运行时 + `arxiv_oai`（A7）；Legacy `arxiv` 仅 YAML |
+| Connector 覆盖 | ✅ **12/13** | 运行时 12 源；Legacy `arxiv` 仅 YAML（采集走 `arxiv_oai`） |
+| 默认采集（enabled） | 🟡 **4/12** | openalex、crossref、arxiv_oai、worldbank |
+| D5 采集溯源 | 🟡 **4/12** | openalex、crossref、pubmed、arxiv_oai |
 | 内容层 A10/A11 | ✅ | 新文档：PubMed `efetchAbstracts`、OpenAlex `uninvertAbstract`；**存量**见 A12 □ |
 
 ### 1.2 当前采集流程（端到端）
@@ -52,7 +60,8 @@
 │  2. insertRawDocuments → ON CONFLICT UPSERT                     │
 │  3. mirrorInsertedDocuments（D2，可选）                         │
 │  4. embedDocuments → 异步；失败写 embed_fail 事件（仍无队列 A9）│
-│     └─ title + "\n\n" + abstract → embedding → document_chunks  │
+│     └─ chunkDocument（A8）→ 多 chunk → document_chunks          │
+│  5. arxiv_oai 可选：arxivFulltext 同步 HTML → raw_json.fulltext │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -61,13 +70,14 @@
 | 瓶颈 | 影响 | 状态 / 根因 |
 |------|------|------------|
 | ~~逐条 dedup~~ | — | ✅ A1 已批量 200 |
-| 单 chunk 策略 | 长文档检索精度低 | □ A8；`vectorStore.ts` 每文档 1 chunk |
+| ~~单 chunk 策略~~ | — | ✅ A8 `processors/chunk.ts` |
 | embedding 无队列重试 | 失败需手工重跑 | 🟡 `embed_fail` 事件已记；A9 明确暂缓 |
 | 存量向量缺摘要 | openalex/pubmed 旧库检索差 | □ A12 re-embed CLI 未做 |
 | `last_cursor` 未接线 | 采集中断从头开始 | 🟡 列在 `007`；scheduler/Connector 未读写 |
 | 无富化层 | 无法按实体过滤 | □ Stage 2 enrich（远期） |
-| BaseConnector 认证/分页模板 | 新源开发成本高 | 🟡 `authHeaders`/`paginateResumptionToken` 仍分散或未实现 |
-| Connector 7/12 未注册 | 多源覆盖不足 | □ 优先 A7 arXiv |
+| BaseConnector 认证/分页模板 | 新源开发成本高 | 🟡 `credentials.ts` + 分源 helpers；LinkHeader 分页 □ |
+| ~~Connector 未齐~~ | — | ✅ 12 源已 `registerDefaultConnectors`；扩源改 YAML `enabled` + ENV |
+| D5 仅 4 源 | 审计 curl 不完整 | 🟡 其余 8 源 collect 未挂 `attachProvenance` |
 
 ---
 
@@ -668,7 +678,7 @@ const results = await dataPlatform.search(query, {
 | **PubMed** | ✅ | ✅ `efetch` `<AbstractText>` | ❌（PMC 全文另议） | ⭐⭐⭐⭐ | ✅ A10 |
 | ~~PubMed (esummary only)~~ | — | — | — | — | ~~历史问题，已由 A10 替代~~ |
 | **Semantic Scholar** | ✅ | ✅ `abstract`（直接字符串） + `tldr.text` | ❌ | ⭐⭐⭐⭐⭐ | ✅ A4（`semanticscholar.ts`） |
-| **arXiv** | ✅ | ✅ `<summary>`（OAI-PMH） | ✅（HTML，部分） | ⭐⭐⭐⭐⭐ | A7 |
+| **arXiv (`arxiv_oai`)** | ✅ | ✅ OAI `<abstract>` | ✅ HTML（`ARXIV_FULLTEXT_ENABLED`） | ⭐⭐⭐⭐⭐ | ✅ A7 + fulltext |
 | **CrossRef** | ✅ | 🟡 20% 有 | ❌ | ⭐⭐ | 不单独修复 |
 | **PatentsView** | ✅ | ✅ `patent_abstract` | ❌ | ⭐⭐⭐ | P2 |
 | **SEC EDGAR** | ✅ | N/A | ✅ 财报全文（HTML） | ⭐⭐⭐⭐ | 需分块策略 |
@@ -775,3 +785,4 @@ rawJson = { ...esummaryRecord, abstract: "<AbstractText>" }
 | v1.3 | 2026-05-19 | 代码对照同步：§1.1–§1.3、§3、§6 标 A1/A5/L1–L6 已完成；A10/A11 ✅；§7 区分新文档/存量；新增 §6.5 剩余任务摘要 |
 | v1.4 | 2026-05-19 | P2：A7 `arxiv_oai`、A8 `chunk.ts`、B8 `/health` 探活；`paginateResumptionToken`；迁移 `011` |
 | v1.5 | 2026-05-19 | P1 arXiv HTML 正文：`arxivFulltext.ts` + dedup 采集后同步；ENV `ARXIV_FULLTEXT_*` |
+| v1.6 | 2026-05-19 | 接入全景同步：§1.1 补全 12 Connector；覆盖 **12/13**、enabled **4**、D5 **4**；§1.3 去陈旧瓶颈；§7.2 arxiv_oai 标 fulltext ✅ |
