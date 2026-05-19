@@ -19,7 +19,7 @@
 | PubMedConnector | ✅ | esearch + esummary + efetch 摘要（A10）；D5 provenance |
 | SemanticScholarConnector | ✅ | Header `x-api-key`；abstract/tldr；单测 9（A4）；YAML disabled |
 | ArxivOaiConnector | ✅ A7 | OAI-PMH + Legacy Atom 搜索；D5；可选 HTML 全文（`arxivFulltext.ts`） |
-| PatentsViewConnector | ✅ | 专利摘要；YAML disabled；须 `PATENTSVIEW_API_KEY` |
+| PatentsViewConnector | ✅ | 专利摘要；须 `PATENTSVIEW_API_KEY`（旧 Atlassian 申请已停用；ODP 见 `data-sources.md` §2.3） |
 | ClinicalTrialsConnector | ✅ | REST v2；单测 3 |
 | SecEdgarConnector | ✅ | 须 `SEC_EDGAR_USER_AGENT` |
 | GitHubConnector / HackerNewsConnector | ✅ | Bearer / Firebase；YAML disabled |

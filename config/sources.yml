@@ -152,7 +152,8 @@ sources:
     license: "public domain (US gov)"
     commercial_use: true
     schedule: "0 3 * * 0"
-    description: "USPTO 清洗专利数据，研究级质量，含发明人/专利权人标准化"
+    # 须 PATENTSVIEW_API_KEY（PatentSearch）；Atlassian 申请已停用 → ODP/Bulk 见 data-sources.md §2.3
+    description: "USPTO 清洗专利；POST /patent {q,f,o}；须 API Key"
 
   - id: sec_edgar
     profile: rest_polite

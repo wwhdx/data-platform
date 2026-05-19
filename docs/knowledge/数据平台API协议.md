@@ -325,28 +325,30 @@ pa=Tesla AND ipc=B60L     # Tesla 公司的电动车专利
 
 ---
 
-### 2.3 USPTO Open Data（PatentsView）
+### 2.3 USPTO PatentsView（PatentSearch API）
 
 | 项目               | 详情                                                      |
 | ------------------ | --------------------------------------------------------- |
-| **协议类型** | REST                                                      |
+| **协议类型** | REST（POST JSON body）                                    |
 | **Base URL** | `https://search.patentsview.org/api/v1/`                |
-| **认证方式** | 免费，API Key 通过 Header 传入（`X-Api-Key`）           |
+| **认证方式** | Header `X-Api-Key`（**必填**；无 Key 请求会被拒绝）       |
+| **Key 申请** | ~~Atlassian Help Center~~ 已停用；ODP：[getting-started](https://data.uspto.gov/apis/getting-started)；Bulk 多无需 Key |
 | **速率限制** | 45 次 / 分钟（有 Key）                                    |
+| **分页** | `o.size` + `o.after` 游标（旧版 `page`/`per_page` 已废弃） |
 | **响应格式** | JSON                                                      |
 | **数据特点** | 已清洗的研究级数据，含发明人-专利权人标准化、机构地理编码 |
+| **迁移** | 2026-03 起迁入 [USPTO ODP](https://data.uspto.gov)；API 可能阶段性暂停；Bulk 与 ODP REST 见 `docs/data-sources.md` §2.3 |
 
-**典型请求：**
+**典型请求（与 `PatentsViewConnector` 一致）：**
 
 ```bash
-# 检索 AI 领域专利
-curl -X POST https://search.patentsview.org/api/v1/patent/ \
+curl -X POST "https://search.patentsview.org/api/v1/patent" \
   -H "Content-Type: application/json" \
   -H "X-Api-Key: YOUR_KEY" \
   -d '{
     "q": {"_text_any": {"patent_title": "machine learning"}},
-    "f": ["patent_id","patent_title","patent_date","assignee_organization"],
-    "o": {"page": 1, "per_page": 50}
+    "f": ["patent_id","patent_title","patent_date","patent_abstract","assignee_organization"],
+    "o": {"size": 50}
   }'
 ```
 
@@ -676,18 +678,21 @@ GET https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=VI
 ### 7.2 认证模式分类
 
 ```
-① Query Param Key    → FRED, PubMed, PatentsView
+① Query Param Key    → FRED, PubMed
    示例: ?api_key=xxxxx
 
-② Header Bearer Token → GitHub, Reddit, EPO OPS
+② Header Custom Key  → Semantic Scholar, PatentsView
+   示例: X-Api-Key: xxxxx
+
+③ Header Bearer Token → GitHub, Reddit, EPO OPS
    示例: Authorization: Bearer TOKEN
 
-③ Header 自定义字段   → Semantic Scholar (x-api-key), CrossRef Plus (crossref-api-key)
+④ Header 其它自定义字段 → CrossRef Plus (crossref-api-key) 等
 
-④ 无需认证 + 礼貌标识  → CrossRef (mailto), SEC EDGAR (User-Agent), arXiv
+⑤ 无需认证 + 礼貌标识  → CrossRef (mailto), SEC EDGAR (User-Agent), arXiv
    示例: User-Agent: MyResearchBot/1.0 (mailto:me@example.com)
 
-⑤ OAuth 2.0 完整流程  → EPO OPS, Google BigQuery, GitHub (高级)
+⑥ OAuth 2.0 完整流程  → EPO OPS, Google BigQuery, GitHub (高级)
    流程: 注册App → 获取Token → 携带Token请求 → Token续期
 ```
 
