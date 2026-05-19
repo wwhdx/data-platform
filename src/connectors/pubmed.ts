@@ -5,7 +5,9 @@ import type {
   SearchResult,
   CollectParams,
   SearchOptions,
+  HttpRequestCapture,
 } from "../types";
+import { captureFromRequest } from "../lib/httpCapture";
 import { BaseConnector } from "./base";
 import { RateLimiter } from "./rateLimiter";
 import {
@@ -14,6 +16,12 @@ import {
   parseEsummaryRecord,
   type ESummaryRecord,
 } from "./pubmedHelpers";
+import { attachProvenance } from "./provenance/attach";
+import {
+  buildPubMedCanonicalUrl,
+  buildPubMedDocumentRequest,
+  pubmedProvenanceConfig,
+} from "./provenance/pubmed";
 
 export const PUBMED_META: ConnectorMeta = {
   id: "pubmed",
@@ -38,7 +46,7 @@ interface ESearchResult {
 export class PubMedConnector extends BaseConnector {
   readonly meta: ConnectorMeta = PUBMED_META;
   private readonly root: string;
-  private readonly entrezDb: string;
+  readonly entrezDb: string;
 
   constructor(config: ConnectorConfig = {}) {
     super(
@@ -58,6 +66,15 @@ export class PubMedConnector extends BaseConnector {
     );
     const hasKey = Boolean(config.apiKey ?? process.env.NCBI_API_KEY);
     this.rateLimiter = RateLimiter.fromRPS(hasKey ? 10 : 3);
+  }
+
+  private provCfg() {
+    return pubmedProvenanceConfig({
+      root: this.root,
+      entrezDb: this.entrezDb,
+      userAgent: this.userAgent,
+      apiKey: this.apiKey ?? process.env.NCBI_API_KEY,
+    });
   }
 
   async search(query: string, opts?: SearchOptions): Promise<SearchResult[]> {
@@ -84,25 +101,56 @@ export class PubMedConnector extends BaseConnector {
 
     let retstart = 0;
     const pageSize = 200;
+    let batchIndex = 0;
+
+    const collectCtx = {
+      mode: "incremental" as const,
+      since: params.since,
+      query: params.query,
+      term,
+    };
 
     while (retstart < total && yielded < maxItems) {
       if (params.signal?.aborted) break;
 
-      const batch = await this.esummaryHistory(
+      const { records, batchCapture } = await this.esummaryHistory(
         first.webenv,
         first.querykey,
         retstart,
         Math.min(pageSize, maxItems - yielded),
       );
 
-      for (const rec of batch) {
+      const batchRequest: HttpRequestCapture & {
+        batchIndex: number;
+        documentsInBatch: number;
+        ephemeral: boolean;
+      } = {
+        ...batchCapture,
+        ephemeral: true,
+        batchIndex,
+        documentsInBatch: records.length,
+      };
+
+      for (let documentIndexInBatch = 0; documentIndexInBatch < records.length; documentIndexInBatch++) {
+        const rec = records[documentIndexInBatch]!;
         if (params.signal?.aborted) break;
-        yield this.toRawDocument(rec);
+
+        const doc = this.toRawDocument(rec);
+        yield attachProvenance(doc, PUBMED_META, {
+          documentRequest: buildPubMedDocumentRequest(rec.uid, this.provCfg()),
+          batchRequest: {
+            ...batchRequest,
+            documentIndexInBatch,
+          },
+          collect: collectCtx,
+          canonicalUrl: buildPubMedCanonicalUrl(rec.uid),
+        });
         yielded++;
         if (yielded >= maxItems) break;
       }
 
       retstart += pageSize;
+      batchIndex++;
     }
   }
 
@@ -159,7 +207,7 @@ export class PubMedConnector extends BaseConnector {
     queryKey: string,
     retstart: number,
     retmax: number,
-  ): Promise<ESummaryRecord[]> {
+  ): Promise<{ records: ESummaryRecord[]; batchCapture: HttpRequestCapture }> {
     const sp = new URLSearchParams({
       db: this.entrezDb,
       query_key: queryKey,
@@ -170,8 +218,14 @@ export class PubMedConnector extends BaseConnector {
     });
     const url = `${this.endpoint("esummary")}?${sp.toString()}${this.toolParam()}${this.apiKeyParam()}`;
     const res = await this.fetch(url);
-    if (!res.ok) return [];
-    return this.parseEsummaryJson(await res.json());
+    const batchCapture = this.consumeLastHttpCapture() ?? captureFromRequest(url, {
+      headers: { "User-Agent": this.userAgent },
+    });
+    if (!res.ok) return { records: [], batchCapture };
+    return {
+      records: this.parseEsummaryJson(await res.json()),
+      batchCapture,
+    };
   }
 
   private parseEsummaryJson(data: unknown): ESummaryRecord[] {

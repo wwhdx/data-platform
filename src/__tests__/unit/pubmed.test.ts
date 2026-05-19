@@ -102,4 +102,46 @@ describe("PubMedConnector", () => {
     expect(fetchMock.mock.calls[0]![0]).toContain("esearch.fcgi");
     expect(fetchMock.mock.calls[0]![0]).toContain("db=pubmed");
   });
+
+  it("collect attaches documentRequest and batchRequest provenance", async () => {
+    const esearchPayload = {
+      esearchresult: {
+        count: "1",
+        webenv: "WENV",
+        querykey: "1",
+      },
+    };
+    const esummaryPayload = {
+      result: {
+        uids: ["42"],
+        "42": {
+          uid: "42",
+          title: "Batch Paper",
+          pubdate: "2026",
+          source: "J",
+          authors: [],
+        },
+      },
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => esearchPayload })
+      .mockResolvedValueOnce({ ok: true, json: async () => esummaryPayload });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const c = new PubMedConnector({
+      baseUrl: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/",
+    });
+    const docs = [];
+    for await (const doc of c.collect({ since: "2026-05-18", maxItems: 1 })) {
+      docs.push(doc);
+    }
+    expect(docs).toHaveLength(1);
+    const p = docs[0]!.fetchProvenance;
+    expect(p?.documentRequest?.curl).toContain("curl");
+    expect(p?.documentRequest?.url).toContain("id=42");
+    expect(p?.batchRequest?.curl).toContain("curl");
+    expect(p?.batchRequest?.ephemeral).toBe(true);
+    expect(p?.canonicalUrl).toBe("https://pubmed.ncbi.nlm.nih.gov/42/");
+  });
 });

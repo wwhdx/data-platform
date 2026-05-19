@@ -1,7 +1,8 @@
+import { buildSyntheticProvenance } from "../connectors/provenance";
+import type { DocumentProvenance } from "../types";
 import type { RawDocumentRow } from "./types";
 
-export interface DocumentEnvelope {
-  schemaVersion: 1;
+interface DocumentEnvelopeBase {
   id: number;
   sourceId: string;
   externalId: string;
@@ -10,9 +11,24 @@ export interface DocumentEnvelope {
   rawJson: Record<string, unknown>;
 }
 
+export interface DocumentEnvelopeV1 extends DocumentEnvelopeBase {
+  schemaVersion: 1;
+}
+
+export interface DocumentEnvelopeV2 extends DocumentEnvelopeBase {
+  schemaVersion: 2;
+  provenance: DocumentProvenance;
+}
+
+export type DocumentEnvelope = DocumentEnvelopeV1 | DocumentEnvelopeV2;
+
+function resolveProvenance(row: RawDocumentRow): DocumentProvenance | undefined {
+  if (row.fetchProvenance) return row.fetchProvenance;
+  return buildSyntheticProvenance(row.sourceId, row.externalId, row.rawJson);
+}
+
 export function toEnvelope(row: RawDocumentRow): DocumentEnvelope {
-  return {
-    schemaVersion: 1,
+  const base: DocumentEnvelopeBase = {
     id: row.id,
     sourceId: row.sourceId,
     externalId: row.externalId,
@@ -20,6 +36,16 @@ export function toEnvelope(row: RawDocumentRow): DocumentEnvelope {
     collectionJobId: row.collectionJobId,
     rawJson: row.rawJson,
   };
+
+  const provenance = resolveProvenance(row);
+  if (provenance) {
+    return { schemaVersion: 2, ...base, provenance };
+  }
+  return { schemaVersion: 1, ...base };
+}
+
+export function envelopeSchemaVersion(row: RawDocumentRow): 1 | 2 {
+  return resolveProvenance(row) ? 2 : 1;
 }
 
 export function serializeEnvelope(envelope: DocumentEnvelope): string {

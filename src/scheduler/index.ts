@@ -147,10 +147,17 @@ export class Scheduler {
         connectorId: sourceId,
       });
 
-      const stampJobId = (doc: RawDocument): RawDocument => ({
-        ...doc,
-        collectionJobId: job.id,
-      });
+      const stampJobId = (doc: RawDocument): RawDocument => {
+        const stamped = { ...doc, collectionJobId: job.id };
+        if (!stamped.fetchProvenance) return stamped;
+        return {
+          ...stamped,
+          fetchProvenance: {
+            ...stamped.fetchProvenance,
+            collect: { ...stamped.fetchProvenance.collect, jobId: job.id },
+          },
+        };
+      };
 
       const recordBatch = (
         batchIndex: number,

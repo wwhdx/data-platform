@@ -1,6 +1,20 @@
-import type { ConnectorMeta, ConnectorConfig, RawDocument, SearchResult, CollectParams, SearchOptions } from "../types";
+import type {
+  ConnectorMeta,
+  ConnectorConfig,
+  RawDocument,
+  SearchResult,
+  CollectParams,
+  SearchOptions,
+  HttpRequestCapture,
+} from "../types";
+import { captureFromRequest } from "../lib/httpCapture";
 import { BaseConnector } from "./base";
 import { RateLimiter } from "./rateLimiter";
+import { attachProvenance } from "./provenance/attach";
+import {
+  buildOpenAlexCanonicalUrl,
+  buildOpenAlexDocumentRequest,
+} from "./provenance/openalex";
 
 export const OPENALEX_META: ConnectorMeta = {
   id: "openalex",
@@ -45,8 +59,6 @@ export class OpenAlexConnector extends BaseConnector {
     return this.apiKey ? `&api_key=${this.apiKey}` : "";
   }
 
-  // ── 搜索 ──
-
   async search(query: string, opts?: SearchOptions): Promise<SearchResult[]> {
     const maxResults = opts?.maxResults ?? 10;
     const url = `${this.runtimeBaseUrl}/works?search=${encodeURIComponent(query)}&per_page=${maxResults}${this.authParam}`;
@@ -54,46 +66,81 @@ export class OpenAlexConnector extends BaseConnector {
     const res = await this.fetch(url);
     if (!res.ok) return [];
 
-    const data = await res.json() as { results?: OAWORK[] };
-    return (data.results ?? []).map(w => this.toSearchResult(w));
+    const data = (await res.json()) as { results?: OAWORK[] };
+    return (data.results ?? []).map((w) => this.toSearchResult(w));
   }
-
-  // ── 增量采集 ──
 
   async *collect(params: CollectParams = {}): AsyncGenerator<RawDocument> {
     const since = params.since ?? new Date(Date.now() - 86400000).toISOString().slice(0, 10);
     const maxItems = params.maxItems ?? Infinity;
     let yielded = 0;
+    let batchIndex = 0;
 
     const baseUrl = `${this.runtimeBaseUrl}/works?filter=from_publication_date:${since}&per_page=200${this.authParam}`;
+    let cursor: string | undefined;
 
-    for await (const doc of this.paginate<RawDocument>(
-      async (cursor) => {
-        const url = cursor ? `${baseUrl}&cursor=${encodeURIComponent(cursor)}` : baseUrl;
-        const res = await this.fetch(url);
-        if (!res.ok) return { items: [], nextCursor: null };
+    const collectCtx = {
+      mode: "incremental" as const,
+      since,
+      query: params.query,
+    };
 
-        const data = await res.json() as {
-          results?: OAWORK[];
-          meta?: { next_cursor?: string };
-        };
-
-        const items = (data.results ?? []).map(w => this.toRawDocument(w));
-
-        return {
-          items,
-          nextCursor: data.meta?.next_cursor ?? null,
-        };
-      },
-    )) {
+    while (yielded < maxItems) {
       if (params.signal?.aborted) break;
-      yield doc;
-      yielded++;
-      if (yielded >= maxItems) break;
+
+      const url = cursor ? `${baseUrl}&cursor=${encodeURIComponent(cursor)}` : baseUrl;
+      const res = await this.fetch(url);
+      const batchCapture =
+        this.consumeLastHttpCapture() ??
+        captureFromRequest(url, { headers: { "User-Agent": this.userAgent } });
+
+      if (!res.ok) break;
+
+      const data = (await res.json()) as {
+        results?: OAWORK[];
+        meta?: { next_cursor?: string };
+      };
+
+      const works = data.results ?? [];
+      if (works.length === 0) break;
+
+      const batchRequest: HttpRequestCapture & {
+        batchIndex: number;
+        documentsInBatch: number;
+        ephemeral: boolean;
+      } = {
+        ...batchCapture,
+        ephemeral: Boolean(cursor),
+        batchIndex,
+        documentsInBatch: works.length,
+      };
+
+      for (let documentIndexInBatch = 0; documentIndexInBatch < works.length; documentIndexInBatch++) {
+        const work = works[documentIndexInBatch]!;
+        if (params.signal?.aborted) break;
+
+        const doc = this.toRawDocument(work);
+        const extId = doc.externalId;
+        yield attachProvenance(doc, OPENALEX_META, {
+          documentRequest: buildOpenAlexDocumentRequest(
+            extId,
+            this.runtimeBaseUrl,
+            this.userAgent,
+            this.apiKey,
+          ),
+          batchRequest: { ...batchRequest, documentIndexInBatch },
+          collect: collectCtx,
+          canonicalUrl: buildOpenAlexCanonicalUrl(extId, doc.rawJson),
+        });
+        yielded++;
+        if (yielded >= maxItems) break;
+      }
+
+      cursor = data.meta?.next_cursor ?? undefined;
+      if (!cursor) break;
+      batchIndex++;
     }
   }
-
-  // ── 数据映射 ──
 
   private toSearchResult(work: OAWORK): SearchResult {
     const doi = work.doi ?? "";
@@ -113,7 +160,9 @@ export class OpenAlexConnector extends BaseConnector {
   }
 
   private toRawDocument(work: OAWORK): RawDocument {
-    const extId = work.id.startsWith("https://") ? new URL(work.id).pathname.replace("/", "") : work.id;
+    const extId = work.id.startsWith("https://")
+      ? new URL(work.id).pathname.replace("/", "")
+      : work.id;
     return {
       sourceId: OPENALEX_META.id,
       externalId: extId,

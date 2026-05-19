@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { toEnvelope, serializeEnvelope } from "./envelope";
+import { envelopeSchemaVersion, toEnvelope, serializeEnvelope } from "./envelope";
 import { buildRelativePath } from "./paths";
 import type { ExportLayout, RawDocumentRow } from "./types";
 
@@ -37,6 +37,7 @@ export async function writeRawDocumentToDisk(
   await fs.promises.writeFile(absPath, body, "utf-8");
 
   if (opts.manifestPath) {
+    const schemaVersion = envelopeSchemaVersion(opts.row);
     await appendManifestLine(opts.manifestPath, {
       id: opts.row.id,
       sourceId: opts.row.sourceId,
@@ -44,6 +45,8 @@ export async function writeRawDocumentToDisk(
       relativePath,
       fetchedAt: opts.row.fetchedAt.toISOString(),
       bytes: Buffer.byteLength(body, "utf-8"),
+      schemaVersion,
+      hasProvenance: schemaVersion === 2,
     });
   }
 
@@ -57,6 +60,8 @@ export interface ManifestLine {
   relativePath: string;
   fetchedAt: string;
   bytes: number;
+  schemaVersion?: 1 | 2;
+  hasProvenance?: boolean;
 }
 
 export async function appendManifestLine(

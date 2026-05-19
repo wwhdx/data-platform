@@ -1,4 +1,4 @@
-import type { RawDocument, SearchResult, SearchOptions } from "../../types";
+import type { DocumentProvenance, RawDocument, SearchResult, SearchOptions } from "../../types";
 import { query } from "../db";
 import { buildDocumentFilterClause } from "../../rag/searchFilters";
 import type { ExportFilters, RawDocumentRow } from "../../export/types";
@@ -20,35 +20,51 @@ export async function insertRawDocuments(docs: RawDocument[]): Promise<InsertedR
   const params: unknown[] = [];
   for (let i = 0; i < docs.length; i++) {
     const d = docs[i];
-    const base = i * 4;
-    values.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4})`);
-    params.push(d.sourceId, d.externalId, JSON.stringify(d.rawJson), d.collectionJobId ?? null);
+    const base = i * 5;
+    values.push(
+      `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`,
+    );
+    params.push(
+      d.sourceId,
+      d.externalId,
+      JSON.stringify(d.rawJson),
+      d.collectionJobId ?? null,
+      d.fetchProvenance ? JSON.stringify(d.fetchProvenance) : null,
+    );
   }
 
   const sql = `
-    INSERT INTO raw_documents (source_id, external_id, raw_json, collection_job_id)
+    INSERT INTO raw_documents (source_id, external_id, raw_json, collection_job_id, fetch_provenance)
     VALUES ${values.join(", ")}
     ON CONFLICT (source_id, external_id) DO UPDATE
       SET raw_json = EXCLUDED.raw_json,
           fetched_at = now(),
           collection_job_id = COALESCE(EXCLUDED.collection_job_id, raw_documents.collection_job_id)
-    RETURNING id, source_id, external_id, raw_json, fetched_at, collection_job_id
+    RETURNING id, source_id, external_id, raw_json, fetched_at, collection_job_id, fetch_provenance
   `;
 
   const result = await query(sql, params);
-  return result.rows.map(row => {
-    const raw = row.raw_json as Record<string, unknown>;
-    return {
-      id: Number(row.id),
-      sourceId: String(row.source_id),
-      externalId: String(row.external_id),
-      rawJson: raw,
-      fetchedAt: new Date(String(row.fetched_at)),
-      collectionJobId: row.collection_job_id != null ? Number(row.collection_job_id) : null,
-      title: String(raw.title ?? ""),
-      abstract: String(raw.abstract ?? ""),
-    };
-  });
+  return result.rows.map(row => mapInsertedRow(row as Record<string, unknown>));
+}
+
+function parseFetchProvenance(raw: unknown): DocumentProvenance | null {
+  if (!raw || typeof raw !== "object") return null;
+  return raw as DocumentProvenance;
+}
+
+function mapInsertedRow(row: Record<string, unknown>): InsertedRawRow {
+  const raw = row.raw_json as Record<string, unknown>;
+  return {
+    id: Number(row.id),
+    sourceId: String(row.source_id),
+    externalId: String(row.external_id),
+    rawJson: raw,
+    fetchedAt: new Date(String(row.fetched_at)),
+    collectionJobId: row.collection_job_id != null ? Number(row.collection_job_id) : null,
+    fetchProvenance: parseFetchProvenance(row.fetch_provenance),
+    title: String(raw.title ?? ""),
+    abstract: String(raw.abstract ?? ""),
+  };
 }
 
 function buildExportWhere(
@@ -93,6 +109,7 @@ function mapExportRow(row: Record<string, unknown>): RawDocumentRow {
     rawJson: row.raw_json as Record<string, unknown>,
     fetchedAt: new Date(String(row.fetched_at)),
     collectionJobId: row.collection_job_id != null ? Number(row.collection_job_id) : null,
+    fetchProvenance: parseFetchProvenance(row.fetch_provenance),
   };
 }
 
@@ -113,7 +130,8 @@ export async function listRawDocumentsForExport(
   const { sql, params, nextIdx } = buildExportWhere(filters, 2);
   const limitIdx = nextIdx;
   const result = await query(
-    `SELECT rd.id, rd.source_id, rd.external_id, rd.raw_json, rd.fetched_at, rd.collection_job_id
+    `SELECT rd.id, rd.source_id, rd.external_id, rd.raw_json, rd.fetched_at,
+            rd.collection_job_id, rd.fetch_provenance
      FROM raw_documents rd
      WHERE rd.id > $1${sql}
      ORDER BY rd.id ASC

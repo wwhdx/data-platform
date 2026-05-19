@@ -1,6 +1,19 @@
-import type { ConnectorMeta, ConnectorConfig, RawDocument, SearchResult, CollectParams, SearchOptions } from "../types";
+import type {
+  ConnectorMeta,
+  ConnectorConfig,
+  RawDocument,
+  SearchResult,
+  CollectParams,
+  SearchOptions,
+  HttpRequestCapture,
+} from "../types";
 import { BaseConnector } from "./base";
 import { RateLimiter } from "./rateLimiter";
+import { attachProvenance } from "./provenance/attach";
+import {
+  buildCrossrefCanonicalUrl,
+  buildCrossrefDocumentRequest,
+} from "./provenance/crossref";
 
 export const CROSSREF_META: ConnectorMeta = {
   id: "crossref",
@@ -57,13 +70,9 @@ export class CrossRefConnector extends BaseConnector {
       },
       CROSSREF_META.baseUrl,
     );
-    // CrossRef polite pool: mailto query param for better service
     this.mailto = config.apiKey?.includes("@") ? config.apiKey : "dev@wangye.app";
-    // Conservative rate limit for polite pool (5 req/s)
     this.rateLimiter = RateLimiter.fromRPS(5);
   }
-
-  // ── 搜索 ──
 
   async search(query: string, opts?: SearchOptions): Promise<SearchResult[]> {
     const maxResults = opts?.maxResults ?? 10;
@@ -77,18 +86,21 @@ export class CrossRefConnector extends BaseConnector {
     if (!res.ok) return [];
 
     const data = (await res.json()) as CRResponse;
-    return (data.message?.items ?? []).map(w => this.toSearchResult(w));
+    return (data.message?.items ?? []).map((w) => this.toSearchResult(w));
   }
-
-  // ── 增量采集 ──
 
   async *collect(params: CollectParams = {}): AsyncGenerator<RawDocument> {
     const since = params.since ?? new Date(Date.now() - 86400000).toISOString().slice(0, 10);
     const maxItems = params.maxItems ?? Infinity;
     let yielded = 0;
-
-    // CrossRef 使用 cursor 分页（rows 固定 200，比 offset 更高效）
     let cursor = "*";
+    let batchIndex = 0;
+
+    const collectCtx = {
+      mode: "incremental" as const,
+      since,
+      query: params.query,
+    };
 
     while (yielded < maxItems) {
       if (params.signal?.aborted) break;
@@ -101,26 +113,50 @@ export class CrossRefConnector extends BaseConnector {
       const url = `${this.runtimeBaseUrl}/works?${sp.toString()}${this.politeParam()}`;
 
       const res = await this.fetch(url);
-      if (!res.ok) break;
+      const batchCapture = this.consumeLastHttpCapture();
+      if (!res.ok || !batchCapture) break;
 
       const data = (await res.json()) as CRResponse;
       const items = data.message?.items ?? [];
 
       if (items.length === 0) break;
 
-      for (const item of items) {
+      const batchRequest: HttpRequestCapture & {
+        batchIndex: number;
+        documentsInBatch: number;
+        ephemeral: boolean;
+      } = {
+        ...batchCapture,
+        ephemeral: cursor !== "*",
+        batchIndex,
+        documentsInBatch: items.length,
+      };
+
+      for (let documentIndexInBatch = 0; documentIndexInBatch < items.length; documentIndexInBatch++) {
+        const item = items[documentIndexInBatch]!;
         if (params.signal?.aborted) break;
-        yield this.toRawDocument(item);
+
+        const doc = this.toRawDocument(item);
+        yield attachProvenance(doc, CROSSREF_META, {
+          documentRequest: buildCrossrefDocumentRequest(
+            doc.externalId,
+            this.runtimeBaseUrl,
+            this.userAgent,
+            this.mailto,
+          ),
+          batchRequest: { ...batchRequest, documentIndexInBatch },
+          collect: collectCtx,
+          canonicalUrl: buildCrossrefCanonicalUrl(doc.externalId),
+        });
         yielded++;
         if (yielded >= maxItems) break;
       }
 
       cursor = data.message?.["next-cursor"] ?? "";
       if (!cursor) break;
+      batchIndex++;
     }
   }
-
-  // ── 数据映射 ──
 
   private toSearchResult(work: CRWork): SearchResult {
     const doi = work.DOI ?? "";
@@ -149,14 +185,10 @@ export class CrossRefConnector extends BaseConnector {
     };
   }
 
-  // ── 辅助 ──
-
   private politeParam(): string {
     return `&mailto=${encodeURIComponent(this.mailto)}`;
   }
 }
-
-// ── 字段抽取 helpers ──
 
 function pickTitle(work: CRWork): string {
   if (work.title && work.title.length > 0) return work.title[0]!;
@@ -165,7 +197,6 @@ function pickTitle(work: CRWork): string {
 
 function cleanAbstract(raw?: string): string {
   if (!raw) return "";
-  // CrossRef abstract 常含 JATS XML 标签：<jats:p>...</jats:p>
   return raw.replace(/<[^>]+>/g, "").trim();
 }
 
@@ -198,7 +229,6 @@ function pickLicense(work: CRWork): string {
 }
 
 function hashWork(work: CRWork): string {
-  // 为无 DOI 的作品生成稳定 ID
   const title = work.title?.[0] ?? "";
   const firstAuthor = work.author?.[0];
   const authorStr = firstAuthor ? `${firstAuthor.family ?? ""}${firstAuthor.given ?? ""}` : "";

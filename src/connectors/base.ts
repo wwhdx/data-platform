@@ -1,4 +1,14 @@
-import type { Connector, ConnectorMeta, ConnectorConfig, RawDocument, SearchResult, CollectParams, SearchOptions } from "../types";
+import type {
+  Connector,
+  ConnectorMeta,
+  ConnectorConfig,
+  HttpRequestCapture,
+  RawDocument,
+  SearchResult,
+  CollectParams,
+  SearchOptions,
+} from "../types";
+import { captureFromRequest } from "../lib/httpCapture";
 import { RateLimiter } from "./rateLimiter";
 import { ExponentialBackoff } from "./backoff";
 
@@ -13,6 +23,8 @@ export abstract class BaseConnector implements Connector {
   /** resolveRuntimeConfig 或 META 默认 */
   protected readonly runtimeBaseUrl: string;
   protected readonly sourceOptions: Record<string, unknown>;
+  /** 最近一次 fetch 的请求描述（供 collect 挂 batch provenance） */
+  protected lastHttpCapture: HttpRequestCapture | null = null;
 
   constructor(config: ConnectorConfig = {}, metaDefaultBaseUrl = "") {
     this.apiKey = config.apiKey;
@@ -31,10 +43,28 @@ export abstract class BaseConnector implements Connector {
 
   // ── 基础设施方法 ──
 
+  /** 读取并清空最近一次 fetch 的捕获（用于批次 provenance） */
+  protected consumeLastHttpCapture(): HttpRequestCapture | null {
+    const c = this.lastHttpCapture;
+    this.lastHttpCapture = null;
+    return c;
+  }
+
   /**
    * HTTP GET，带速率控制 + 指数退避 + 超时 + User-Agent。
    */
   protected async fetch(url: string, init?: RequestInit): Promise<Response> {
+    const method = (init?.method ?? "GET").toUpperCase();
+    const mergedHeaders = {
+      "User-Agent": this.userAgent,
+      ...(init?.headers as Record<string, string> ?? {}),
+    };
+    this.lastHttpCapture = captureFromRequest(url, {
+      ...init,
+      method,
+      headers: mergedHeaders,
+    });
+
     await this.rateLimiter.acquire();
 
     const controller = new AbortController();
@@ -45,11 +75,8 @@ export abstract class BaseConnector implements Connector {
         fetch(url, {
           ...init,
           signal: controller.signal,
-          headers: {
-            "User-Agent": this.userAgent,
-            ...(init?.headers as Record<string, string> ?? {}),
-          },
-        })
+          headers: mergedHeaders,
+        }),
       );
 
       await this.rateLimiter.sleepMinInterval();

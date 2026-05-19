@@ -1,3 +1,5 @@
+import type { DocumentProvenance } from "../types";
+
 /** 本地原始 JSON 目录布局（见 docs/plans/原始数据本地导出与镜像方案.md） */
 export type ExportLayout = "source" | "profile";
 
@@ -16,6 +18,7 @@ export interface RawDocumentRow {
   rawJson: Record<string, unknown>;
   fetchedAt: Date;
   collectionJobId: number | null;
+  fetchProvenance?: DocumentProvenance | null;
 }
 
 export interface ExportResult {

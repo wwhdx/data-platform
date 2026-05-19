@@ -33,6 +33,40 @@ export interface ConnectorConfig {
   };
 }
 
+// ── HTTP 溯源（D5，与 rawJson 独立）──
+export interface HttpRequestCapture {
+  method: "GET" | "POST" | "PUT" | "DELETE";
+  url: string;
+  headers?: Record<string, string>;
+  body?: unknown;
+  curl: string;
+  ephemeral?: boolean;
+  synthetic?: boolean;
+}
+
+export interface DocumentProvenance {
+  provenanceSchemaVersion: 1;
+  capturedAt: string;
+  connectorId: string;
+  connectorVersion?: string;
+  license?: string;
+  commercialUse?: boolean;
+  canonicalUrl?: string;
+  collect?: {
+    jobId?: number;
+    mode?: "incremental" | "search" | "by_id";
+    since?: string;
+    query?: string;
+    term?: string;
+  };
+  documentRequest?: HttpRequestCapture;
+  batchRequest?: HttpRequestCapture & {
+    batchIndex?: number;
+    documentIndexInBatch?: number;
+    documentsInBatch?: number;
+  };
+}
+
 // ── 原始文档（不可变）──
 export interface RawDocument {
   sourceId: string;
@@ -40,6 +74,8 @@ export interface RawDocument {
   rawJson: Record<string, unknown>;
   fetchedAt: Date;
   collectionJobId?: number;
+  /** 采集时 HTTP 溯源；入库至 fetch_provenance */
+  fetchProvenance?: DocumentProvenance;
 }
 
 // ── 采集任务 ──
