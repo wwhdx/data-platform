@@ -112,6 +112,8 @@ pnpm cli export --dry-run
 
 # 运维
 pnpm cli migrate           # 执行数据库迁移（需 DATA_PLATFORM_DATABASE_URL）
+pnpm cli db-clear --dry-run   # 预览将清空的表与行数
+pnpm cli db-clear --yes       # TRUNCATE 业务数据（保留表结构）
 pnpm cli serve --port 3400 # 启动 API 服务
 
 # 配置（YAML ↔ DB，无需 API）
@@ -126,7 +128,7 @@ pnpm cli config list --by-profile     # 按 profile 分组（读 YAML）
 pnpm cli config list                  # 数据源表格（含文档数、最近采集）
 ```
 
-> **模式说明**：`search`/`collect`/`sources`/`jobs`/`stats`/`health`/`config list` 通过 HTTP 调 API（默认 `http://localhost:3400`）；`migrate`/`config validate|sync|diff|export`（配置写回 YAML）直连数据库或读本地 YAML；规划中的 `cli export`（原始 JSON 导出）亦直连 DB。
+> **模式说明**：`search`/`collect`/`sources`/`jobs`/`stats`/`health`/`config list` 通过 HTTP 调 API（默认 `http://localhost:3400`）；`migrate`/`db-clear`/`export`/`config validate|sync|diff|export`（配置写回 YAML）直连数据库或读本地 YAML。
 
 ## 测试
 

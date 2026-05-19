@@ -7,6 +7,7 @@
  *   npx tsx src/cli/index.ts collect --source openalex
  *   npx tsx src/cli/index.ts sources
  *   npx tsx src/cli/index.ts health
+ *   npx tsx src/cli/index.ts db-clear --yes
  */
 
 import "../config/loadEnv";
@@ -1161,6 +1162,52 @@ async function cmdExport(args: string[]) {
   }
 }
 
+async function cmdDbClear(args: string[]) {
+  const opts = parseArgs(args);
+  const dbUrl = process.env.DATA_PLATFORM_DATABASE_URL;
+  if (!dbUrl) {
+    console.error("❌ 请设置 DATA_PLATFORM_DATABASE_URL 环境变量");
+    throw new CliExit(1);
+  }
+
+  const includeConfig =
+    opts.config === "true" || opts["include-config"] === "true";
+  const dryRun = opts["dry-run"] === "true";
+  const yes = opts.yes === "true" || opts.y === "true";
+
+  const { clearPlatformData, countTableRows, tablesToClear } = await import(
+    "../storage/clearData"
+  );
+  const tables = tablesToClear({ includeConfig });
+  const counts = await countTableRows(tables);
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+
+  console.log("将清空以下表（保留表结构，不执行 DROP）：\n");
+  for (const t of tables) {
+    console.log(`  ${t.padEnd(28)} ${counts[t] ?? 0} 行`);
+  }
+  console.log(`\n  合计 ${total} 行`);
+
+  if (dryRun) {
+    console.log("\n（--dry-run：未写入数据库）");
+    return;
+  }
+
+  if (!yes) {
+    console.log(
+      "\n确认清空请加 --yes；若同时清空 data_sources / schedules 请加 --include-config",
+    );
+    throw new CliExit(1);
+  }
+
+  await clearPlatformData({ includeConfig });
+  console.log("\n✅ 已清空");
+
+  if (includeConfig) {
+    console.log("提示: 运行 pnpm cli config sync 从 sources.yml 恢复数据源与调度");
+  }
+}
+
 async function cmdMigrate() {
   const dbUrl = process.env.DATA_PLATFORM_DATABASE_URL;
   if (!dbUrl) {
@@ -1284,6 +1331,7 @@ function printHelp() {
 
 命令（直连数据库 / 本地文件）:
   migrate   执行数据库迁移
+  db-clear  清空业务数据（TRUNCATE，保留表结构；须 --yes）
   export    原始 JSON 导出到本地目录（见 docs/plans/原始数据本地导出与镜像方案.md）
   serve     启动 API 服务
   schedules 查看 cron 调度计划（需 API；不可达时 exit 1）
@@ -1321,6 +1369,11 @@ function printHelp() {
   serve:
     --port <数字>            服务端口 (默认: 3400)
 
+  db-clear:
+    --yes                    确认执行（无此参数仅预览行数并 exit 1）
+    --dry-run                仅统计行数，不 TRUNCATE
+    --include-config         同时清空 data_sources、collection_schedules
+
   export:
     --out <dir>              输出根 (默认 DATA_PLATFORM_EXPORT_DIR 或 ./data/export)
     --source <id>            可重复或逗号分隔
@@ -1342,7 +1395,7 @@ function printHelp() {
     list --by-profile       按 interface_profile 分组（读 YAML）
 
 环境变量:
-  DATA_PLATFORM_DATABASE_URL   数据库连接（migrate/export/config sync 必填）
+  DATA_PLATFORM_DATABASE_URL   数据库连接（migrate/db-clear/export/config sync 必填）
   DATA_PLATFORM_EXPORT_DIR     默认导出目录 (./data/export)
   DATA_PLATFORM_RAW_MIRROR     采集成功后镜像目录（未设置则关闭）
   DATA_PLATFORM_RAW_MIRROR_OVERWRITE  设为 1 时镜像覆盖已有文件
@@ -1355,6 +1408,8 @@ function printHelp() {
 
 示例:
   data-platform migrate
+  data-platform db-clear --dry-run
+  data-platform db-clear --yes
   data-platform export --source openalex --since 2026-05-01 --out ./data/raw
   data-platform serve --port 3400
   data-platform config validate
@@ -1401,6 +1456,9 @@ async function main(): Promise<void> {
       break;
     case "migrate":
       await cmdMigrate();
+      break;
+    case "db-clear":
+      await cmdDbClear(rest);
       break;
     case "export":
       await cmdExport(rest);
