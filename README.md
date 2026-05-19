@@ -139,16 +139,16 @@ pnpm cli config list                  # 数据源表格（含文档数、最近�
 
 ```bash
 pnpm typecheck              # 类型检查
-pnpm test:run               # L0：全量单元 + smoke inject（无需 DB）
-pnpm test:smoke             # 仅 Fastify inject + engineCore 契约
+pnpm test:run               # L0：全量单元 + integration/api（无需 DB）
+pnpm test:api               # 仅 Fastify inject + SearchProvider 契约（无 DB）
 
 # I 轨集成闭环（需 docker compose up -d db）
 pnpm test:integration       # L2-fast：mock embed，collect→search→SearchProvider
 pnpm test:integration:full  # L2-full：真实 Ollama bge-m3
 pnpm e2e:loop               # migrate + L0 子集 + test:integration
 
-# 运维 smoke（不替代 I 轨）
-pnpm smoke:live             # migrate → serve → health/schedules/search
+# 运维探活（不替代 I 轨）
+pnpm test:live              # migrate → serve → health/schedules/search
 ```
 
 **接望野父仓 C2/C3 前**：L0 必须；**推荐 L2-fast**（子包闭环，见 [docs/plans/集成测试最小闭环方案.md](docs/plans/集成测试最小闭环方案.md)）。

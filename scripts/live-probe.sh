@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 真环境 smoke：需 PostgreSQL :5433（docker compose up -d db）
+# L2-live：真进程探活（需 PostgreSQL :5433，docker compose up -d db）
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -9,7 +9,7 @@ export DATA_PLATFORM_DATABASE_URL="${DATA_PLATFORM_DATABASE_URL:-postgresql://lu
 export DATA_PLATFORM_URL="${DATA_PLATFORM_URL:-http://localhost:3400}"
 PORT="${PORT:-3400}"
 
-echo "== L0: typecheck + vitest（含 smoke inject）=="
+echo "== L0: typecheck + vitest（含 integration/api inject）=="
 pnpm typecheck
 pnpm test:run
 
@@ -23,11 +23,11 @@ if ! pg_isready -h localhost -p 5433 -U lumina >/dev/null 2>&1; then
   exit 0
 fi
 
-echo "== L2: migrate + config sync =="
+echo "== L2-live: migrate + config sync =="
 pnpm cli migrate
 pnpm cli config sync
 
-echo "== L2: 启动 serve (port ${PORT}) =="
+echo "== L2-live: 启动 serve (port ${PORT}) =="
 pnpm cli serve --port "${PORT}" &
 SERVE_PID=$!
 cleanup() {
@@ -48,11 +48,11 @@ if ! curl -sf "http://localhost:${PORT}/health" >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "== L2: CLI 探活 =="
+echo "== L2-live: CLI 探活 =="
 pnpm cli health --json
 pnpm cli schedules --json | head -c 500
 echo ""
 pnpm cli search --query "machine learning" --max-results 3 --json | head -c 800
 echo ""
 
-echo "✅ live smoke 完成"
+echo "✅ live-probe 完成"

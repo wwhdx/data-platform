@@ -1,18 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { buildApp } from "../../api/server";
-import { Scheduler } from "../../scheduler";
-import { query } from "../../storage/db";
-import { hybridSearch } from "../../rag/retriever";
+import { buildApp } from "../../../api/server";
+import { Scheduler } from "../../../scheduler";
+import { query } from "../../../storage/db";
+import { hybridSearch } from "../../../rag/retriever";
 
-vi.mock("../../storage/db", () => ({
+vi.mock("../../../storage/db", () => ({
   query: vi.fn(),
 }));
 
-vi.mock("../../rag/retriever", () => ({
+vi.mock("../../../rag/retriever", () => ({
   hybridSearch: vi.fn(),
 }));
 
-describe("API smoke (Fastify inject)", () => {
+describe("integration/api: Fastify inject routes", () => {
   beforeEach(() => {
     vi.mocked(query).mockImplementation(async (sql: string) => {
       if (sql.trim() === "SELECT 1") {
@@ -144,7 +144,7 @@ describe("API smoke (Fastify inject)", () => {
       meta: { id: "stub" },
       search: async () => [],
       collect: async function* () {},
-    } as import("../../types").Connector;
+    } as import("../../../types").Connector;
 
     const scheduler = new Scheduler();
     scheduler.registerConnector({ id: "openalex", create: () => stubConnector });
@@ -205,7 +205,7 @@ describe("API smoke (Fastify inject)", () => {
           fetchedAt: new Date(),
         };
       },
-    } as import("../../types").Connector;
+    } as import("../../../types").Connector;
 
     const scheduler = new Scheduler();
     scheduler.registerConnector({ id: "openalex", create: () => stubConnector });

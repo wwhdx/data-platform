@@ -883,11 +883,11 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 
 | 层级 | 命令 | 依赖 | 说明 |
 |------|------|------|------|
-| L0 | `pnpm test:run` | 无 | 单元 + smoke inject（mock DB/RAG） |
+| L0 | `pnpm test:run` | 无 | 单元 + integration/api inject（mock DB/RAG） |
 | L1 | `pnpm cli config validate` | YAML | 配置离线校验 |
 | **L2-fast** | `pnpm test:integration` | Docker DB `:5433` | I 轨闭环（`EMBED_BACKEND=mock`） |
 | L2-full | `pnpm test:integration:full` | DB + Ollama | I 轨 + 真实 bge-m3 |
-| L2-live | `pnpm smoke:live` | DB + serve | 运维探活（**不替代** I 轨） |
+| L2-live | `pnpm test:live` | DB + serve | 运维探活（**不替代** I 轨） |
 | L3 | `pnpm e2e:live-openalex`（可选） | 外网 + Key | 真源 smoke，不进 CI |
 
 ### 11.3 核心组件
@@ -897,7 +897,7 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 | `FixtureConnector` | `src/__tests__/fixtures/fixtureConnector.ts` | ✅ |
 | mock embed | `src/rag/embed.ts`（`EMBED_BACKEND=mock`） | ✅ |
 | harness | `src/__tests__/integration/helpers/harness.ts` | ✅ |
-| 闭环用例 | `src/__tests__/integration/pipeline-closed-loop.test.ts` | ✅ |
+| 闭环用例 | `src/__tests__/integration/pipeline/closed-loop.test.ts` | ✅ |
 | Shell | `scripts/e2e-loop.sh` | ✅ |
 
 ### 11.4 接 C2/C3 前门禁

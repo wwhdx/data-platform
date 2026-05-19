@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { createDataPlatformSearchProvider } from "../../adapters/engineCore";
-import { FIXTURE_SOURCE_ID } from "../fixtures/fixtureConnector";
-import { checkDbAvailable } from "./helpers/dbAvailable";
-import { withIntegrationHarness } from "./helpers/harness";
-import { waitForChunks } from "./helpers/waitForChunks";
+import { createDataPlatformSearchProvider } from "../../../adapters/engineCore";
+import { FIXTURE_SOURCE_ID } from "../../fixtures/fixtureConnector";
+import { checkDbAvailable } from "../helpers/dbAvailable";
+import { withIntegrationHarness } from "../helpers/harness";
+import { waitForChunks } from "../helpers/waitForChunks";
 
 let dbReady = false;
 
-describe("I 轨：pipeline closed loop", () => {
+describe("integration/pipeline: closed loop", () => {
   beforeAll(async () => {
     dbReady = await checkDbAvailable();
   });

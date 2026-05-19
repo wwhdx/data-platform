@@ -12,7 +12,7 @@ export interface ServerOptions {
   logger?: boolean;
 }
 
-/** 构建 Fastify 实例（不 listen），供 smoke inject 测试 */
+/** 构建 Fastify 实例（不 listen），供 integration/api inject 测试 */
 export async function buildApp(opts: ServerOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({ logger: opts.logger ?? true });
 

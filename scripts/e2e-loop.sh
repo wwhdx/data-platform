@@ -8,9 +8,9 @@ cd "$ROOT"
 export DATA_PLATFORM_DATABASE_URL="${DATA_PLATFORM_DATABASE_URL:-postgresql://lumina:lumina_pass@localhost:5433/data_platform}"
 export EMBED_BACKEND=mock
 
-echo "== L0: typecheck + unit/smoke =="
+echo "== L0: typecheck + unit/api =="
 pnpm typecheck
-pnpm test:run -- src/__tests__/unit src/__tests__/smoke
+pnpm test:run -- src/__tests__/unit src/__tests__/integration/api
 
 if ! command -v pg_isready >/dev/null 2>&1; then
   echo "SKIP I 轨: pg_isready 不可用"

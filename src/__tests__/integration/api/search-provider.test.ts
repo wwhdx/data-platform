@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { createDataPlatformSearchProvider } from "../../adapters/engineCore";
+import { createDataPlatformSearchProvider } from "../../../adapters/engineCore";
 
-describe("createDataPlatformSearchProvider (engine-core 契约)", () => {
+describe("integration/api: SearchProvider 契约", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
