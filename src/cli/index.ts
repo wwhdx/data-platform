@@ -489,6 +489,38 @@ function withCollectVerbose(
   return verbose ? { ...body, verbose: true } : body;
 }
 
+function parseMaxItems(opts: Record<string, string>): number | undefined {
+  const raw = opts["max-items"] ?? opts.maxItems;
+  if (!raw) return undefined;
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 1) {
+    console.error("❌ --max-items 须为正整数");
+    throw new CliExit(1);
+  }
+  return n;
+}
+
+function buildCollectBody(
+  base: Record<string, unknown>,
+  opts: Record<string, string>,
+  verbose: boolean,
+): Record<string, unknown> {
+  let body = withCollectVerbose(base, verbose);
+  const maxItems = parseMaxItems(opts);
+  if (maxItems != null) body = { ...body, maxItems };
+  return body;
+}
+
+function hintUnknownConnector(message: string): string {
+  if (!message.includes("Unknown connector")) return message;
+  return (
+    `${message}\n` +
+    "提示: CLI 经 API 采集，Connector 在 API 进程内注册。若刚合并 arxiv_oai 等代码，请执行:\n" +
+    "  pnpm build && docker compose up -d --build --force-recreate app\n" +
+    "或本地: pnpm cli serve"
+  );
+}
+
 async function cmdCollect(args: string[]) {
   const opts = parseArgs(args);
   const sourceId = opts.source ?? opts.all;
@@ -502,7 +534,7 @@ async function cmdCollect(args: string[]) {
     if (noStream) {
       const resp = await apiPost<CollectAllResponse>(
         "/api/admin/collect",
-        withCollectVerbose({ query }, verbose),
+        buildCollectBody({ query }, opts, verbose),
       );
       if (jsonOutput) {
         console.log(JSON.stringify(resp, null, 2));
@@ -513,7 +545,7 @@ async function cmdCollect(args: string[]) {
       return;
     }
     const code = await runCollectWithStream(
-      withCollectVerbose({ query }, verbose),
+      buildCollectBody({ query }, opts, verbose),
       jsonOutput,
       showProgress,
     );
@@ -529,14 +561,14 @@ async function cmdCollect(args: string[]) {
   if (noStream) {
     const resp = await apiPost<Record<string, unknown>>(
       "/api/admin/collect",
-      withCollectVerbose({ sourceId, query }, verbose),
+      buildCollectBody({ sourceId, query }, opts, verbose),
     );
     console.log(JSON.stringify(resp, null, 2));
     return;
   }
 
   const code = await runCollectWithStream(
-    withCollectVerbose({ sourceId, query }, verbose),
+    buildCollectBody({ sourceId, query }, opts, verbose),
     jsonOutput,
     showProgress,
   );
@@ -1323,6 +1355,7 @@ function printHelp() {
     --source <id>            数据源 ID
     --all                    采集所有 active 数据源
     --query <文本>           搜索查询（可选）
+    --max-items <n>          本次最多采集条数（传给 Connector）
     --json                   JSON 行流式输出（NDJSON，含 progress 事件）
     --no-stream              关闭实时进度，等待结束后一次性 JSON
     --progress               终端显示逐批进度（默认仅结果；详情写入日志目录）
@@ -1454,7 +1487,8 @@ async function run(): Promise<number> {
     return 0;
   } catch (err) {
     if (err instanceof CliExit) return err.exitCode;
-    console.error("❌", err instanceof Error ? err.message : String(err));
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("❌", hintUnknownConnector(msg));
     return 1;
   } finally {
     // serve 长驻：关闭池会导致 API 失去 DB；由 cmdServe 的 SIGINT 处理

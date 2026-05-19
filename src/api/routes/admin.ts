@@ -20,6 +20,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       query?: string;
       stream?: boolean;
       verbose?: boolean;
+      maxItems?: number;
     } | null;
     const scheduler = app.scheduler;
 
@@ -30,9 +31,17 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     const sourceId = body?.sourceId;
     const searchQuery = body?.query ?? "";
     const useStream = body?.stream === true;
-    const runOpts: CollectRunOptions | undefined = body?.verbose
-      ? { skipSampleLimit: 5 }
-      : undefined;
+    const maxItems =
+      body?.maxItems != null && Number.isFinite(body.maxItems)
+        ? Math.max(1, Math.floor(body.maxItems))
+        : undefined;
+    const runOpts: CollectRunOptions | undefined =
+      body?.verbose || maxItems != null
+        ? {
+            ...(body?.verbose ? { skipSampleLimit: 5 } : {}),
+            ...(maxItems != null ? { maxItems } : {}),
+          }
+        : undefined;
 
     const run = async (report?: (event: CollectProgressEvent) => void) => {
       if (sourceId) {

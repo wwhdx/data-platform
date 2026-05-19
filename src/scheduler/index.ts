@@ -30,6 +30,8 @@ export interface TriggerOptions {
   onProgress?: CollectProgressReporter;
   /** 每批 dedup 写入 skip_sample 的抽样条数；未设则用 COLLECT_LOG_SKIP_SAMPLES */
   skipSampleLimit?: number;
+  /** 本次采集最多入库条数（传给 Connector.collect maxItems） */
+  maxItems?: number;
 }
 
 export class Scheduler {
@@ -80,6 +82,7 @@ export class Scheduler {
       query ?? "",
       options?.onProgress,
       options?.skipSampleLimit,
+      options?.maxItems,
     );
   }
 
@@ -100,6 +103,7 @@ export class Scheduler {
     searchQuery: string,
     onProgress?: CollectProgressReporter,
     skipSampleLimit?: number,
+    maxItems?: number,
   ): Promise<CollectionJob> {
     const factory = this.connectors.get(sourceId);
     if (!factory) {
@@ -202,6 +206,7 @@ export class Scheduler {
       for await (const doc of connector.collect({
         since,
         query: collectQuery || undefined,
+        maxItems,
       })) {
         buffer.push(stampJobId(doc));
         fetched++;

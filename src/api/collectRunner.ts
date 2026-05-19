@@ -27,6 +27,7 @@ function emit(
 
 export interface CollectRunOptions {
   skipSampleLimit?: number;
+  maxItems?: number;
 }
 
 export async function runCollectOne(
@@ -46,6 +47,7 @@ export async function runCollectOne(
   const job = await scheduler.trigger(sourceId, searchQuery, {
     onProgress: report,
     skipSampleLimit: runOpts?.skipSampleLimit,
+    maxItems: runOpts?.maxItems,
   });
 
   const summary: CollectAllResult = {
@@ -98,6 +100,7 @@ export async function runCollectAll(
       const job = await scheduler.trigger(sourceId, searchQuery, {
         onProgress: report,
         skipSampleLimit: runOpts?.skipSampleLimit,
+        maxItems: runOpts?.maxItems,
       });
       jobs.push(job);
     } catch (err) {
