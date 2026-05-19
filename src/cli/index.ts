@@ -14,6 +14,20 @@ import * as fs from "fs";
 import * as path from "path";
 import type { CollectionJob, SearchRequest } from "../types";
 
+/** 控制流退出：由 run() 的 finally 统一 closePool，避免 process.exit 跳过清理 */
+class CliExit extends Error {
+  constructor(readonly exitCode: number) {
+    super(`exit ${exitCode}`);
+    this.name = "CliExit";
+  }
+}
+
+/** 一次性 CLI 命令结束前关闭 pg 池（serve 长驻进程由 SIGINT 处理） */
+async function cliShutdown(): Promise<void> {
+  const { closePool } = await import("../storage/db");
+  await closePool();
+}
+
 // ── 参数解析 ──
 
 function parseArgs(args: string[]): Record<string, string> {
@@ -95,7 +109,7 @@ async function cmdSearch(args: string[]) {
 
   if (!query) {
     console.error("❌ 缺少 --query 参数");
-    process.exit(1);
+    throw new CliExit(1);
   }
 
   const resp = await apiPost<{
@@ -217,7 +231,7 @@ async function cmdCollect(args: string[]) {
 
   if (!sourceId || sourceId === "true") {
     console.error("❌ 需要 --source <id> 或 --all");
-    process.exit(1);
+    throw new CliExit(1);
   }
 
   console.log(`⏳ 采集 ${sourceId}...`);
@@ -293,7 +307,7 @@ async function cmdHealth(args: string[]) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`❌ 服务不可达: ${msg}`);
-    process.exit(1);
+    throw new CliExit(1);
   }
 }
 
@@ -387,7 +401,7 @@ async function buildConfigScheduleReport(configPath: string) {
 
   const file = parseConfigFile(configPath);
   if (!file) {
-    process.exit(1);
+    throw new CliExit(1);
   }
 
   const sources = expandProfiles(file);
@@ -454,7 +468,7 @@ async function cmdSchedules(args: string[]) {
         `❌ 无法连接运行中 Scheduler（${getBaseUrl()}）: ${msg}`,
       );
       console.error("   请先启动 serve，或使用 --offline 仅查看 YAML");
-      process.exit(1);
+      throw new CliExit(1);
     }
   }
 
@@ -500,7 +514,7 @@ async function cmdConfigValidate(configPath: string) {
   if (ok) {
     console.log("\n✅ 配置校验通过");
   } else {
-    process.exit(1);
+    throw new CliExit(1);
   }
 }
 
@@ -510,7 +524,7 @@ async function cmdConfigProfiles(configPath: string) {
   const file = parseConfigFile(configPath);
   if (!file?.interface_profiles) {
     console.error("❌ 无 interface_profiles（需 v1.1）");
-    process.exit(1);
+    throw new CliExit(1);
   }
   const expanded = expandProfiles(file);
   for (const [pid, prof] of Object.entries(file.interface_profiles)) {
@@ -530,7 +544,7 @@ async function cmdConfigListByProfile(configPath: string) {
   const { expandProfiles } = await import("../config/expand");
   const file = parseConfigFile(configPath);
   if (!file) {
-    process.exit(1);
+    throw new CliExit(1);
   }
   const expanded = expandProfiles(file);
   const groups = new Map<string, typeof expanded>();
@@ -555,13 +569,13 @@ async function cmdConfigSync(configPath: string) {
   const dbUrl = process.env.DATA_PLATFORM_DATABASE_URL;
   if (!dbUrl) {
     console.error("❌ 请设置 DATA_PLATFORM_DATABASE_URL");
-    process.exit(1);
+    throw new CliExit(1);
   }
   const { loadConfig } = await import("../config/loader");
   const { syncToDb } = await import("../config/sync");
   const config = loadConfig(configPath);
   if (!config) {
-    process.exit(1);
+    throw new CliExit(1);
   }
   const result = await syncToDb(config);
   console.log(
@@ -573,13 +587,13 @@ async function cmdConfigDiff(configPath: string) {
   const dbUrl = process.env.DATA_PLATFORM_DATABASE_URL;
   if (!dbUrl) {
     console.error("❌ 请设置 DATA_PLATFORM_DATABASE_URL");
-    process.exit(1);
+    throw new CliExit(1);
   }
   const { loadConfig } = await import("../config/loader");
   const { query } = await import("../storage/db");
   const config = loadConfig(configPath);
   if (!config) {
-    process.exit(1);
+    throw new CliExit(1);
   }
   const fields = [
     "name",
@@ -642,7 +656,7 @@ async function cmdConfigExport(configPath: string) {
   const dbUrl = process.env.DATA_PLATFORM_DATABASE_URL;
   if (!dbUrl) {
     console.error("❌ 请设置 DATA_PLATFORM_DATABASE_URL");
-    process.exit(1);
+    throw new CliExit(1);
   }
   const yaml = await import("js-yaml");
   const { parseConfigFile } = await import("../config/loader");
@@ -650,7 +664,7 @@ async function cmdConfigExport(configPath: string) {
   const file = parseConfigFile(configPath);
   if (!file || file.version !== "1.1") {
     console.error("❌ export 仅支持 v1.1 分层配置");
-    process.exit(1);
+    throw new CliExit(1);
   }
   const res = await query(
     `SELECT id, name, base_url, auth_type, rate_limit, license, commercial_use, status
@@ -725,14 +739,14 @@ async function cmdConfig(args: string[]) {
 
 环境变量:
   SOURCES_CONFIG_PATH  默认 config/sources.yml`);
-  process.exit(1);
+  throw new CliExit(1);
 }
 
 async function cmdMigrate() {
   const dbUrl = process.env.DATA_PLATFORM_DATABASE_URL;
   if (!dbUrl) {
     console.error("❌ 请设置 DATA_PLATFORM_DATABASE_URL 环境变量");
-    process.exit(1);
+    throw new CliExit(1);
   }
 
   const migrationsDir = path.resolve(__dirname, "../storage/migrations");
@@ -813,12 +827,23 @@ async function cmdServe(args: string[]) {
     : [];
   scheduler.start();
 
-  await createServer({ port, scheduler });
+  const server = await createServer({ port, scheduler });
   console.log(`Data Platform 运行在 http://localhost:${port}`);
   console.log(`配置: ${configPath}`);
   console.log(
     `Scheduler (YAML): ${formatSchedulesSummary(schedules)}`,
   );
+
+  const { closePool } = await import("../storage/db");
+  const shutdown = async () => {
+    console.log("\nShutting down...");
+    scheduler.stop();
+    await server.close();
+    await closePool();
+    process.exit(0);
+  };
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
 }
 
 // ── 帮助 ──
@@ -904,7 +929,7 @@ function printHelp() {
 
 // ── 入口 ──
 
-async function main() {
+async function main(): Promise<void> {
   const cmd = process.argv[2];
   const rest = process.argv.slice(3);
 
@@ -948,7 +973,23 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error("❌", err instanceof Error ? err.message : String(err));
-  process.exit(1);
+async function run(): Promise<number> {
+  const cmd = process.argv[2];
+  try {
+    await main();
+    return 0;
+  } catch (err) {
+    if (err instanceof CliExit) return err.exitCode;
+    console.error("❌", err instanceof Error ? err.message : String(err));
+    return 1;
+  } finally {
+    // serve 长驻：关闭池会导致 API 失去 DB；由 cmdServe 的 SIGINT 处理
+    if (cmd !== "serve") {
+      await cliShutdown();
+    }
+  }
+}
+
+void run().then((code) => {
+  process.exit(code);
 });
