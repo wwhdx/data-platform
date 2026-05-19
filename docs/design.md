@@ -133,7 +133,8 @@ CollectionJob ──── 采集任务
   itemsCollected, errorMessage, startedAt, finishedAt
 
 RawDocument ──── 原始文档 (不可变)
-  id, sourceId, externalId, rawJson(JSONB), fetchedAt, collectionJobId
+  id, sourceId, externalId, rawJson(JSONB), fetchedAt, collectionJobId,
+  fetchProvenance(JSONB, 可选) ── HTTP 溯源，与 rawJson 独立；见 plans/原始数据本地导出与镜像方案.md §4.7 (D5)
   唯一键: (sourceId, externalId)
 
 EnrichedDocument ──── 富化文档
