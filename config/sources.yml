@@ -130,7 +130,7 @@ sources:
   - id: arxiv_oai
     profile: oai_pmh
     name: arXiv (OAI-PMH)
-    enabled: false
+    enabled: true
     rate_limit: ">=3s interval"
     license: "metadata free"
     commercial_use: true

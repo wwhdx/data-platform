@@ -16,8 +16,8 @@
 │  去重 → 分块 → Embedding (OpenAI)           │
 ├─────────────────────────────────────────────┤
 │  采集层                                     │
-│  OpenAlex · CrossRef · World Bank · PubMed  │
-│  · Semantic Scholar（5 源运行时注册）         │
+│  OpenAlex · CrossRef · arXiv OAI · World Bank │
+│  · PubMed · Semantic Scholar（6 源运行时注册）  │
 │  BaseConnector · RateLimiter · Backoff      │
 ├─────────────────────────────────────────────┤
 │  PostgreSQL 16 + pgvector                   │
@@ -98,6 +98,7 @@ pnpm cli search --query "deep learning" --source semanticscholar
 
 # 采集
 pnpm cli collect --source openalex
+pnpm cli collect --source arxiv_oai --max-items 50   # OAI-PMH 增量（≥3s/请求）
 pnpm cli collect --source semanticscholar --query "machine learning"
 pnpm cli collect --all
 

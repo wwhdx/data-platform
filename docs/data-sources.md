@@ -216,10 +216,10 @@ GET  /recommendations/v1/papers/{id}     # 推荐
   ✅ World Bank     ← 经济指标（无摘要，不参与 RAG）
   ✅ PubMed         ← 生物医学（2026-05-19 补 efetch 摘要 A10）
   ✅ Semantic Scholar ← abstract + tldr（A4；YAML 默认 disabled；`SEMANTIC_SCHOLAR_API_KEY`）
+  ✅ arXiv OAI-PMH    ← `arxiv_oai` 采集 + Legacy Atom 搜索（A7；YAML enabled）
 
 RAG 质量优先（按摘要可用性排序）：
-  P2  arXiv OAI-PMH    ← 摘要 + 部分全文，AI/ML 覆盖最深，任务 A7
-  P2  PatentsView       ← 专利摘要，技术趋势分析
+  P2  PatentsView       ← 专利摘要，技术趋势分析（原 arXiv P2 已落地）
 
 平台价值优先（业务联通）：
   P0  DataPlatformClient（父仓）+ engine-core SearchProvider → C2/C3

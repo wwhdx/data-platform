@@ -43,12 +43,16 @@ export function parseOaiListRecords(xml: string): OaiListRecordsPage {
     const datestamp = pickTag(block, "datestamp");
     if (!identifier) continue;
 
-  const meta = /<metadata[\s\S]*?<\/metadata>/i.exec(block)?.[0] ?? block;
-  const arxivId = pickArxivId(meta);
-  const title = decodeXml(pickTag(meta, "title"));
-  const abstract = decodeXml(
-    pickTag(meta, "abstract") || pickTag(meta, "summary"),
-  );
+    const meta = /<metadata[\s\S]*?<\/metadata>/i.exec(block)?.[0] ?? block;
+    const arxivId = pickArxivId(meta);
+    const title = decodeXml(pickTag(meta, "title"));
+    const abstract = decodeXml(
+      pickTag(meta, "abstract") || pickTag(meta, "summary"),
+    );
+    const created =
+      pickTag(meta, "created") ||
+      pickTag(meta, "updated") ||
+      pickTag(meta, "published");
 
     records.push({
       identifier,
@@ -58,7 +62,7 @@ export function parseOaiListRecords(xml: string): OaiListRecordsPage {
       abstract,
       authors: pickAuthors(meta),
       categories: pickCategories(meta),
-      publishedAt: datestamp || undefined,
+      publishedAt: created?.slice(0, 10) || datestamp || undefined,
     });
   }
 
