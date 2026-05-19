@@ -1,6 +1,6 @@
 # 数据源配置 interface_profile 实施方案
 
-> **状态**：设计已定稿 · **代码**：B9–B11 未实施 · **B12 文档** ✅  
+> **状态**：设计已定稿 · **代码**：B9–B11 ✅（2026-05-19）· **B12 文档** ✅  
 > **日期**：2026-05-19  
 > **进度真源**：[实施进度总览.md](./实施进度总览.md) §3 B 系列  
 > **关联**：[外部数据源配置热更新方案](./外部数据源配置热更新方案.md) · [免费数据源接口分类分析](../knowledge/免费数据源接口分类分析.md) · [下一阶段实施方案](./下一阶段实施方案.md)（任务 B9–B12）
@@ -9,11 +9,11 @@
 
 | 步骤 | 状态 | 路径 |
 |------|------|------|
-| B9 `expandProfiles` | □ | `src/config/expand.ts`（未建） |
-| B9 loader v1.1 | □ | `src/config/loader.ts` 仅 v1.0 |
-| B9 `sources.yml` v1.1 | □ | `config/sources.yml` 仍为 `version: "1.0"` |
-| B10 CLI | □ | 仅 `config list` |
-| B11 runtime options | □ | — |
+| B9 `expandProfiles` | ✅ | `src/config/expand.ts` |
+| B9 loader v1.1 | ✅ | `src/config/loader.ts` |
+| B9 `sources.yml` v1.1 | ✅ | `config/sources.yml` `version: "1.1"` |
+| B10 CLI | ✅ | `validate` / `profiles` / `list --by-profile` / `sync` / `diff` / `export` |
+| B11 runtime options | ✅ | `src/config/runtime.ts`（`getSourceOptions` / `resolveRuntimeConfig`） |
 | B12 文档 | ✅ | 本文 + `docs/plans/` 目录 |
 
 ---

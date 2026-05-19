@@ -186,10 +186,226 @@ async function cmdHealth(args: string[]) {
   }
 }
 
+const DEFAULT_CONFIG_PATH =
+  process.env.SOURCES_CONFIG_PATH ?? "config/sources.yml";
+
+async function cmdConfigValidate(configPath: string) {
+  const { validateConfigFile } = await import("../config/loader");
+  const { ok, issues } = validateConfigFile(configPath);
+  for (const i of issues) {
+    const tag = i.level === "error" ? "❌" : "⚠️";
+    console.log(`${tag} ${i.message}`);
+  }
+  if (ok) {
+    console.log("\n✅ 配置校验通过");
+  } else {
+    process.exit(1);
+  }
+}
+
+async function cmdConfigProfiles(configPath: string) {
+  const { parseConfigFile } = await import("../config/loader");
+  const { expandProfiles } = await import("../config/expand");
+  const file = parseConfigFile(configPath);
+  if (!file?.interface_profiles) {
+    console.error("❌ 无 interface_profiles（需 v1.1）");
+    process.exit(1);
+  }
+  const expanded = expandProfiles(file);
+  for (const [pid, prof] of Object.entries(file.interface_profiles)) {
+    const ext = prof.extends ? ` (extends ${prof.extends})` : "";
+    console.log(`\n${pid}${ext}`);
+    console.log(`  protocol: ${prof.protocol ?? "—"}  auth: ${prof.auth_type ?? "—"}`);
+    if (prof.base_url) console.log(`  base_url: ${prof.base_url}`);
+    const children = expanded.filter((s) => s.profile === pid);
+    for (const s of children) {
+      console.log(`    · ${s.id}  ${s.enabled ? "enabled" : "disabled"}`);
+    }
+  }
+}
+
+async function cmdConfigListByProfile(configPath: string) {
+  const { parseConfigFile } = await import("../config/loader");
+  const { expandProfiles } = await import("../config/expand");
+  const file = parseConfigFile(configPath);
+  if (!file) {
+    process.exit(1);
+  }
+  const expanded = expandProfiles(file);
+  const groups = new Map<string, typeof expanded>();
+  for (const s of expanded) {
+    const key = s.profile ?? "(v1.0 平铺)";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(s);
+  }
+  for (const [profile, sources] of [...groups.entries()].sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
+    console.log(`\n▸ ${profile}`);
+    for (const s of sources) {
+      const flag = s.enabled ? "✓" : "○";
+      console.log(`  ${flag} ${s.id.padEnd(16)} ${s.base_url}`);
+    }
+  }
+  console.log(`\n共 ${expanded.length} 个逻辑源`);
+}
+
+async function cmdConfigSync(configPath: string) {
+  const dbUrl = process.env.DATA_PLATFORM_DATABASE_URL;
+  if (!dbUrl) {
+    console.error("❌ 请设置 DATA_PLATFORM_DATABASE_URL");
+    process.exit(1);
+  }
+  const { loadConfig } = await import("../config/loader");
+  const { syncToDb } = await import("../config/sync");
+  const config = loadConfig(configPath);
+  if (!config) {
+    process.exit(1);
+  }
+  const result = await syncToDb(config);
+  console.log(
+    `✅ 同步完成: ${result.inserted} 新增, ${result.updated} 更新, ${result.skipped} 跳过`,
+  );
+}
+
+async function cmdConfigDiff(configPath: string) {
+  const dbUrl = process.env.DATA_PLATFORM_DATABASE_URL;
+  if (!dbUrl) {
+    console.error("❌ 请设置 DATA_PLATFORM_DATABASE_URL");
+    process.exit(1);
+  }
+  const { loadConfig } = await import("../config/loader");
+  const { query } = await import("../storage/db");
+  const config = loadConfig(configPath);
+  if (!config) {
+    process.exit(1);
+  }
+  const fields = [
+    "name",
+    "base_url",
+    "auth_type",
+    "rate_limit",
+    "license",
+    "commercial_use",
+    "enabled",
+  ] as const;
+  let diffs = 0;
+  for (const s of config.sources) {
+    const res = await query(
+      `SELECT name, base_url, auth_type, rate_limit, license, commercial_use, status
+       FROM data_sources WHERE id = $1`,
+      [s.id],
+    );
+    if (res.rows.length === 0) {
+      console.log(`${s.id}: (file only, not in DB)`);
+      diffs++;
+      continue;
+    }
+    const row = res.rows[0] as Record<string, unknown>;
+    const dbEnabled = row.status === "active";
+    const comparable: Record<string, unknown> = {
+      name: s.name,
+      base_url: s.base_url,
+      auth_type: s.auth_type,
+      rate_limit: s.rate_limit,
+      license: s.license,
+      commercial_use: s.commercial_use,
+      enabled: s.enabled,
+    };
+    const fromDb: Record<string, unknown> = {
+      name: row.name,
+      base_url: row.base_url,
+      auth_type: row.auth_type,
+      rate_limit: row.rate_limit,
+      license: row.license,
+      commercial_use: row.commercial_use,
+      enabled: dbEnabled,
+    };
+    for (const f of fields) {
+      if (comparable[f] !== fromDb[f]) {
+        console.log(
+          `  ${s.id}.${f}: file=${JSON.stringify(comparable[f])}  db=${JSON.stringify(fromDb[f])}`,
+        );
+        diffs++;
+      }
+    }
+  }
+  if (diffs === 0) {
+    console.log("✅ 展开配置与数据库一致");
+  } else {
+    console.log(`\n共 ${diffs} 处差异`);
+  }
+}
+
+async function cmdConfigExport(configPath: string) {
+  const dbUrl = process.env.DATA_PLATFORM_DATABASE_URL;
+  if (!dbUrl) {
+    console.error("❌ 请设置 DATA_PLATFORM_DATABASE_URL");
+    process.exit(1);
+  }
+  const yaml = await import("js-yaml");
+  const { parseConfigFile } = await import("../config/loader");
+  const { query } = await import("../storage/db");
+  const file = parseConfigFile(configPath);
+  if (!file || file.version !== "1.1") {
+    console.error("❌ export 仅支持 v1.1 分层配置");
+    process.exit(1);
+  }
+  const res = await query(
+    `SELECT id, name, base_url, auth_type, rate_limit, license, commercial_use, status
+     FROM data_sources ORDER BY id`,
+  );
+  const dbMap = new Map(
+    res.rows.map((r) => [r.id as string, r as Record<string, unknown>]),
+  );
+  for (const raw of file.sources) {
+    const row = dbMap.get(raw.id);
+    if (!row) continue;
+    raw.name = String(row.name);
+    raw.enabled = row.status === "active";
+    raw.base_url = String(row.base_url);
+    raw.auth_type = String(row.auth_type);
+    raw.rate_limit = String(row.rate_limit ?? "");
+    raw.license = String(row.license);
+    raw.commercial_use = Boolean(row.commercial_use);
+  }
+  const out = yaml.dump(file, { lineWidth: 120, noRefs: true });
+  fs.writeFileSync(path.resolve(configPath), out, "utf-8");
+  console.log(`✅ 已导出到 ${configPath}（保留 interface_profiles 分层）`);
+}
+
 async function cmdConfig(args: string[]) {
   const sub = args[0];
+  const rest = args.slice(1);
+  const configPath = DEFAULT_CONFIG_PATH;
+
+  if (sub === "validate") {
+    await cmdConfigValidate(configPath);
+    return;
+  }
+  if (sub === "profiles") {
+    await cmdConfigProfiles(configPath);
+    return;
+  }
+  if (sub === "sync") {
+    await cmdConfigSync(configPath);
+    return;
+  }
+  if (sub === "diff") {
+    await cmdConfigDiff(configPath);
+    return;
+  }
+  if (sub === "export") {
+    await cmdConfigExport(configPath);
+    return;
+  }
 
   if (sub === "list") {
+    const listOpts = parseArgs(rest);
+    if (listOpts["by-profile"] === "true") {
+      await cmdConfigListByProfile(configPath);
+      return;
+    }
     const sources = await apiGet<Array<Record<string, unknown>>>("/api/sources");
     const rows = sources.map(s => {
       const date = s.lastCollectionAt
@@ -248,7 +464,19 @@ async function cmdConfig(args: string[]) {
     return;
   }
 
-  console.error("用法: data-platform-cli config <list>");
+  console.error(`用法: data-platform-cli config <子命令>
+
+子命令:
+  list              运行时数据源（API）
+  list --by-profile 按 interface_profile 分组（读 YAML）
+  profiles          列出 profile 及下属源
+  validate          校验 YAML（不连 DB）
+  sync              展开后同步到数据库
+  diff              对比 YAML 展开结果与数据库
+  export            数据库 → 分层 YAML（v1.1）
+
+环境变量:
+  SOURCES_CONFIG_PATH  默认 config/sources.yml`);
   process.exit(1);
 }
 
@@ -353,7 +581,7 @@ function printHelp() {
   jobs      查看采集任务
   stats     统计信息
   health    健康检查
-  config    查看/管理数据源配置
+  config    配置 validate|sync|diff|export|list|profiles
   migrate   执行数据库迁移
   serve     启动 API 服务
 
