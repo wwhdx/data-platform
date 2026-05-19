@@ -1,37 +1,67 @@
 # Phase 1 实施计划
 
-> MVP 骨架：3 个 Connector + PostgreSQL + 关键词搜索 API + 定时采集
-> 目标周期：2-4 周
+> MVP 骨架：3 个 Connector + PostgreSQL + 检索 API + 定时采集
+> 目标周期：2-4 周（**已于 2026-05 完成代码落地**）
 
 ---
 
-## 零、当前状态
+## 零、当前状态（2026-05-19）
 
 ```
 data-platform/
-├── CLAUDE.md                 # 开发规范
-├── package.json              # 空壳（无实际依赖）
-├── tsconfig.json             # TypeScript 配置
-├── docs/
-│   ├── design.md             # 主设计文档（v0.1）
-│   ├── engine-core-analysis.md  # engine-core 模式分析 + 三接入点
-│   └── data-sources.md       # 16 个数据平台 API 协议
+├── package.json              # pg + fastify + node-cron + js-yaml
+├── config/sources.yml        # 11+ 数据源 YAML（启动 syncToDb）
+├── docker-compose.yml        # db(:5433) + ollama + app
 ├── src/
-│   ├── connectors/           # 空目录
-│   ├── processors/           # 空目录
-│   ├── rag/                  # 空目录
-│   ├── api/                  # 空目录
-│   ├── scheduler/            # 空目录
-│   ├── storage/              # 空目录
-│   └── types/               # 空目录
-└── (无实际代码)
+│   ├── index.ts              # DB 连接 + config sync + 3 Connector + scheduler + API
+│   ├── types.ts
+│   ├── connectors/           # base, openalex, crossref, worldbank (+ rateLimiter, backoff)
+│   ├── config/               # loader.ts, sync.ts, types.ts
+│   ├── processors/dedup.ts   # 去重 + 触发 embed
+│   ├── rag/                  # embed, vectorStore, retriever (hybridSearch + RRF)
+│   ├── api/                  # server + search/admin/health 路由
+│   ├── scheduler/index.ts    # cron + 200 条批量 dedup
+│   ├── storage/              # db + models + migrations 001–006
+│   ├── adapters/engineCore.ts
+│   └── cli/index.ts          # 8 命令 + config list
+└── src/__tests__/            # 57 tests (vitest)
 ```
 
 **可用基础设施**：
-- PostgreSQL: `postgresql://lumina:lumina_pass@localhost:5432/lumina_dev`
-  - data-platform 使用独立 database: `data_platform`（需创建）
-- 无 Qdrant（Phase 2 引入）
-- 无 Neo4j（Phase 3 引入）
+- PostgreSQL（独立库）: `postgresql://lumina:lumina_pass@localhost:5433/data_platform`（Docker `db` 服务或本地等价实例）
+- pgvector：已启用（`002_pgvector.sql`），检索为 **混合检索**（语义 + tsvector + RRF），非 Phase 1 原计划的纯关键词
+- 无 Qdrant（仍用 pgvector，不另起向量库）
+- 无 Neo4j（Phase 3）
+
+### Phase 1 任务完成度
+
+| 任务 | 状态 | 代码路径 |
+|------|------|----------|
+| 1.0 初始化 | ✅ | `package.json`, `src/index.ts`, `.env.example` |
+| 1.1 类型 | ✅ | `src/types.ts` |
+| 1.2 BaseConnector | ✅ | `src/connectors/base.ts`, `rateLimiter.ts`, `backoff.ts` |
+| 1.3 OpenAlex | ✅ | `src/connectors/openalex.ts` |
+| 1.4 存储层 | ✅ | `src/storage/*`, `migrations/001_init.sql` … `006_worldbank.sql` |
+| 1.5 去重 | ✅ | `src/processors/dedup.ts` |
+| 1.6 调度器 | ✅ | `src/scheduler/index.ts` |
+| 1.7 API | ✅ | `src/api/*`（search 已接 hybridSearch） |
+| 1.8 适配器 | ✅ | `src/adapters/engineCore.ts`（子包内；父仓 engine-core 未注入） |
+| 1.9 集成 + E2E | ✅ | 见 [§六 E2E 验收记录](#六e2e-验收记录-2026-05-19) |
+
+**超前实现（原属 Phase 2，已落地）**：Embedding、`document_chunks`、RRF 混合检索、Docker Ollama、配置热更新 P0（B1–B5）、World Bank Connector（A2–A3）。
+
+**未完成（转入「下一阶段」）**：Semantic Scholar（A4）、增量采集（A5）、主平台 `DataPlatformClient` + engine-core 注入（C2–C3）、**配置 v1.1 interface_profile 分层（B9–B11）**。
+
+**配置 v1.1（设计已定稿，代码未落地）**：
+
+| 任务 | 状态 | 文档 |
+|------|------|------|
+| B9 `expandProfiles` + `sources.yml` 两层 | □ | [数据源配置-interface-profile实施方案](plans/数据源配置-interface-profile实施方案.md) |
+| B10 CLI `validate` / `list --by-profile` | □ | 同上 §Phase B10 |
+| B11 `options` 缓存 + 与 B6 合并 | □ | 同上 §Phase B11 |
+| B12 文档同步 | ☑ | 2026-05-19 |
+
+当前 `config/sources.yml` 仍为 **v1.0 平铺**；loader 无 `interface_profiles` 分支。
 
 ---
 
@@ -635,51 +665,28 @@ curl -X POST http://localhost:3400/api/search \
 | 1.9 集成 | `src/index.ts` + E2E 验证 | 0.5d | 全部 |
 | **合计** | **~16 个文件** | **~7 天** | |
 
-## 三、Phase 1 完成后的状态
+## 三、Phase 1 完成后的状态（实际）
 
-```
-data-platform/
-├── src/
-│   ├── index.ts              # 入口：启动 server + scheduler
-│   ├── types.ts              # 全部 Phase 1 类型
-│   ├── connectors/
-│   │   ├── base.ts           # BaseConnector + RateLimiter + ExponentialBackoff
-│   │   └── openalex.ts       # OpenAlex Connector（第 1 源）
-│   ├── processors/
-│   │   └── dedup.ts          # 去重流水线（Stage 1）
-│   ├── storage/
-│   │   ├── db.ts             # PostgreSQL 连接池
-│   │   ├── migrations/
-│   │   │   └── 001_init.sql  # 初始表结构
-│   │   └── models/
-│   │       ├── rawDocument.ts
-│   │       └── collectionJob.ts
-│   ├── api/
-│   │   ├── server.ts         # Fastify 启动
-│   │   └── routes/
-│   │       ├── search.ts     # POST /api/search
-│   │       └── admin.ts      # /api/admin/*
-│   ├── scheduler/
-│   │   └── index.ts          # Cron 定时 + 手动触发
-│   └── adapters/
-│       └── engineCore.ts     # ← engine-core 无缝对接
-└── (连接 engine-core 可验证闭环)
-```
+与 §零 目录一致；Connector 为 **OpenAlex + CrossRef + World Bank**（后两者已在 `src/index.ts` 注册；`data_sources` 中 worldbank 默认 `disabled`，需 YAML/DB 启用后参与 `/admin/collect` 全量触发）。
+
+检索路径：`POST /api/search` → `hybridSearch`（`src/rag/retriever.ts`）。健康检查：`GET /health`（**非** `/api/health`）。
+
+父仓 **engine-core 尚未** 注册 `createDataPlatformSearchProvider` → 平台侧闭环见 `docs/plans/下一阶段实施方案.md` C2–C3。
 
 ## 四、Phase 1 不做的事情
 
-| 不做 | 原因 | 何时做 |
-|------|------|--------|
-| Semantic Scholar Connector | 验证 OpenAlex 模式后再复制 | Phase 1.5 |
-| PatentsView Connector | 同上 | Phase 1.5 |
-| Qdrant 向量检索 | 先跑通关键词搜索闭环 | Phase 2 |
-| Embedding 生成 | Phase 2 | Phase 2 |
-| 实体抽取 / LLM 富化 | Phase 3 | Phase 3 |
-| 知识图谱 (Neo4j) | Phase 3 | Phase 3 |
-| 混合检索 (RRF) | Phase 2 | Phase 2 |
-| 知识注入（engine-core summarizeContext） | engine-core 侧实现 | Phase 2+ |
-| 多语言搜索 | 先用 english tsvector | Phase 2+ |
-| OpenTelemetry / Grafana | MVP 不需要 | Phase 4 |
+| 不做 | 原因 | 何时做 | 备注 |
+|------|------|--------|------|
+| Semantic Scholar Connector | 商业授权 + 模板验证后再开 | Phase 1.5 | A4，YAML 占位 `enabled: false` |
+| PatentsView Connector | 同上 | Phase 1.5 | |
+| Qdrant 独立向量库 | pgvector 已满足 MVP | — | 已用 pgvector，不引入 Qdrant |
+| ~~Embedding 生成~~ | — | — | **已超前完成**（`rag/embed.ts`） |
+| ~~混合检索 (RRF)~~ | — | — | **已超前完成**（`rag/retriever.ts`） |
+| 实体抽取 / LLM 富化 | Phase 3 | Phase 3 | |
+| 知识图谱 (Neo4j) | Phase 3 | Phase 3 | |
+| 知识注入（engine-core summarizeContext） | engine-core 侧实现 | Phase 2+ | |
+| 多语言 tsvector | 英文 tsvector 局限 | Phase 2+ | 语义路径可部分缓解 |
+| OpenTelemetry / Grafana | MVP 不需要 | Phase 4 | |
 
 ## 五、风险与缓解
 
@@ -688,8 +695,34 @@ data-platform/
 | OpenAlex API 不稳定 | 低 | 中 | ExponentialBackoff + 降级到空结果 |
 | PostgreSQL tsvector 中文不行 | 高 | 低 | Phase 1 仅英文数据，Phase 2 向量检索解决 |
 | 采集速率触顶 | 低 | 低 | 令牌桶 + 分段采集 + 增量策略 |
-| 依赖膨胀 | 中 | 中 | 严格控制：仅 pg + fastify + node-cron |
+| 依赖膨胀 | 中 | 中 | 严格控制：仅 pg + fastify + node-cron + js-yaml |
 
 ---
 
-> **版本**: v0.1 | **状态**: 待执行 | **最后更新**: 2025-05-15
+## 六、E2E 验收记录（2026-05-19）
+
+**环境**：`DATA_PLATFORM_DATABASE_URL=postgresql://lumina:lumina_pass@localhost:5433/data_platform`，`pnpm dev`（PORT 3400）。库内已有历史数据；补跑 `pnpm cli migrate` 应用 `005_config.sql`（`config_audit_log`）。
+
+| 步骤 | 命令 | 结果 |
+|------|------|------|
+| 1 搜索（采集前） | `POST /api/search` query=`transformer attention mechanism` | ✅ HTTP 200，`results` 非空（含 openalex 条目） |
+| 2 手动采集 | `POST /api/admin/collect` `sourceId=openalex`, `query=machine learning` | ✅ `status=success`, `itemsCollected=8` |
+| 3 任务历史 | `GET /api/admin/jobs?limit=3` | ✅ 返回 job 列表（含本次 id=2） |
+| 4 搜索（采集后） | `POST /api/search` query=`machine learning` | ✅ HTTP 200，`results` 非空 |
+| 附加 健康检查 | `GET /health` | ✅ `ok:true`, `db:ok`, openalex `totalDocuments` 增至 268 |
+| 附加 CLI | `pnpm cli health`（修复前） | ⚠️ 请求 `/api/health` 404；已改为 `GET /health` |
+
+**已知小问题**（不阻塞 Phase 1 四步 curl）：
+- 部分 `url` 字段出现 `https://doi.org/https://doi.org/...` 重复前缀（CrossRef/OpenAlex 归一化待修）
+- 多条 `snippet` 为空（仅有 title 的文档未填 abstract）
+
+---
+
+## §变更记录
+
+| 版本 | 日期 | 说明 |
+|------|------|------|
+| v0.1 | 2025-05-15 | 初稿 |
+| v1.0 | 2026-05-19 | §零/§三/§四 与代码对齐；§六 E2E 实库验收通过；状态改为已完成 |
+
+> **版本**: v1.0 | **状态**: 已完成（代码 + E2E） | **最后更新**: 2026-05-19

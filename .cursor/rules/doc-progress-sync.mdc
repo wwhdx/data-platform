@@ -6,7 +6,7 @@ alwaysApply: true
 
 # data-platform · 文档进度同步
 
-1. **维护对象**：`docs/design.md`、`docs/phase1-plan.md`、`docs/knowledge/*.md`、`docs/data-sources.md` 的版本、Phase 勾选、§变更记录。
+1. **维护对象**：`docs/design.md`、`docs/phase1-plan.md`、`docs/plans/*.md`（项目设计）、`docs/knowledge/*.md`（共识知识）、`docs/data-sources.md` 的版本、Phase 勾选、§变更记录。
 2. **范围**：仅同步与本次提交同主题的章节。
 3. **勾 ✅ 前**：`rg` 验证代码已接入（如 Connector 已 export + 注册）。
 4. **大文档自审**（≥100 行或连续 3 次 commit 改同一 doc）：按 `ai-task-integration.mdc` 父仓四维方法；commit message 带「自审：通过 / N 条勘误」。
@@ -19,7 +19,7 @@ alwaysApply: true
 |------|------|
 | 示例 env | `.env.example` |
 | 开发说明 | `CLAUDE.md` 环境变量表 |
-| 设计稿 | `docs/design.md` 附录 C §变更记录；`docs/knowledge/数据源接入与RAG构建方案.md` |
+| 设计稿 | `docs/design.md` 附录 C §变更记录；`docs/plans/数据源接入与RAG构建方案.md` |
 | 可配置源 | `config/sources.yml` 注释与 `docs/data-sources.md` 一致 |
 | 父仓协议（若影响 HTTP 契约） | 望野 `docs/knowledge/数据平台API协议.md`（**另 commit 父仓**或会话内说明未改父仓） |
 

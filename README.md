@@ -39,7 +39,7 @@ docker compose -f docker-compose.dev.yml up -d --build
 # 后续启动秒级就绪
 
 # 验证
-curl http://localhost:3400/api/health
+curl http://localhost:3400/health
 ```
 
 ### 本地开发
@@ -48,10 +48,9 @@ curl http://localhost:3400/api/health
 # 1. 创建独立数据库
 psql -U lumina -h localhost -c "CREATE DATABASE data_platform OWNER lumina;"
 
-# 2. 执行迁移
-psql -U lumina -h localhost -d data_platform \
-  -f src/storage/migrations/001_init.sql \
-  -f src/storage/migrations/002_pgvector.sql
+# 2. 执行迁移（推荐 CLI 按序执行 001–006）
+pnpm cli migrate
+# 或手动：psql … -f src/storage/migrations/001_init.sql … 006_worldbank.sql
 
 # 3. 启动 Ollama（如未安装）
 ollama pull bge-m3          # 拉取 bge-m3 模型（2.2 GB）
@@ -110,7 +109,7 @@ pnpm cli serve --port 3400 # 启动 API 服务
 | 端点 | 方法 | 说明 |
 |------|------|------|
 | `/api/search` | POST | 混合检索（语义 + 关键词 + RRF 融合） |
-| `/api/health` | GET | 健康检查 + 数据源状态 |
+| `/health` | GET | 健康检查 + 数据源状态 |
 | `/api/sources` | GET | 已注册数据源列表 |
 | `/api/admin/collect` | POST | 手动触发采集 |
 | `/api/admin/jobs` | GET | 采集任务历史 |
@@ -201,6 +200,20 @@ src/
 │   └── routes/                search · health · admin
 ├── scheduler/index.ts         Cron 定时采集
 └── adapters/engineCore.ts     engine-core SearchProvider 适配
+```
+
+## 数据源配置（运维）
+
+| 文件 | 说明 |
+|------|------|
+| [`config/sources.yml`](config/sources.yml) | 数据源注册（v1.0 平铺；v1.1 将拆为 `interface_profiles` + `sources`） |
+| [`docs/plans/数据源配置-interface-profile实施方案.md`](docs/plans/数据源配置-interface-profile实施方案.md) | **按接口类型分层** 的完整实施设计（B9–B12） |
+| [`docs/knowledge/免费数据源接口分类分析.md`](docs/knowledge/免费数据源接口分类分析.md) | 各 API 协议说明（profile 目录真源，共识知识） |
+| [`docs/plans/外部数据源配置热更新方案.md`](docs/plans/外部数据源配置热更新方案.md) | 热更新优先级链、Admin API |
+
+```bash
+pnpm cli config list              # 按 DB 查看源状态
+# v1.1 落地后：config list --by-profile | config validate | config sync
 ```
 
 ## AI 协作（Cursor / Claude Code / OpenCode）

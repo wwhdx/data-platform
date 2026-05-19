@@ -10,7 +10,10 @@
 # 优先级：环境变量 > 数据库 > 此文件 > Connector META 默认值
 # 修改此文件后：
 #   - docker compose restart app  → 自动同步
-#   - pnpm cli config sync        → 手动同步（无需重启）
+#   - pnpm cli config sync        → 手动同步（B10 落地后；当前请 restart）
+#
+# v1.1 规划：按接口类型拆为 interface_profiles + sources（见文档）
+#   docs/plans/数据源配置-interface-profile实施方案.md
 # ═══════════════════════════════════════════════════════════════
 
 version: "1.0"

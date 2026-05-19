@@ -23,7 +23,7 @@
 
 见 `ai-task-integration.mdc` §3，核心是：
 
-- 新 Connector → `connectors/index.ts` + `index.ts` 注册 + `config/sources.yml`
+- 新 Connector → `connectors/index.ts` + `index.ts` 注册 + `config/sources.yml`（v1.1：`interface_profiles` 选 profile + `sources[]` 增实例，见 [数据源配置-interface-profile实施方案](plans/数据源配置-interface-profile实施方案.md)）
 - 新 API → `api/server.ts` `app.register`
 - 新迁移 → `storage/migrations/` + 文档
 - 新 ENV → `.env.example` + `CLAUDE.md` 环境变量表

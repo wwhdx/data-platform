@@ -56,7 +56,7 @@ pnpm test:run 2>&1 | awk 'NR<=30'
 
 1. **禁止擅自 commit**；任务结束汇报自检与建议 message，等用户确认。
 2. **按主题拆分**：`feat(connector)`、`feat(api)`、`fix`、`docs`、`chore`、`test`。
-3. **`git add <路径>`** 按需暂存，避免无关 `docs/knowledge/` 草稿并入。
+3. **`git add <路径>`** 按需暂存，避免无关 `docs/plans/` 草稿并入（`docs/knowledge/` 仅共识类文档）。
 4. **commit message 中文**，写明接入点（如「OpenAlex → connectors/index + scheduler」）。
 5. **禁止自主 `git push`**。
 

@@ -224,5 +224,5 @@ psql -U lumina -h localhost -d data_platform \
 - engine-core 接口协议：`../engine-core/ENGINE_CONTRACTS.md`
 - 数据源清单：`docs/data-sources.md`
 - 主设计文档：`docs/design.md`
-- 本包知识库：`docs/knowledge/`（含与父仓同步的 API 协议副本）
+- 共识知识：`docs/knowledge/`（API 协议、接口分类）；项目设计：`docs/plans/`
 - 父仓 API 协议（monorepo）：`../../docs/knowledge/数据平台API协议.md`
