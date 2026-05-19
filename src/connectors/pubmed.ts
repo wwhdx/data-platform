@@ -14,6 +14,7 @@ import {
   buildEntrezCollectTerm,
   normalizeEntrezBaseUrl,
   parseEsummaryRecord,
+  parseEfetchAbstractXml,
   type ESummaryRecord,
 } from "./pubmedHelpers";
 import { attachProvenance } from "./provenance/attach";
@@ -31,7 +32,7 @@ export const PUBMED_META: ConnectorMeta = {
   commercialUse: true,
   authType: "query_param_key",
   rateLimit: "10/sec (with key)",
-  description: "生物医学文献，E-utilities esearch → esummary",
+  description: "生物医学文献，E-utilities esearch → esummary + efetch(abstract)",
 };
 
 interface ESearchResult {
@@ -120,6 +121,10 @@ export class PubMedConnector extends BaseConnector {
         Math.min(pageSize, maxItems - yielded),
       );
 
+      // 补充摘要：efetch 批量获取 AbstractText（esummary 不含摘要）
+      const batchUids = records.map(r => r.uid);
+      const abstracts = await this.efetchAbstracts(batchUids);
+
       const batchRequest: HttpRequestCapture & {
         batchIndex: number;
         documentsInBatch: number;
@@ -135,7 +140,8 @@ export class PubMedConnector extends BaseConnector {
         const rec = records[documentIndexInBatch]!;
         if (params.signal?.aborted) break;
 
-        const doc = this.toRawDocument(rec);
+        const abstract = abstracts.get(rec.uid);
+        const doc = this.toRawDocument(rec, abstract);
         yield attachProvenance(doc, PUBMED_META, {
           documentRequest: buildPubMedDocumentRequest(rec.uid, this.provCfg()),
           batchRequest: {
@@ -239,6 +245,30 @@ export class PubMedConnector extends BaseConnector {
       .filter((r): r is ESummaryRecord => r != null);
   }
 
+  /**
+   * 批量获取 PubMed 摘要（efetch MedlineXML）。
+   * esummary 不含 AbstractText；需单独调用此端点补充。
+   * 失败时静默返回空 Map，不影响主采集路径。
+   */
+  private async efetchAbstracts(uids: string[]): Promise<Map<string, string>> {
+    if (uids.length === 0) return new Map();
+    const sp = new URLSearchParams({
+      db: this.entrezDb,
+      id: uids.join(","),
+      rettype: "abstract",
+      retmode: "xml",
+    });
+    const url = `${this.endpoint("efetch")}?${sp.toString()}${this.toolParam()}${this.apiKeyParam()}`;
+    try {
+      const res = await this.fetch(url);
+      if (!res.ok) return new Map();
+      const xml = await res.text();
+      return parseEfetchAbstractXml(xml);
+    } catch {
+      return new Map();
+    }
+  }
+
   private toSearchResult(rec: ESummaryRecord): SearchResult {
     return {
       title: rec.title,
@@ -253,11 +283,12 @@ export class PubMedConnector extends BaseConnector {
     };
   }
 
-  private toRawDocument(rec: ESummaryRecord): RawDocument {
+  private toRawDocument(rec: ESummaryRecord, abstract?: string): RawDocument {
+    const rawJson = abstract ? { ...rec.raw, abstract } : rec.raw;
     return {
       sourceId: PUBMED_META.id,
       externalId: rec.uid,
-      rawJson: rec.raw,
+      rawJson,
       fetchedAt: new Date(),
     };
   }

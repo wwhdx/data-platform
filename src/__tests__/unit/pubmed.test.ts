@@ -3,6 +3,7 @@ import {
   buildEntrezCollectTerm,
   normalizeEntrezBaseUrl,
   parseEsummaryRecord,
+  parseEfetchAbstractXml,
 } from "../../connectors/pubmedHelpers";
 import { PubMedConnector } from "../../connectors/pubmed";
 import { setExpandedSources } from "../../config/runtime";
@@ -20,6 +21,22 @@ describe("pubmedHelpers", () => {
     });
     expect(term).toContain("cancer");
     expect(term).toContain("[edat]");
+  });
+
+  it("parseEfetchAbstractXml extracts abstract text", () => {
+    const xml = `<?xml version="1.0"?>
+<PubmedArticleSet>
+  <PubmedArticle>
+    <MedlineCitation><PMID>42</PMID>
+      <Article><Abstract>
+        <AbstractText>Background text.</AbstractText>
+        <AbstractText Label="Methods">Methods text.</AbstractText>
+      </Abstract></Article>
+    </MedlineCitation>
+  </PubmedArticle>
+</PubmedArticleSet>`;
+    const result = parseEfetchAbstractXml(xml);
+    expect(result.get("42")).toBe("Background text. Methods text.");
   });
 
   it("parseEsummaryRecord maps title and uid", () => {
@@ -123,10 +140,21 @@ describe("PubMedConnector", () => {
         },
       },
     };
+    const efetchXml = `<?xml version="1.0"?>
+<PubmedArticleSet>
+  <PubmedArticle>
+    <MedlineCitation><PMID>42</PMID>
+      <Article><Abstract>
+        <AbstractText>Test abstract content.</AbstractText>
+      </Abstract></Article>
+    </MedlineCitation>
+  </PubmedArticle>
+</PubmedArticleSet>`;
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({ ok: true, json: async () => esearchPayload })
-      .mockResolvedValueOnce({ ok: true, json: async () => esummaryPayload });
+      .mockResolvedValueOnce({ ok: true, json: async () => esummaryPayload })
+      .mockResolvedValueOnce({ ok: true, text: async () => efetchXml });
     vi.stubGlobal("fetch", fetchMock);
 
     const c = new PubMedConnector({
@@ -143,5 +171,10 @@ describe("PubMedConnector", () => {
     expect(p?.batchRequest?.curl).toContain("curl");
     expect(p?.batchRequest?.ephemeral).toBe(true);
     expect(p?.canonicalUrl).toBe("https://pubmed.ncbi.nlm.nih.gov/42/");
+    // efetch 摘要应合并进 rawJson
+    expect(docs[0]!.rawJson.abstract).toBe("Test abstract content.");
+    // efetch 调用应包含 efetch.fcgi
+    expect(fetchMock.mock.calls[2]![0]).toContain("efetch.fcgi");
+    expect(fetchMock.mock.calls[2]![0]).toContain("rettype=abstract");
   });
 });

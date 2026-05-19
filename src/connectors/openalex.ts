@@ -31,13 +31,27 @@ interface OAWORK {
   id: string;
   doi?: string;
   title: string;
-  abstract?: string;
+  abstract_inverted_index?: Record<string, number[]>;
   authorships?: Array<{ author: { id: string; display_name: string } }>;
   publication_date?: string;
   cited_by_count?: number;
   primary_location?: { landing_page_url?: string; pdf_url?: string };
   concepts?: Array<{ id: string; display_name: string; score: number }>;
   type?: string;
+}
+
+/**
+ * 将 OpenAlex 倒排索引格式的摘要还原为字符串。
+ * 输入：{ "word": [position, ...], ... }
+ * 输出：按位置排序的单词拼接结果
+ */
+function uninvertAbstract(inv: Record<string, number[]> | undefined): string {
+  if (!inv) return "";
+  const positions: [number, string][] = [];
+  for (const [word, idxs] of Object.entries(inv)) {
+    for (const idx of idxs) positions.push([idx, word]);
+  }
+  return positions.sort((a, b) => a[0] - b[0]).map(p => p[1]).join(" ");
 }
 
 export class OpenAlexConnector extends BaseConnector {
@@ -145,11 +159,12 @@ export class OpenAlexConnector extends BaseConnector {
   private toSearchResult(work: OAWORK): SearchResult {
     const doi = work.doi ?? "";
     const url = doi ? `https://doi.org/${doi}` : (work.primary_location?.landing_page_url ?? work.id);
+    const abstract = uninvertAbstract(work.abstract_inverted_index);
 
     return {
       title: work.title ?? "Untitled",
       url,
-      snippet: (work.abstract ?? "").slice(0, 300),
+      snippet: abstract.slice(0, 300),
       sourceId: OPENALEX_META.id,
       sourceName: OPENALEX_META.name,
       publishedAt: work.publication_date,
@@ -163,10 +178,12 @@ export class OpenAlexConnector extends BaseConnector {
     const extId = work.id.startsWith("https://")
       ? new URL(work.id).pathname.replace("/", "")
       : work.id;
+    const abstract = uninvertAbstract(work.abstract_inverted_index);
+    const rawJson = work as unknown as Record<string, unknown>;
     return {
       sourceId: OPENALEX_META.id,
       externalId: extId,
-      rawJson: work as unknown as Record<string, unknown>,
+      rawJson: abstract ? { ...rawJson, abstract } : rawJson,
       fetchedAt: new Date(),
     };
   }

@@ -8,6 +8,40 @@ export interface ESummaryRecord {
   raw: Record<string, unknown>;
 }
 
+/**
+ * 从 efetch MedlineXML 提取摘要文本。
+ * 支持单段 <AbstractText> 和多标签段落（Background/Methods/Results/Conclusions）。
+ */
+export function parseEfetchAbstractXml(xml: string): Map<string, string> {
+  const abstracts = new Map<string, string>();
+  const articleRegex = /<PubmedArticle[\s\S]*?<\/PubmedArticle>/g;
+  let articleMatch: RegExpExecArray | null;
+  while ((articleMatch = articleRegex.exec(xml)) !== null) {
+    const article = articleMatch[0];
+
+    const pmidMatch = /<PMID[^>]*>(\d+)<\/PMID>/.exec(article);
+    if (!pmidMatch) continue;
+    const uid = pmidMatch[1]!;
+
+    const parts: string[] = [];
+    const textRegex = /<AbstractText(?:[^>]*)>([\s\S]*?)<\/AbstractText>/g;
+    let textMatch: RegExpExecArray | null;
+    while ((textMatch = textRegex.exec(article)) !== null) {
+      const text = textMatch[1]!
+        .replace(/<[^>]+>/g, "")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+        .trim();
+      if (text) parts.push(text);
+    }
+    if (parts.length > 0) abstracts.set(uid, parts.join(" "));
+  }
+  return abstracts;
+}
+
 export function normalizeEntrezBaseUrl(url: string): string {
   return url.endsWith("/") ? url : `${url}/`;
 }
