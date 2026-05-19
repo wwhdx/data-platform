@@ -659,30 +659,82 @@ async function cmdStats() {
 async function cmdHealth(args: string[]) {
   const opts = parseArgs(args);
   const jsonOutput = opts.json === "true";
+  const verbose = opts.verbose === "true" || opts.v === "true";
 
   try {
-    const resp = await apiGet<Record<string, unknown>>("/health");
+    const resp = await apiGet<import("../types").HealthResponse>("/health");
     if (jsonOutput) {
       console.log(JSON.stringify(resp, null, 2));
     } else {
+      const { formatProbeDetailLines, formatProbeSummary } =
+        await import("../lib/probeReport");
+
       const dbOk = resp.db === "ok";
       console.log(`数据库: ${dbOk ? "✅" : "❌"} ${resp.db}`);
-      console.log(`运行时间: ${Math.floor(Number(resp.uptime) / 60)} 分钟`);
+      console.log(`运行时间: ${Math.floor(resp.uptime / 60)} 分钟`);
       console.log(`服务状态: ${resp.ok ? "healthy" : "degraded"}`);
+      console.log(
+        `探活说明: 基于 DB data_sources（active 才发外网）；详情见 probe 字段或加 --verbose`,
+      );
 
-      const sources = resp.sources as Array<Record<string, unknown>> | undefined;
-      if (sources && sources.length > 0) {
-        console.log(`\n数据源:`);
-        for (const s of sources) {
-          console.log(`  ${s.status === "healthy" ? "✅" : "⚠️"} ${s.id}: ${s.totalDocuments} 文档 (${s.license})`);
+      if (resp.sources.length > 0) {
+        console.log(`\n数据源 (${resp.sources.length}):`);
+        for (const s of resp.sources) {
+          console.log(`  ${formatProbeSummary(s)}`);
+          if (verbose && s.probe) {
+            for (const line of formatProbeDetailLines(s, "      ")) {
+              console.log(line);
+            }
+          } else if (verbose) {
+            console.log(`      (无 probe 详情)`);
+          } else if (s.probe?.verdict && s.status !== "healthy") {
+            console.log(`      → ${s.probe.verdict}`);
+          }
+        }
+        if (!verbose) {
+          console.log(
+            "\n提示: pnpm cli health --verbose 查看每源 HTTP 请求与凭证；本地 .env 用 pnpm cli doctor",
+          );
         }
       }
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`❌ 服务不可达: ${msg}`);
+    console.error(`   API: ${getBaseUrl()}/health （需 pnpm cli serve 或 docker compose）`);
     throw new CliExit(1);
   }
+}
+
+async function cmdDoctor(args: string[]) {
+  const opts = parseArgs(args);
+  const jsonOutput = opts.json === "true";
+  const skipApi = opts["skip-api"] === "true";
+  const noProbe = opts["no-probe"] === "true";
+
+  const { runDoctor } = await import("../lib/doctor");
+  const report = await runDoctor({
+    configPath: opts.config ?? DEFAULT_CONFIG_PATH,
+    probe: !noProbe,
+    skipApi,
+    apiBaseUrl: getBaseUrl(),
+  });
+
+  if (jsonOutput) {
+    console.log(JSON.stringify(report, null, 2));
+  } else {
+    console.log("data-platform doctor — 本地配置与环境诊断\n");
+    for (const c of report.checks) {
+      console.log(`${c.ok ? "✅" : "❌"} ${c.title}`);
+      for (const line of c.lines) {
+        console.log(line ? `   ${line}` : "");
+      }
+      console.log("");
+    }
+    console.log(report.ok ? "✅ 全部检查通过" : "❌ 存在未通过项");
+  }
+
+  if (!report.ok) throw new CliExit(1);
 }
 
 function formatLastJobSummary(
@@ -1330,7 +1382,8 @@ function printHelp() {
   sources   列出数据源
   jobs      查看采集任务
   stats     统计信息
-  health    健康检查
+  health    健康检查（读运行中 API；--verbose 显示每源探活过程）
+  doctor    本地 .env / DB / YAML / 外网探活（不依赖 API，可选对照 /health）
   config list              运行时数据源表格（读 API）
 
 命令（直连数据库 / 本地文件）:
@@ -1392,6 +1445,13 @@ function printHelp() {
 
   health:
     --json                   JSON 格式输出
+    --verbose, -v            每源打印 HTTP 请求、响应、凭证与判定说明
+
+  doctor:
+    --json                   JSON 格式输出
+    --config <path>          sources.yml 路径
+    --no-probe               跳过外网 HTTP 探活（仅结构/凭证）
+    --skip-api               不请求运行中 GET /health
 
   sources:
     --json                   JSON 格式输出
@@ -1425,6 +1485,8 @@ function printHelp() {
   data-platform schedules
   data-platform schedules --offline
   data-platform schedules --source openalex,crossref --json
+  data-platform health --verbose
+  data-platform doctor
   data-platform config list`);
 }
 
@@ -1452,6 +1514,9 @@ async function main(): Promise<void> {
       break;
     case "health":
       await cmdHealth(rest);
+      break;
+    case "doctor":
+      await cmdDoctor(rest);
       break;
     case "schedules":
       await cmdSchedules(rest);

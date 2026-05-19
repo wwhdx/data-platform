@@ -1,18 +1,13 @@
-import { probeAuthHeaders } from "../connectors/credentials";
-import type { SourceStatus } from "../types";
+import {
+  probeAuthHeaders,
+  resolveApiKeyForSource,
+  SOURCE_CREDENTIAL_SPECS,
+  validateCredentialsForCollect,
+} from "../connectors/credentials";
+import type { SourceProbeDetail, SourceStatus } from "../types";
 
-const PROBE_TIMEOUT_MS = 5000;
+export const PROBE_TIMEOUT_MS = 5000;
 const USER_AGENT = "WangyeDataPlatform/0.1 (health-probe)";
-
-function probeUserAgent(sourceId: string): string {
-  if (sourceId === "sec_edgar") {
-    return (
-      process.env.SEC_EDGAR_USER_AGENT?.trim() ??
-      "WangyeDataPlatform/0.1 (mailto:dev@wangye.app)"
-    );
-  }
-  return USER_AGENT;
-}
 
 export type ProbeResult = SourceStatus["status"];
 
@@ -40,6 +35,21 @@ const PROBE_TARGETS: Record<string, string | ((baseUrl: string) => string)> = {
   arxiv: "https://export.arxiv.org/api/query?search_query=all:test&max_results=1",
 };
 
+const EXTRA_ENV_BY_SOURCE: Record<string, string[]> = {
+  crossref: ["CROSSREF_MAILTO"],
+  fred: ["FRED_API_KEY"],
+};
+
+function probeUserAgent(sourceId: string): string {
+  if (sourceId === "sec_edgar") {
+    return (
+      process.env.SEC_EDGAR_USER_AGENT?.trim() ??
+      "WangyeDataPlatform/0.1 (mailto:dev@wangye.app)"
+    );
+  }
+  return USER_AGENT;
+}
+
 export function buildProbeUrl(sourceId: string, baseUrl: string): string {
   const target = PROBE_TARGETS[sourceId];
   if (!target) {
@@ -53,41 +63,256 @@ export function buildProbeUrl(sourceId: string, baseUrl: string): string {
   return `${root}${target.startsWith("/") ? target : `/${target}`}`;
 }
 
+export function mapHttpToProbeStatus(httpStatus: number): ProbeResult {
+  if (httpStatus >= 200 && httpStatus < 300) return "healthy";
+  if (httpStatus === 401 || httpStatus === 403 || httpStatus === 429) {
+    return "degraded";
+  }
+  return "error";
+}
+
+export function buildProbeVerdict(
+  status: ProbeResult,
+  ctx: {
+    httpStatus?: number;
+    credentialMissing?: string;
+    skipped?: string;
+    errorMessage?: string;
+  },
+): string {
+  if (ctx.skipped) return ctx.skipped;
+  if (ctx.credentialMissing) return ctx.credentialMissing;
+  if (status === "healthy") {
+    return ctx.httpStatus !== undefined
+      ? `外网探活成功 (HTTP ${ctx.httpStatus})`
+      : "外网探活成功";
+  }
+  if (status === "degraded") {
+    return `认证或限流 (HTTP ${ctx.httpStatus ?? "?"})，请检查 API Key / User-Agent`;
+  }
+  if (ctx.errorMessage) return `探活失败: ${ctx.errorMessage}`;
+  return ctx.httpStatus !== undefined
+    ? `外网探活失败 (HTTP ${ctx.httpStatus})`
+    : "外网探活失败";
+}
+
+function listCredentialChecks(sourceId: string): SourceProbeDetail["credentialChecks"] {
+  const checks: SourceProbeDetail["credentialChecks"] = [];
+  const spec = SOURCE_CREDENTIAL_SPECS[sourceId];
+  if (spec) {
+    checks.push({
+      envVar: spec.envVar,
+      required: spec.required,
+      set: Boolean(resolveApiKeyForSource(sourceId)),
+    });
+  }
+  for (const envVar of EXTRA_ENV_BY_SOURCE[sourceId] ?? []) {
+    if (spec?.envVar === envVar) continue;
+    checks.push({
+      envVar,
+      required: envVar === "FRED_API_KEY",
+      set: Boolean(process.env[envVar]?.trim()),
+    });
+  }
+  return checks;
+}
+
+function formatHeaderLog(
+  sourceId: string,
+  headers: Record<string, string>,
+): string[] {
+  const lines: string[] = [];
+  lines.push(`User-Agent: ${headers["User-Agent"] ?? "(none)"}`);
+
+  if (headers["X-Api-Key"]) {
+    lines.push("X-Api-Key: *** (已设置)");
+  } else if (sourceId === "patentsview") {
+    lines.push("X-Api-Key: (未发送)");
+  }
+
+  if (headers["x-api-key"]) {
+    lines.push("x-api-key: *** (已设置)");
+  } else if (sourceId === "semanticscholar") {
+    lines.push("x-api-key: (未发送，可选 SEMANTIC_SCHOLAR_API_KEY)");
+  }
+
+  if (headers.Authorization) {
+    lines.push("Authorization: Bearer *** (已设置)");
+  } else if (sourceId === "github") {
+    lines.push("Authorization: (未发送，匿名 60 req/h)");
+  }
+
+  if (headers["Content-Type"]) {
+    lines.push(`Content-Type: ${headers["Content-Type"]}`);
+  }
+
+  const mailto = process.env.CROSSREF_MAILTO?.trim();
+  if (sourceId === "crossref") {
+    lines.push(
+      mailto
+        ? `CROSSREF_MAILTO: ${mailto} (探活未附带，采集时由 Connector 使用)`
+        : "CROSSREF_MAILTO: (未设置，建议配置 polite pool)",
+    );
+  }
+
+  if (sourceId === "openalex" && process.env.OPENALEX_API_KEY?.trim()) {
+    lines.push("OPENALEX_API_KEY: 已设置 (探活未附带 query 参数，无 Key 也可 200)");
+  }
+
+  if (sourceId === "pubmed" && process.env.NCBI_API_KEY?.trim()) {
+    lines.push("NCBI_API_KEY: 已设置 (探活 URL 未附带 api_key，无 Key 也可 200)");
+  }
+
+  return lines;
+}
+
+export function shouldSkipExternalProbe(
+  sourceId: string,
+  baseUrl: string,
+): string | null {
+  if (!baseUrl.trim()) {
+    return "base_url 为空，未发起外网请求";
+  }
+  if (
+    baseUrl.startsWith("fixture://") ||
+    sourceId === "fixture"
+  ) {
+    return "fixture 为集成测试本地源 (fixture://)，跳过外网探活";
+  }
+  return null;
+}
+
+export function buildDisabledProbeDetail(
+  sourceId: string,
+  baseUrl: string,
+): SourceProbeDetail {
+  return {
+    sourceId,
+    method: "GET",
+    url: baseUrl || "(none)",
+    status: "disabled",
+    latencyMs: 0,
+    timeoutMs: PROBE_TIMEOUT_MS,
+    credentialChecks: listCredentialChecks(sourceId),
+    requestHeaders: [],
+    skipped: "DB status≠active（或 YAML enabled:false），未发起外网探活",
+    verdict: "数据源已禁用，未探活",
+  };
+}
+
+export async function probeExternalSourceDetailed(
+  sourceId: string,
+  baseUrl: string,
+): Promise<SourceProbeDetail> {
+  const credentialChecks = listCredentialChecks(sourceId);
+  const collectBlock = validateCredentialsForCollect(sourceId);
+
+  const skip = shouldSkipExternalProbe(sourceId, baseUrl);
+  if (skip) {
+    return {
+      sourceId,
+      method: "GET",
+      url: baseUrl,
+      status: "error",
+      latencyMs: 0,
+      timeoutMs: PROBE_TIMEOUT_MS,
+      credentialChecks,
+      requestHeaders: [],
+      skipped: skip,
+      verdict: skip,
+    };
+  }
+
+  const url = buildProbeUrl(sourceId, baseUrl);
+  const method = sourceId === "patentsview" ? "POST" : "GET";
+  const headers: Record<string, string> = {
+    "User-Agent": probeUserAgent(sourceId),
+    ...probeAuthHeaders(sourceId),
+    ...(sourceId === "patentsview"
+      ? { "Content-Type": "application/json" }
+      : {}),
+  };
+  const body =
+    sourceId === "patentsview"
+      ? JSON.stringify({
+          q: { _gte: { patent_date: "2020-01-01" } },
+          f: ["patent_id"],
+          o: { size: 1 },
+        })
+      : undefined;
+
+  const requestHeaders = formatHeaderLog(sourceId, headers);
+  const requestBodySummary =
+    sourceId === "patentsview"
+      ? 'POST JSON { q, f:["patent_id"], o:{ size:1 } }'
+      : undefined;
+
+  if (collectBlock) {
+    return {
+      sourceId,
+      method,
+      url,
+      status: "error",
+      latencyMs: 0,
+      timeoutMs: PROBE_TIMEOUT_MS,
+      credentialChecks,
+      requestHeaders,
+      requestBodySummary,
+      verdict: collectBlock,
+      credentialMissing: collectBlock,
+    };
+  }
+
+  const started = Date.now();
+  try {
+    const res = await fetch(url, {
+      method,
+      headers,
+      ...(body ? { body } : {}),
+      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+    });
+    const latencyMs = Date.now() - started;
+    const status = mapHttpToProbeStatus(res.status);
+    const verdict = buildProbeVerdict(status, { httpStatus: res.status });
+
+    return {
+      sourceId,
+      method,
+      url,
+      status,
+      httpStatus: res.status,
+      latencyMs,
+      timeoutMs: PROBE_TIMEOUT_MS,
+      credentialChecks,
+      requestHeaders,
+      requestBodySummary,
+      verdict,
+    };
+  } catch (err) {
+    const latencyMs = Date.now() - started;
+    const errorMessage =
+      err instanceof Error ? err.message : String(err);
+    const status: ProbeResult = "error";
+    return {
+      sourceId,
+      method,
+      url,
+      status,
+      latencyMs,
+      timeoutMs: PROBE_TIMEOUT_MS,
+      credentialChecks,
+      requestHeaders,
+      requestBodySummary,
+      errorMessage,
+      verdict: buildProbeVerdict(status, { errorMessage }),
+    };
+  }
+}
+
 export async function probeExternalSource(
   sourceId: string,
   baseUrl: string,
 ): Promise<ProbeResult> {
-  if (!baseUrl.trim()) return "error";
-
-  const url = buildProbeUrl(sourceId, baseUrl);
-  try {
-    const res = await fetch(url, {
-      method: sourceId === "patentsview" ? "POST" : "GET",
-      headers: {
-        "User-Agent": probeUserAgent(sourceId),
-        ...probeAuthHeaders(sourceId),
-        ...(sourceId === "patentsview"
-          ? { "Content-Type": "application/json" }
-          : {}),
-      },
-      ...(sourceId === "patentsview"
-        ? {
-            body: JSON.stringify({
-              q: { _gte: { patent_date: "2020-01-01" } },
-              f: ["patent_id"],
-              o: { size: 1 },
-            }),
-          }
-        : {}),
-      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
-    });
-
-    if (res.ok) return "healthy";
-    if (res.status === 401 || res.status === 403 || res.status === 429) {
-      return "degraded";
-    }
-    return "error";
-  } catch {
-    return "error";
-  }
+  const detail = await probeExternalSourceDetailed(sourceId, baseUrl);
+  return detail.status;
 }

@@ -1,5 +1,8 @@
 import type { FastifyPluginAsync } from "fastify";
-import { probeExternalSource } from "../../lib/sourceProbe";
+import {
+  buildDisabledProbeDetail,
+  probeExternalSourceDetailed,
+} from "../../lib/sourceProbe";
 import { query } from "../../storage/db";
 import type { HealthResponse, SourceStatus } from "../../types";
 
@@ -23,7 +26,10 @@ export const healthRoute: FastifyPluginAsync = async (app) => {
         result.rows.map(async (row) => {
           const id = String(row.id);
           const dbStatus = String(row.status ?? "active");
+          const baseUrl = String(row.base_url ?? "");
+
           if (dbStatus !== "active") {
+            const probe = buildDisabledProbeDetail(id, baseUrl);
             return {
               id,
               name: String(row.name),
@@ -31,15 +37,15 @@ export const healthRoute: FastifyPluginAsync = async (app) => {
               commercialUse: Boolean(row.commercial_use),
               rateLimit: String(row.rate_limit ?? "unknown"),
               status: "disabled" as const,
-              lastCollectionAt: row.last_fetch ? String(row.last_fetch) : undefined,
+              lastCollectionAt: row.last_fetch
+                ? String(row.last_fetch)
+                : undefined,
               totalDocuments: Number(row.total_docs),
+              probe,
             };
           }
 
-          const probeStatus = await probeExternalSource(
-            id,
-            String(row.base_url ?? ""),
-          );
+          const probe = await probeExternalSourceDetailed(id, baseUrl);
 
           return {
             id,
@@ -47,9 +53,12 @@ export const healthRoute: FastifyPluginAsync = async (app) => {
             license: String(row.license),
             commercialUse: Boolean(row.commercial_use),
             rateLimit: String(row.rate_limit ?? "unknown"),
-            status: probeStatus,
-            lastCollectionAt: row.last_fetch ? String(row.last_fetch) : undefined,
+            status: probe.status,
+            lastCollectionAt: row.last_fetch
+              ? String(row.last_fetch)
+              : undefined,
             totalDocuments: Number(row.total_docs),
+            probe,
           };
         }),
       );

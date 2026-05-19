@@ -172,6 +172,30 @@ export interface SearchResponse {
 }
 
 // ── 数据源状态 ──
+export interface SourceCredentialCheck {
+  envVar: string;
+  required: boolean;
+  set: boolean;
+}
+
+/** GET /health 与 doctor 共用的外网探活详情 */
+export interface SourceProbeDetail {
+  sourceId: string;
+  method: string;
+  url: string;
+  status: "healthy" | "degraded" | "error" | "disabled";
+  httpStatus?: number;
+  latencyMs: number;
+  timeoutMs: number;
+  credentialChecks: SourceCredentialCheck[];
+  requestHeaders: string[];
+  requestBodySummary?: string;
+  skipped?: string;
+  credentialMissing?: string;
+  errorMessage?: string;
+  verdict: string;
+}
+
 export interface SourceStatus {
   id: string;
   name: string;
@@ -181,6 +205,7 @@ export interface SourceStatus {
   status: "healthy" | "degraded" | "error" | "disabled";
   lastCollectionAt?: string;
   totalDocuments: number;
+  probe?: SourceProbeDetail;
 }
 
 // ── BaseConnector 抽象类 ──

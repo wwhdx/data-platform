@@ -108,7 +108,9 @@ pnpm cli jobs --limit 10  # 采集任务历史
 pnpm cli schedules       # cron 调度（YAML + 运行中 Scheduler 对照；API 不可达 exit 1）
 pnpm cli schedules --offline  # 仅 YAML，不请求 API
 pnpm cli stats             # 统计信息
-pnpm cli health --json     # 健康检查
+pnpm cli health --verbose  # 健康检查（每源 HTTP 探活过程）
+pnpm cli health --json     # JSON（含 sources[].probe）
+pnpm cli doctor            # 本地 .env / DB / YAML / 外网探活（无需 API）
 
 # 原始数据落盘（见 docs/plans/原始数据本地导出与镜像方案.md）
 pnpm cli export --source openalex --since 2026-05-01 --out ./data/raw

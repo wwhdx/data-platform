@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { buildProbeUrl } from "../../lib/sourceProbe";
+import {
+  buildProbeUrl,
+  buildProbeVerdict,
+  mapHttpToProbeStatus,
+  shouldSkipExternalProbe,
+} from "../../lib/sourceProbe";
 
 describe("sourceProbe", () => {
   it("builds openalex probe URL", () => {
@@ -21,5 +26,25 @@ describe("sourceProbe", () => {
     );
     expect(url).toContain("esearch.fcgi");
     expect(url).toContain("db=pubmed");
+  });
+
+  it("maps HTTP status to probe result", () => {
+    expect(mapHttpToProbeStatus(200)).toBe("healthy");
+    expect(mapHttpToProbeStatus(401)).toBe("degraded");
+    expect(mapHttpToProbeStatus(429)).toBe("degraded");
+    expect(mapHttpToProbeStatus(500)).toBe("error");
+  });
+
+  it("skips fixture base_url", () => {
+    expect(shouldSkipExternalProbe("fixture", "fixture://local")).toContain(
+      "fixture",
+    );
+  });
+
+  it("builds verdict for missing credential", () => {
+    const v = buildProbeVerdict("error", {
+      credentialMissing: "FRED_API_KEY 未配置",
+    });
+    expect(v).toContain("FRED_API_KEY");
   });
 });
