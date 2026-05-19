@@ -880,12 +880,15 @@ ctx.state.dataPlatformResults = data.results.map(r => ({
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-05-19 | v0.2.1 | **Agent 工作流**：新增 `.cursor/rules/*.mdc`、`opencode.json`、`AGENTS.md`、`docs/agent-workflow.md`；`CLAUDE.md` 改为 `@import` 规则；commit 须用户明确说明（与望野主仓对齐）。 |
 | 2025-05-15 | v0.1 | 初始草案 |
 | 2026-05-15 | v0.2 | 职责边界澄清：移除 `/api/context`（LLM 摘要生成 → engine-core）；§9.1 接入点从 3 个精简为 2 个；§1.2 边界表新增 LLM 摘要/实体抽取行；Phase 4 移除 `/api/context` |
 
 > **版本**: v0.2 | **状态**: 修订中 | **最后更新**: 2026-05-15
 >
 > 相关文档：
+> - Agent 工作流：`docs/agent-workflow.md`
 > - engine-core 接口协议：`../engine-core/ENGINE_CONTRACTS.md`
-> - 数据平台 API 协议：`docs/data-sources.md`
+> - 数据源清单：`docs/data-sources.md`
 > - 望野主项目架构规划：父仓库 `docs/00-architecture/项目模块职责划分与架构规划.md`
+> - 望野交付规范：父仓库 `docs/00-architecture/AI任务交付与接入规范.md`

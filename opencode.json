@@ -1,0 +1,6 @@
+{
+  "instructions": [
+    ".cursor/rules/ai-task-integration.mdc",
+    ".cursor/rules/doc-progress-sync.mdc"
+  ]
+}

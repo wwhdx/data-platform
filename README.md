@@ -203,6 +203,17 @@ src/
 └── adapters/engineCore.ts     engine-core SearchProvider 适配
 ```
 
+## AI 协作（Cursor / Claude Code / OpenCode）
+
+| 文件 | 说明 |
+|------|------|
+| [`docs/agent-workflow.md`](docs/agent-workflow.md) | 工作流索引（真源、接入点、commit） |
+| [`CLAUDE.md`](CLAUDE.md) | Claude Code：`@import` `.cursor/rules/*.mdc` + 本包开发说明 |
+| [`AGENTS.md`](AGENTS.md) | OpenCode 入口 + 本目录 [`opencode.json`](opencode.json) |
+| [`.cursor/rules/`](.cursor/rules/) | Cursor 强制规则（接入 / 文档同步 / Shell） |
+
+**Commit**：仅用户明确要求时提交；收尾自检见 `ai-task-integration.mdc` §2。
+
 ## 许可
 
 内部项目。数据源许可见各 Connector 元数据（OpenAlex: CC0, Semantic Scholar: 非商业, PatentsView: 公共领域）。

@@ -1,0 +1,80 @@
+---
+description: data-platform 交付接入、收尾自检、commit 与 Shell 纪律（望野 Cursor 工作流子包版）
+globs: src/**/*.{ts,tsx},docs/**/*.md,config/**/*,.env*.example
+alwaysApply: true
+---
+
+# data-platform · AI 任务交付与接入
+
+> 子包独立真源。在望野 monorepo 内开发时，父仓库 `docs/00-architecture/AI任务交付与接入规范.md` 作人类可读补充。
+
+## 1. 核心铁律
+
+1. **禁止悬空新模块**：新建 Connector / API 路由 / CLI 子命令 / 迁移 / 调度任务 / 公共 export，必须同步 §3 接入点。
+2. **禁止入口孤链**：commit 内新增 `import` 指向的相对路径文件须已 tracked；新增 HTTP 路径须在 `src/api/server.ts`（或路由注册处）挂载。
+3. **禁止破坏性 Git 命令**：`git reset --hard`、`git checkout -- <path>`、`git stash drop`、`git clean -fd` 须用户明确要求；`stash` 前须 `wip: checkpoint` commit。
+4. **禁止混用父库数据库**：只使用 `DATA_PLATFORM_DATABASE_URL`，禁止回退父项目 `DATABASE_URL`（见 `src/storage/db.ts`）。
+5. **收尾必须跑 §2 自检**；**commit 须用户当次消息明确要求**（「提交」「commit」「收尾并提交」），见 §4。
+6. **设计文档同步**：按 `doc-progress-sync.mdc`；Phase/✅ 须有代码接入证据（如 Connector 已在 `index.ts` 导出且运行时注册）。
+
+## 2. 收尾自检清单
+
+```bash
+git status --short && git diff --stat HEAD
+
+# 新文件是否被引用（除自身）
+rg -l "NewSymbol" src/
+
+# 新 Connector / 路由 / CLI
+rg -n "NewConnector|registerConnector|registerRoute" src/
+
+# 新 migration 是否成对
+ls src/storage/migrations/
+
+timeout 120s pnpm exec tsc --noEmit 2>&1 | awk 'NR<=40'
+pnpm test:run 2>&1 | awk 'NR<=30'
+```
+
+## 3. 接入点清单（本包）
+
+| 新增类型 | 必须同步修改 |
+|----------|-------------|
+| `src/connectors/<id>.ts` | `src/connectors/index.ts` export；`src/index.ts` 内 `Scheduler.registerConnector`；`config/sources.yml` 增源 + `loadConfig`/`syncToDb` 可发现 |
+| `src/api/routes/<name>.ts` | `src/api/server.ts` 内 `app.register(...Routes, { prefix })` |
+| `src/adapters/engineCore.ts` 变更 | 与 `../engine-core/ENGINE_CONTRACTS.md` SearchProvider 字段一致 |
+| `src/__tests__/**` 新增 | 与改动模块同主题；Connector/API 须有 unit 或 integration |
+| `src/cli/` 新子命令 | `src/cli/index.ts` 命令表 |
+| `src/scheduler/` 新任务 | `src/scheduler/index.ts` / `jobs` 注册 |
+| `src/processors/<x>.ts` | `src/processors/index.ts`（若有编排入口） |
+| `src/rag/` 新能力 | `src/rag/index.ts` export |
+| `src/storage/migrations/*.sql` | 文档/README 或 `docs/design.md` 迁移说明；禁止堆积 >3 个未合并迁移 |
+| `src/index.ts` 公共 API | 确认 `package.json` `main`/`types` 与构建产物一致 |
+| 新 `process.env.*` | `.env.example` + `CLAUDE.md` 环境变量表 + `docs/` 相关设计稿 |
+| engine-core 对接变更 | `src/adapters/engineCore.ts`；父包 `packages/engine-core/ENGINE_CONTRACTS.md` 一致性 |
+
+## 4. Commit 常规
+
+1. **禁止擅自 commit**；任务结束汇报自检与建议 message，等用户确认。
+2. **按主题拆分**：`feat(connector)`、`feat(api)`、`fix`、`docs`、`chore`、`test`。
+3. **`git add <路径>`** 按需暂存，避免无关 `docs/knowledge/` 草稿并入。
+4. **commit message 中文**，写明接入点（如「OpenAlex → connectors/index + scheduler」）。
+5. **禁止自主 `git push`**。
+
+## 4.5 重大文档交付自审（精简）
+
+触发：单文件 `docs/**` 净增 ≥100 行，或连续 3 次 commit 改同一 doc，或含 tracked/行号等事实断言。
+
+commit 前抽 5 处 `rg` 反证路径与函数名；遍历 `§` 交叉引用；commit message 带 `自审：通过` 或 `自审：N 条勘误`。细则见父仓 `docs/00-architecture/AI任务交付与接入规范.md` §5.4。
+
+## 5. 多会话接力
+
+1. 新会话：`git status -s && git log --oneline -5`（本子模块仓库）。
+2. `??` > 15 时先盘点接入/commit，不叠加新 Connector。
+3. 规则真源：本目录 `.cursor/rules/*.mdc` > `CLAUDE.md` > `docs/`。
+
+## 6. Shell 纪律
+
+1. 读文本用 Read，搜索用 Grep（带 path），禁裸扫全仓。
+2. `pnpm build` / `tsc` / `vitest` / `docker compose` 前缀 `timeout`。
+3. 一条 Shell 一个问题；禁 `cmd | head -N`（用 `awk 'NR<=N'` 或 `rg --max-count`）。
+4. 禁扫 `agent-transcripts/**/*.jsonl`。

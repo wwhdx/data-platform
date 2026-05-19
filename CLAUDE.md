@@ -1,6 +1,9 @@
+@.cursor/rules/ai-task-integration.mdc
+@.cursor/rules/doc-progress-sync.mdc
+
 # CLAUDE.md — data-platform 开发规范
 
-> data-platform 是望野数据采集/存储/RAG 引擎，独立于 engine-core 部署运行。
+> 执行约束真源：上文 `@import` 的 `.cursor/rules/*.mdc`。data-platform 是望野数据采集/存储/RAG 引擎，独立于 engine-core 部署运行。
 
 ## 项目身份
 
@@ -211,22 +214,15 @@ psql -U lumina -h localhost -d data_platform \
   -f src/storage/migrations/002_pgvector.sql
 ```
 
-## Commit 铁律
+## Commit / 自检 / Shell
 
-1. 任务结束必须 commit
-2. 按主题拆分：`feat/`、`fix/`、`docs/`、`chore/`、`test/`
-3. 暂存范围核对：`git add <路径>` 按需入库
-4. commit message 中文简述
-5. 禁止自主执行破坏性命令：`git reset --hard`、`git checkout -- <path>` 等须用户明确授权
-6. 永远不主动 push
-
-## 多会话接力
-
-1. 新会话基线核对：`git status -s && git log --oneline -5`
-2. 规则文档优先：CLAUDE.md 视为执行期真源
+见已加载 `ai-task-integration.mdc`（**commit 须用户明确说明**；接入点见 §3）。
 
 ## 参考文档
 
+- Agent 工作流索引：`docs/agent-workflow.md`
 - engine-core 接口协议：`../engine-core/ENGINE_CONTRACTS.md`
-- 数据平台 API 协议：`docs/data-sources.md`
+- 数据源清单：`docs/data-sources.md`
 - 主设计文档：`docs/design.md`
+- 本包知识库：`docs/knowledge/`（含与父仓同步的 API 协议副本）
+- 父仓 API 协议（monorepo）：`../../docs/knowledge/数据平台API协议.md`
