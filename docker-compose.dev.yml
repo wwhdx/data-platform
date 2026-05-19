@@ -62,8 +62,10 @@ services:
       - dp-network
     volumes:
       - ./src:/app/src
+      - ./data/raw:/data/raw
     environment:
       DATA_PLATFORM_DATABASE_URL: postgresql://lumina:lumina_pass@db:5432/data_platform
+      DATA_PLATFORM_RAW_MIRROR: /data/raw
       EMBED_BACKEND: ollama
       EMBED_API_URL: http://ollama:11434
       OPENALEX_API_KEY: ${OPENALEX_API_KEY:-}

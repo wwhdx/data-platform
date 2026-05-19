@@ -46,6 +46,21 @@ function parseArgs(args: string[]): Record<string, string> {
   return parsed;
 }
 
+/** 收集重复出现的 --flag value（如多个 --source） */
+function collectRepeatedFlag(args: string[], flag: string): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === `--${flag}`) {
+      const next = args[i + 1];
+      if (next && !next.startsWith("-")) {
+        out.push(next);
+        i++;
+      }
+    }
+  }
+  return out;
+}
+
 // ── HTTP 客户端 ──
 
 function getBaseUrl(): string {
@@ -742,6 +757,56 @@ async function cmdConfig(args: string[]) {
   throw new CliExit(1);
 }
 
+async function cmdExport(args: string[]) {
+  const opts = parseArgs(args);
+  const dbUrl = process.env.DATA_PLATFORM_DATABASE_URL;
+  if (!dbUrl) {
+    console.error("❌ 请设置 DATA_PLATFORM_DATABASE_URL 环境变量");
+    throw new CliExit(1);
+  }
+
+  const sources = collectRepeatedFlag(args, "source");
+  if (sources.length === 0 && opts.source) {
+    sources.push(
+      ...opts.source.split(",").map((s) => s.trim()).filter(Boolean),
+    );
+  }
+
+  const layout = opts.layout === "profile" ? "profile" : "source";
+  const filters: import("../export/types").ExportFilters = {};
+  if (sources.length > 0) filters.sourceIds = sources;
+  if (opts.since) filters.since = opts.since;
+  if (opts.until) filters.until = opts.until;
+  if (opts["job-id"]) filters.jobId = parseInt(opts["job-id"], 10);
+  if (opts.limit) filters.limit = parseInt(opts.limit, 10);
+
+  const { runExport } = await import("../export/runExport");
+  const result = await runExport({
+    outDir: opts.out,
+    layout,
+    filters,
+    overwrite: opts.overwrite === "true",
+    dryRun: opts["dry-run"] === "true",
+  });
+
+  if (opts["dry-run"] === "true") {
+    const n = result.dryRunCount ?? 0;
+    console.log(`待导出: ${n} 条`);
+    if (n === 0) throw new CliExit(1);
+    return;
+  }
+
+  if (result.exported === 0 && result.skipped === 0) {
+    console.log("无可导出文档");
+    throw new CliExit(1);
+  }
+
+  console.log(`✅ 导出完成: 写入 ${result.exported}，跳过 ${result.skipped}`);
+  if (result.manifestPath) {
+    console.log(`   清单: ${result.manifestPath}`);
+  }
+}
+
 async function cmdMigrate() {
   const dbUrl = process.env.DATA_PLATFORM_DATABASE_URL;
   if (!dbUrl) {
@@ -865,6 +930,7 @@ function printHelp() {
 
 命令（直连数据库 / 本地文件）:
   migrate   执行数据库迁移
+  export    原始 JSON 导出到本地目录（见 docs/plans/原始数据本地导出与镜像方案.md）
   serve     启动 API 服务
   schedules 查看 cron 调度计划（需 API；不可达时 exit 1）
   config validate|sync|diff|export|profiles|list --by-profile
@@ -895,6 +961,17 @@ function printHelp() {
   serve:
     --port <数字>            服务端口 (默认: 3400)
 
+  export:
+    --out <dir>              输出根 (默认 DATA_PLATFORM_EXPORT_DIR 或 ./data/export)
+    --source <id>            可重复或逗号分隔
+    --since <YYYY-MM-DD>     fetched_at 下限
+    --until <YYYY-MM-DD>     fetched_at 上限（含当日）
+    --job-id <n>             仅指定采集任务
+    --layout source|profile  目录布局 (默认 source)
+    --overwrite              覆盖已存在文件
+    --dry-run                仅统计条数
+    --limit <n>              最多导出条数
+
   health:
     --json                   JSON 格式输出
 
@@ -905,7 +982,10 @@ function printHelp() {
     list --by-profile       按 interface_profile 分组（读 YAML）
 
 环境变量:
-  DATA_PLATFORM_DATABASE_URL   数据库连接（migrate/config sync 必填）
+  DATA_PLATFORM_DATABASE_URL   数据库连接（migrate/export/config sync 必填）
+  DATA_PLATFORM_EXPORT_DIR     默认导出目录 (./data/export)
+  DATA_PLATFORM_RAW_MIRROR     采集成功后镜像目录（未设置则关闭）
+  DATA_PLATFORM_RAW_MIRROR_OVERWRITE  设为 1 时镜像覆盖已有文件
   DATA_PLATFORM_URL            API 地址 (默认: http://localhost:3400)
   SOURCES_CONFIG_PATH          YAML 路径 (默认: config/sources.yml)
   EMBED_BACKEND                ollama (默认) / voyage / openai
@@ -915,6 +995,7 @@ function printHelp() {
 
 示例:
   data-platform migrate
+  data-platform export --source openalex --since 2026-05-01 --out ./data/raw
   data-platform serve --port 3400
   data-platform config validate
   data-platform config sync
@@ -960,6 +1041,9 @@ async function main(): Promise<void> {
       break;
     case "migrate":
       await cmdMigrate();
+      break;
+    case "export":
+      await cmdExport(rest);
       break;
     case "serve":
       await cmdServe(rest);

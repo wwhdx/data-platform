@@ -322,10 +322,13 @@ registerConnector("patentsview", () => new PatentsViewConnector({ apiKey: env.PA
 
 ## 五、处理流水线
 
+> **本地原始 JSON 副本**（可选）：PostgreSQL 仍为真源；事后 `pnpm cli export`（D1）与采集镜像 `DATA_PLATFORM_RAW_MIRROR`（D2）见 [plans/原始数据本地导出与镜像方案.md](./plans/原始数据本地导出与镜像方案.md)。
+
 ### 5.1 阶段定义
 
 ```
 采集完成 → [Stage 1: 去重] → [Stage 2: 富化] → [Stage 3: 分块] → [Stage 4: Embedding]
+              └─ (可选) 镜像写盘 D2
 ```
 
 ### 5.2 Stage 1：去重

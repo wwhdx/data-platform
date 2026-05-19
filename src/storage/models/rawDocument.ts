@@ -1,16 +1,19 @@
 import type { RawDocument, SearchResult, SearchOptions } from "../../types";
 import { query } from "../db";
 import { buildDocumentFilterClause } from "../../rag/searchFilters";
+import type { ExportFilters, RawDocumentRow } from "../../export/types";
 
 // ── CRUD ──
 
-export interface InsertedDoc {
-  id: number;
+export interface InsertedRawRow extends RawDocumentRow {
   title: string;
   abstract: string;
 }
 
-export async function insertRawDocuments(docs: RawDocument[]): Promise<InsertedDoc[]> {
+/** @deprecated 使用 InsertedRawRow */
+export type InsertedDoc = Pick<InsertedRawRow, "id" | "title" | "abstract">;
+
+export async function insertRawDocuments(docs: RawDocument[]): Promise<InsertedRawRow[]> {
   if (docs.length === 0) return [];
 
   const values: string[] = [];
@@ -29,7 +32,7 @@ export async function insertRawDocuments(docs: RawDocument[]): Promise<InsertedD
       SET raw_json = EXCLUDED.raw_json,
           fetched_at = now(),
           collection_job_id = COALESCE(EXCLUDED.collection_job_id, raw_documents.collection_job_id)
-    RETURNING id, raw_json
+    RETURNING id, source_id, external_id, raw_json, fetched_at, collection_job_id
   `;
 
   const result = await query(sql, params);
@@ -37,10 +40,87 @@ export async function insertRawDocuments(docs: RawDocument[]): Promise<InsertedD
     const raw = row.raw_json as Record<string, unknown>;
     return {
       id: Number(row.id),
+      sourceId: String(row.source_id),
+      externalId: String(row.external_id),
+      rawJson: raw,
+      fetchedAt: new Date(String(row.fetched_at)),
+      collectionJobId: row.collection_job_id != null ? Number(row.collection_job_id) : null,
       title: String(raw.title ?? ""),
       abstract: String(raw.abstract ?? ""),
     };
   });
+}
+
+function buildExportWhere(
+  filters: ExportFilters,
+  paramStart: number,
+): { sql: string; params: unknown[]; nextIdx: number } {
+  const parts: string[] = [];
+  const params: unknown[] = [];
+  let idx = paramStart;
+
+  if (filters.sourceIds && filters.sourceIds.length > 0) {
+    const ph = filters.sourceIds.map((_, i) => `$${idx + i}`).join(", ");
+    parts.push(`rd.source_id IN (${ph})`);
+    params.push(...filters.sourceIds);
+    idx += filters.sourceIds.length;
+  }
+  if (filters.since) {
+    parts.push(`rd.fetched_at >= $${idx}::date`);
+    params.push(filters.since);
+    idx++;
+  }
+  if (filters.until) {
+    parts.push(`rd.fetched_at < ($${idx}::date + interval '1 day')`);
+    params.push(filters.until);
+    idx++;
+  }
+  if (filters.jobId != null) {
+    parts.push(`rd.collection_job_id = $${idx}`);
+    params.push(filters.jobId);
+    idx++;
+  }
+
+  const sql = parts.length > 0 ? ` AND ${parts.join(" AND ")}` : "";
+  return { sql, params, nextIdx: idx };
+}
+
+function mapExportRow(row: Record<string, unknown>): RawDocumentRow {
+  return {
+    id: Number(row.id),
+    sourceId: String(row.source_id),
+    externalId: String(row.external_id),
+    rawJson: row.raw_json as Record<string, unknown>,
+    fetchedAt: new Date(String(row.fetched_at)),
+    collectionJobId: row.collection_job_id != null ? Number(row.collection_job_id) : null,
+  };
+}
+
+export async function countRawDocumentsForExport(filters: ExportFilters): Promise<number> {
+  const { sql, params, nextIdx } = buildExportWhere(filters, 1);
+  const result = await query<{ c: string }>(
+    `SELECT COUNT(*)::text AS c FROM raw_documents rd WHERE 1=1${sql}`,
+    params,
+  );
+  return Number(result.rows[0]?.c ?? 0);
+}
+
+export async function listRawDocumentsForExport(
+  filters: ExportFilters,
+  cursor: number,
+  pageSize: number,
+): Promise<RawDocumentRow[]> {
+  const { sql, params, nextIdx } = buildExportWhere(filters, 2);
+  const limitIdx = nextIdx;
+  const result = await query(
+    `SELECT rd.id, rd.source_id, rd.external_id, rd.raw_json, rd.fetched_at, rd.collection_job_id
+     FROM raw_documents rd
+     WHERE rd.id > $1${sql}
+     ORDER BY rd.id ASC
+     LIMIT $${limitIdx}`,
+    [cursor, ...params, pageSize],
+  );
+  return result.rows.map(r => mapExportRow(r as Record<string, unknown>));
 }
 
 export async function findExistingIds(

@@ -264,7 +264,7 @@ INSERT ... ON CONFLICT (source_id, external_id) DO UPDATE
 
 | 阶段 | 存储 | 动作 |
 |------|------|------|
-| **现在** | PostgreSQL raw_documents | 保持现状，260 篇已入库 |
+| **现在** | PostgreSQL raw_documents | 保持现状，260 篇已入库；可选本地副本见 [plans/原始数据本地导出与镜像方案.md](./plans/原始数据本地导出与镜像方案.md)（D1 导出 / D2 镜像） |
 | **本周** | + Layer 2 视图 | 创建 `papers` / `patents` / `filings` 视图，API 可查询 |
 | **Phase 2 完** | + 类型表 | 视图改为物化表（数据 > 1 万后） |
 | **Phase 3** | + Neo4j | 引入图数据库，实体+关系 |

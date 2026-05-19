@@ -156,6 +156,9 @@ psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.
 | `DATA_PLATFORM_DATABASE_URL` | 是 | 独立数据库，不共享父项目 |
 | `OPENALEX_API_KEY` | 否 | OpenAlex API Key（无 Key 可用但速率低） |
 | `PORT` | 否 | 服务端口（默认 3400） |
+| `DATA_PLATFORM_EXPORT_DIR` | 否 | D1 默认导出根（默认 `./data/export`），见 `docs/plans/原始数据本地导出与镜像方案.md` |
+| `DATA_PLATFORM_RAW_MIRROR` | 否 | D2 采集镜像根；未设置则关闭 |
+| `DATA_PLATFORM_RAW_MIRROR_OVERWRITE` | 否 | `1` 时镜像覆盖已存在文件（默认跳过） |
 
 **禁止从父项目 `DATABASE_URL` 回退**——`db.ts` 只读 `DATA_PLATFORM_DATABASE_URL`。
 

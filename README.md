@@ -105,6 +105,11 @@ pnpm cli schedules --offline  # 仅 YAML，不请求 API
 pnpm cli stats             # 统计信息
 pnpm cli health --json     # 健康检查
 
+# 原始数据落盘（见 docs/plans/原始数据本地导出与镜像方案.md）
+pnpm cli export --source openalex --since 2026-05-01 --out ./data/raw
+pnpm cli export --dry-run
+# 采集镜像：.env 或 compose 设置 DATA_PLATFORM_RAW_MIRROR=./data/raw
+
 # 运维
 pnpm cli migrate           # 执行数据库迁移（需 DATA_PLATFORM_DATABASE_URL）
 pnpm cli serve --port 3400 # 启动 API 服务
@@ -121,7 +126,7 @@ pnpm cli config list --by-profile     # 按 profile 分组（读 YAML）
 pnpm cli config list                  # 数据源表格（含文档数、最近采集）
 ```
 
-> **模式说明**：`search`/`collect`/`sources`/`jobs`/`stats`/`health`/`config list` 通过 HTTP 调 API（默认 `http://localhost:3400`）；`migrate`/`config validate|sync|diff|export` 直连数据库或读本地 YAML。
+> **模式说明**：`search`/`collect`/`sources`/`jobs`/`stats`/`health`/`config list` 通过 HTTP 调 API（默认 `http://localhost:3400`）；`migrate`/`config validate|sync|diff|export`（配置写回 YAML）直连数据库或读本地 YAML；规划中的 `cli export`（原始 JSON 导出）亦直连 DB。
 
 ## 测试
 

@@ -1,6 +1,7 @@
 import type { RawDocument } from "../types";
 import { insertRawDocuments, findExistingIds } from "../storage/models/rawDocument";
 import { embedDocuments } from "../rag/vectorStore";
+import { mirrorInsertedDocuments } from "../export/mirror";
 
 /**
  * 去重处理（Stage 1）。
@@ -41,6 +42,13 @@ export async function dedup(
 
     if (fresh.length > 0) {
       const inserted = await insertRawDocuments(fresh);
+
+      mirrorInsertedDocuments(inserted).catch(err => {
+        console.error(
+          "mirrorInsertedDocuments failed:",
+          err instanceof Error ? err.message : err,
+        );
+      });
 
       // Stage 4: 对新文档生成 embedding
       const docsWithContent = inserted.filter(d => d.title);
