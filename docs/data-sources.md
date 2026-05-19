@@ -17,6 +17,8 @@
 | 响应 | JSON |
 | 许可 | CC0（完全开放，可商用） |
 | 分页 | offset + cursor 双模式 |
+| **摘要可用性** | ✅ `abstract_inverted_index`（需反转还原为字符串，见注 1） |
+| **RAG 适用性** | ⭐⭐⭐⭐ |
 
 **核心端点**：
 ```
@@ -28,7 +30,9 @@ GET /funders        # 资助机构
 GET /topics         # 主题
 ```
 
-**Connector 关注字段**：`id, doi, title, abstract, authorships, cited_by_count, publication_date, primary_location, concepts, keywords`
+**Connector 关注字段**：`id, doi, title, abstract_inverted_index, authorships, cited_by_count, publication_date, primary_location, concepts, keywords`
+
+> **注 1（2026-05-19 修复 A11）**：API 返回 `abstract_inverted_index: { word: [pos...] }`，不是字符串。`openalex.ts` 中 `uninvertAbstract()` 函数负责还原，并以 `abstract` 字段写入 `rawJson`，供 `embedDocuments` 使用。
 
 ### 1.2 Semantic Scholar
 
@@ -39,6 +43,8 @@ GET /topics         # 主题
 | 速率 | 无认证：5,000/5min；已认证：1-10 RPS |
 | 响应 | JSON |
 | 许可 | 非商业免费，商业需授权 |
+| **摘要可用性** | ✅ `abstract`（直接字符串）+ `tldr.text`（AI 生成摘要） |
+| **RAG 适用性** | ⭐⭐⭐⭐⭐ |
 
 **核心端点**：
 ```
@@ -60,8 +66,12 @@ GET  /recommendations/v1/papers/{id}     # 推荐
 | 速率 | 无 Key：3次/秒；有 Key：10次/秒 |
 | 响应 | XML（默认）/ JSON（部分） |
 | 许可 | 免费，可商业 |
+| **摘要可用性** | ✅ `efetch.fcgi?rettype=abstract&retmode=xml` → `<AbstractText>`（`esummary` 不含摘要，见注 2） |
+| **RAG 适用性** | ⭐⭐⭐⭐ |
 
-**Pipeline**：`esearch`（获取 UID 列表）→ `efetch`（批量获取全文）
+**Pipeline**：`esearch`（获取 UID 列表）→ `esummary`（书目元数据）→ `efetch`（摘要 XML）
+
+> **注 2（2026-05-19 修复 A10）**：`esummary.fcgi` 只返回书目元数据（标题/作者/期刊/日期），**不含摘要**。`pubmed.ts` 的 `collect()` 在每批 esummary 之后追加 `efetchAbstracts()` 调用，解析 `<AbstractText>` 并合并进 `rawJson.abstract`。`efetch` 与 `esummary` 共享同一 WebEnv，不额外消耗 esearch 配额。
 
 ### 1.4 CrossRef
 
@@ -72,6 +82,8 @@ GET  /recommendations/v1/papers/{id}     # 推荐
 | 速率 | 动态（Header `x-rate-limit-limit`） |
 | 分页 | cursor |
 | 许可 | Polite 免费，商业需确认 |
+| **摘要可用性** | 🟡 约 20% 文章含 `abstract`（Wiley/Springer 等） |
+| **RAG 适用性** | ⭐⭐（主要用途：DOI 元数据枢纽） |
 
 ### 1.5 arXiv
 
@@ -82,6 +94,8 @@ GET  /recommendations/v1/papers/{id}     # 推荐
 | 认证 | 无需 |
 | 速率 | ≥3秒间隔 |
 | 许可 | 元数据可用 |
+| **摘要可用性** | ✅ `<summary>` 字段（Atom/OAI-PMH）；HTML 全文可访问（大量开放获取） |
+| **RAG 适用性** | ⭐⭐⭐⭐⭐（AI/ML/物理类最强，含全文） |
 
 ---
 
@@ -113,6 +127,8 @@ GET  /recommendations/v1/papers/{id}     # 推荐
 | 认证 | Header `X-Api-Key` |
 | 速率 | 45 次/分钟 |
 | 响应 | JSON |
+| **摘要可用性** | ✅ `patent_abstract` 字段 |
+| **RAG 适用性** | ⭐⭐⭐ |
 
 ---
 
@@ -126,6 +142,8 @@ GET  /recommendations/v1/papers/{id}     # 推荐
 | 认证 | User-Agent Header（`YourName your@email.com`） |
 | 速率 | 10 次/秒 |
 | 许可 | 完全免费，可商用 |
+| **摘要可用性** | ✅ 完整财报全文（10-K/10-Q HTML） |
+| **RAG 适用性** | ⭐⭐⭐⭐（需段落分块策略 A8） |
 
 ### 3.2 FRED
 
@@ -134,6 +152,8 @@ GET  /recommendations/v1/papers/{id}     # 推荐
 | Base URL | `https://api.stlouisfed.org/fred/` |
 | 认证 | Query `api_key=`（免费注册） |
 | 响应 | JSON / XML |
+| **摘要可用性** | ❌ 时序数值数据，无文本摘要 |
+| **RAG 适用性** | ⭐（不适合向量检索） |
 
 ---
 
@@ -188,31 +208,30 @@ GET  /recommendations/v1/papers/{id}     # 推荐
 ## 附录：Connector 优先实现顺序
 
 ```
-Phase 1 (MVP):
-  1. OpenAlex         ← CC0 许可，数据全，速率宽松
-  2. Semantic Scholar  ← 引文图 + AI 摘要
-  3. PatentsView       ← 专利清洗数据
+已完成：
+  ✅ OpenAlex       ← CC0，数据全（2026-05-19 补 abstract 反转 A11）
+  ✅ CrossRef       ← DOI 枢纽（摘要覆盖率低，主要元数据用途）
+  ✅ World Bank     ← 经济指标（无摘要，不参与 RAG）
+  ✅ PubMed         ← 生物医学（2026-05-19 补 efetch 摘要 A10）
 
-Phase 2:
-  4. PubMed            ← 生物医学权威
-  5. CrossRef          ← DOI 元数据枢纽
-  6. arXiv             ← 预印本前沿
-  7. SEC EDGAR         ← 上市公司财报
+RAG 质量优先（按摘要可用性排序）：
+  P1  Semantic Scholar  ← abstract 字符串 + tldr，最干净，任务 A4
+  P2  arXiv OAI-PMH    ← 摘要 + 部分全文，AI/ML 覆盖最深，任务 A7
+  P2  PatentsView       ← 专利摘要，技术趋势分析
 
-Phase 3:
-  8. GitHub            ← 技术趋势
-  9. FRED              ← 经济指标
-  10. World Bank       ← 全球发展数据
-  11. ClinicalTrials   ← 临床试验
+平台价值优先（业务联通）：
+  P0  DataPlatformClient（父仓）+ engine-core SearchProvider → C2/C3
 
-Phase 4:
-  12. EPO OPS          ← 欧洲专利
-  13. Google Patents   ← 全球专利 SQL 分析
-  14. Hacker News      ← 技术社区热点
-  15. Reddit           ← 舆情
-  16. YouTube          ← 视频内容趋势
+其他（P2-P3）：
+  SEC EDGAR        ← 财报全文，需段落分块
+  ClinicalTrials   ← 临床试验
+  GitHub           ← 技术趋势
+  FRED             ← 经济指标（不建议向量化）
+  EPO OPS / Google Patents ← 欧洲/全球专利
+  Hacker News / Reddit    ← 舆情
 ```
 
 ---
 
 > **维护频率**：速率限制与认证策略每季度核查一次。最新变化见各平台官方文档。
+> **内容层评估**：2026-05-19 增补，详析见 [数据源接入与RAG构建方案.md §7](./plans/数据源接入与RAG构建方案.md#7-内容层评估与-rag-可用性分析)。

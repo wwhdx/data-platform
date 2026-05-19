@@ -658,3 +658,137 @@ const results = await dataPlatform.search(query, {
 | 多粒度检索（chunk + document + entity） | 三层索引 |
 | Cross-encoder 重排序 | bge-reranker-v2-m3 |
 | 向量索引自动维护 | Cron REINDEX |
+
+---
+
+## 7. 内容层评估与 RAG 可用性分析
+
+> 2026-05-19 评估。补充自：现有 PubMed/OpenAlex 导出记录实测 + 代码追踪（`rawDocument.ts` 字段提取路径）。
+
+### 7.1 核心问题：embedding 文本质量
+
+`embedDocuments` 嵌入的文本 = `title + "\n\n" + abstract`（`src/rag/vectorStore.ts:30`）。
+`abstract` 字段来自 `mapInsertedRow` 中的 `String(raw.abstract ?? "")`（`rawDocument.ts:66`）。
+
+**已确认的静默问题（2026-05-19）**：
+
+| 信源 | rawJson 中 abstract 字段 | embedding 文本实际内容 | 严重程度 |
+|------|------------------------|----------------------|---------|
+| **PubMed**（当前） | ❌ `esummary` 不含摘要 | 仅标题 | 🔴 严重 |
+| **OpenAlex** | ❌ `abstract_inverted_index`（对象）而非字符串 | 仅标题（`String({...})` → `""` 或 `"[object Object]"`） | 🔴 严重 |
+| **CrossRef** | 🟡 约 20% 有 `abstract`，其余无 | 仅标题（多数） | 🟡 中等 |
+| **World Bank** | ✅ 经济指标名称；无摘要概念 | 系列名 + 指标描述（够用） | ✅ 可接受 |
+
+**后果**：已入库的 PubMed + OpenAlex 记录的向量均基于纯标题，语义检索效果极差。
+
+### 7.2 各信源内容层级完整评估
+
+| 信源 | 元数据 | 摘要（API 可获取） | 全文 | RAG 适用性 | 修复优先级 |
+|------|--------|-------------------|------|-----------|-----------|
+| **OpenAlex** | ✅ 丰富 | ✅ `abstract_inverted_index`（需反转还原） | ❌ | ⭐⭐⭐⭐ | 🔴 A11（已有数据，修复零成本） |
+| **PubMed (esummary)** | ✅ 书目完整 | ❌ 不在此端点 | ❌ | ⭐（当前） | 🔴 A10（需新增 `efetch` 调用） |
+| **PubMed (efetch)** | ✅ | ✅ `<AbstractText>` XML | ❌（需 PMC） | ⭐⭐⭐⭐ | — |
+| **Semantic Scholar** | ✅ | ✅ `abstract`（直接字符串） + `tldr.text` | ❌ | ⭐⭐⭐⭐⭐ | A4（新 Connector） |
+| **arXiv** | ✅ | ✅ `<summary>`（OAI-PMH） | ✅（HTML，部分） | ⭐⭐⭐⭐⭐ | A7 |
+| **CrossRef** | ✅ | 🟡 20% 有 | ❌ | ⭐⭐ | 不单独修复 |
+| **PatentsView** | ✅ | ✅ `patent_abstract` | ❌ | ⭐⭐⭐ | P2 |
+| **SEC EDGAR** | ✅ | N/A | ✅ 财报全文（HTML） | ⭐⭐⭐⭐ | 需分块策略 |
+| **FRED / World Bank** | ✅ | N/A（数值数据） | N/A | ⭐（不适合 RAG） | 无需修复 |
+
+### 7.3 OpenAlex abstract_inverted_index 反转方法
+
+OpenAlex API 返回摘要的"倒排索引"格式而非字符串：
+
+```json
+{
+  "abstract_inverted_index": {
+    "Machine": [0, 15],
+    "learning": [1],
+    "models": [2, 9],
+    "are": [3]
+  }
+}
+```
+
+反转还原函数（位置 → 词 → 按位置排序 → 拼接）：
+
+```typescript
+// src/connectors/openalex.ts — toRawDocument 中调用
+function uninvertAbstract(
+  inv: Record<string, number[]> | undefined,
+): string {
+  if (!inv) return "";
+  const positions: [number, string][] = [];
+  for (const [word, idxs] of Object.entries(inv)) {
+    for (const idx of idxs) positions.push([idx, word]);
+  }
+  return positions.sort((a, b) => a[0] - b[0]).map(p => p[1]).join(" ");
+}
+```
+
+**修复方案（A11）**：在 `OpenAlexConnector.toRawDocument()` 中，取 `work.abstract_inverted_index` 反转后作为 `abstract` 字段写入 `rawJson`。OAWORK 接口需补充 `abstract_inverted_index?: Record<string, number[]>`。
+
+**已入库数据修复**（A11b，可选）：对存量 openalex 记录跑一次 `UPDATE raw_documents SET raw_json = raw_json || '{"abstract": "..."}' WHERE source_id = 'openalex'` 的 CLI 脚本。
+
+### 7.4 PubMed 两阶段采集方案
+
+**问题**：`esummary.fcgi` 是书目摘要端点（publication date/journal/authors），**不含** `AbstractText`。
+
+**修复方案（A10）**：在 `collect()` 循环中，对每批 UID 额外调一次 `efetch.fcgi`：
+
+```
+esearch(term) → UIDs
+    ↓ 批量
+esummary(UIDs) → 书目元数据
+    ↓ 同批 UIDs
+efetch(UIDs, rettype=abstract, retmode=xml) → AbstractText
+    ↓ 合并
+rawJson = { ...esummaryRecord, abstract: "<AbstractText>" }
+```
+
+- `efetch` 支持与 `esummary` 相同的 WebEnv + query_key 分页，**无需重新 esearch**
+- 速率成本：每批次多一次 API 调用（10次/秒有 Key，可接受）
+- `rettype=abstract&retmode=xml`，解析 `<AbstractText Label="...">...</AbstractText>` 可能有多段（Background/Methods/Results）→ 按顺序拼接
+
+### 7.5 RSS 与 API 对比
+
+| 维度 | RSS | API |
+|------|-----|-----|
+| **数据量** | 最新 20–100 条 | 历史全库（无限） |
+| **内容完整性** | 通常仅标题 + 截断摘要 | 完整结构化字段（含全摘要） |
+| **访问模式** | 推送/轮询（被动感知更新） | 主动拉取（按日期/主题查询） |
+| **历史回填** | ❌ 不支持 | ✅ |
+| **向量库价值** | 低（摘要不完整） | 高 |
+| **适合场景** | 实时监控新文章、触发采集 | 批量建库、历史补全、精确查询 |
+
+**推荐架构（未来可选）**：RSS 作**哨兵**（感知新 PMID/arXiv ID） → API 做**正式摄取**（用 ID 调 efetch/abstract API 取完整摘要）。比纯定时轮询 API 更省配额，且可针对高价值 query 监控。
+
+**近期不实施**：当前 Connector 已有增量 `since` 参数（A5 ✅），RSS 优先级低于 A10/A11/A4。
+
+### 7.6 内容充实优先级
+
+```
+立即修复（无新 Connector，仅代码修复）：
+  A11  OpenAlex abstract_inverted_index → 字符串反转（uninvertAbstract）
+       ↳ 修改 openalex.ts toRawDocument；已入库数据可选脚本回填
+  
+  A10  PubMed esummary → 追加 efetch 阶段获取 <AbstractText>
+       ↳ 修改 pubmed.ts collect()；合并 abstract 字段进 rawJson
+
+新增 Connector（按 RAG 质量排序）：
+  A4   Semantic Scholar  ← abstract 字符串 + tldr，最干净，P1
+  A7   arXiv OAI-PMH     ← 摘要 + 部分全文，P2
+  PatentsView            ← 专利摘要，P2
+
+向量数据库质量提升路径：
+  A11 + A10 → 存量记录 re-embed（重跑 embedDocuments）→ A8 段落分块
+```
+
+---
+
+## §变更记录
+
+| 版本 | 日期 | 说明 |
+|------|------|------|
+| v1.0 | 2026-05-15 | 初版：Connector 框架、采集协议、RAG 流水线 |
+| v1.1 | 2026-05-19 | §7 新增：内容层评估（PubMed esummary 无摘要、OpenAlex 倒排索引问题）、RSS vs API 分析、各信源 RAG 可用性表、A10/A11 修复方案 |
