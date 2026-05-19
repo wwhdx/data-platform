@@ -120,6 +120,19 @@ pnpm cli config list                  # 数据源表格（含文档数、最近�
 
 > **模式说明**：`search`/`collect`/`sources`/`jobs`/`stats`/`health`/`config list` 通过 HTTP 调 API（默认 `http://localhost:3400`）；`migrate`/`config validate|sync|diff|export` 直连数据库或读本地 YAML。
 
+## 测试
+
+```bash
+pnpm typecheck              # 类型检查
+pnpm test:run               # 全量单元 + smoke inject（无需 DB）
+pnpm test:smoke             # 仅 Fastify inject + engineCore 契约
+
+# 真环境（需 docker compose up -d db）
+pnpm smoke:live             # migrate → serve → health/schedules/search
+```
+
+**接望野父仓 C2/C3 前**：至少通过 `pnpm test:run`；有 DB 时再跑 `pnpm smoke:live`。
+
 ## API
 
 | 端点 | 方法 | 说明 |
