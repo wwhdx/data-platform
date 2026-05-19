@@ -1,7 +1,8 @@
-# Phase 1 实施计划
+# Phase 1 实施计划（归档）
 
-> MVP 骨架：3 个 Connector + PostgreSQL + 检索 API + 定时采集
-> 目标周期：2-4 周（**已于 2026-05 完成代码落地**）
+> **状态：只读归档** — 新任务与代码对照见 [plans/实施进度总览.md](plans/实施进度总览.md)，勿在本文件更新进度。  
+> MVP 骨架：3 个 Connector + PostgreSQL + 检索 API + 定时采集（**已于 2026-05 完成**）。  
+> **文档地图** → [README.md](./README.md)。
 
 ---
 

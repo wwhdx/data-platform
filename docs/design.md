@@ -1,7 +1,8 @@
 # data-platform 数据平台设计方案
 
-> v0.2 — 职责边界澄清（/api/context 移除）+ MVP 路径
-> 基于望野项目 UODE（通用机遇探索引擎）理念与 16 个主流数据平台 API 协议设计。
+> v0.2 — 职责边界澄清（/api/context 移除）+ MVP 路径  
+> 基于望野项目 UODE（通用机遇探索引擎）理念与 16 个主流数据平台 API 协议设计。  
+> **文档地图** → [README.md](./README.md) · **代码/任务真源** → [plans/实施进度总览.md](plans/实施进度总览.md)（本文不维护实现进度表）
 
 ---
 
@@ -296,7 +297,7 @@ class ExponentialBackoff {
 
 ### 4.4 扩展 Connector 清单（Phase 2+）
 
-详细协议见 `docs/data-sources.md`（数据平台 API 协议文档）：
+Connector 实现速查见 [data-sources.md](./data-sources.md)；对外 HTTP 契约见 [knowledge/数据平台API协议.md](./knowledge/数据平台API协议.md)：
 
 **学术**：PubMed E-utilities, CrossRef, arXiv OAI-PMH
 **专利**：EPO OPS, Google Patents BigQuery

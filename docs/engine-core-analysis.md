@@ -1,6 +1,8 @@
-# engine-core 架构分析与 data-platform 接入设计
+# engine-core 架构分析（参考摘录）
 
-> 分析 engine-core 的工作流设计模式，提取优秀实践，设计 data-platform 接入方案。
+> **类型**：模式分析与历史笔记，**非**接入实施真源。  
+> **望野主平台接入设计** → [plans/平台接入设计框架.md](./plans/平台接入设计框架.md) · **任务进度** → [plans/实施进度总览.md](./plans/实施进度总览.md) §4 C 轨。  
+> **文档地图** → [README.md](./README.md)。
 
 ---
 

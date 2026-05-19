@@ -259,7 +259,9 @@ src/
 
 | 文件 | 说明 |
 |------|------|
-| [`docs/功能实现与设计总览.md`](docs/功能实现与设计总览.md) | **功能、设计、实现现状** 完整总览（推荐入口） |
+| [`docs/README.md`](docs/README.md) | **文档地图**（职责互斥、阅读顺序） |
+| [`docs/overview.md`](docs/overview.md) | 子包短入口（定位与链接） |
+| [`docs/design.md`](docs/design.md) | 架构与模块设计（目标态） |
 | [`docs/plans/实施进度总览.md`](docs/plans/实施进度总览.md) | **代码真源 ↔ A/B/C 任务**；§4 任务计划与两周排期 |
 | [`docs/plans/下一阶段实施方案.md`](docs/plans/下一阶段实施方案.md) | §3 推荐实施方案（C2→C3 / A5 / B13 / A4） |
 

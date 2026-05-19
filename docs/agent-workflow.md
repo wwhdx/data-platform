@@ -15,6 +15,8 @@
 
 | 文件 | 用途 |
 |------|------|
+| `docs/README.md` | **文档地图**（职责互斥、阅读顺序） |
+| `docs/overview.md` | 子包短入口（定位与链接，不重复架构/进度） |
 | `docs/plans/实施进度总览.md` | **代码 ↔ 任务状态真源**（改规划/勾 Phase 前先更新） |
 | `docs/plans/集成测试最小闭环方案.md` | **I 轨**：子包内 collect→search 自动化（不依赖父仓） |
 | `CLAUDE.md` | 领域说明（Connector/RAG/Docker/CLI）+ 顶部 `@import` 规则 |

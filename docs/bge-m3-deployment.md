@@ -1,6 +1,7 @@
 # bge-m3 本地 Embedding 部署方案
 
-> BAAI/bge-m3 — 开源中英多语言 Embedding 模型，1024 维，零 API 费用。
+> BAAI/bge-m3 — 开源中英多语言 Embedding 模型，1024 维，零 API 费用。  
+> **文档地图** → [README.md](./README.md) · 应用代码 → `src/rag/embed.ts`
 
 ## 选择理由
 

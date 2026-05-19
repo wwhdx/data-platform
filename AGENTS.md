@@ -30,6 +30,8 @@ docker compose up -d --build   # API :3400, PG :5433
 
 | 主题 | 路径 |
 |------|------|
+| **文档地图** | `docs/README.md` |
+| 子包概览 | `docs/overview.md` |
 | Agent 工作流 | `docs/agent-workflow.md` |
 | 主设计 | `docs/design.md` |
 | **实施进度（代码↔任务）** | `docs/plans/实施进度总览.md` |

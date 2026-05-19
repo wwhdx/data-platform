@@ -1,7 +1,8 @@
-# 数据源 API 协议速查
+# 数据源 API 实现速查（Connector）
 
-> Connector 实现参考文档。详细协议见引擎核心文档 `docs/knowledge/数据平台API协议.md`。
-> 本文聚焦 Connector 实现所需的认证方式、速率限制、分页类型和返回结构。
+> **职责**：各外部数据源的端点、认证、速率、分页与 Connector 关注字段（实现层）。  
+> **勿与以下混淆**：对外 HTTP 契约 → [knowledge/数据平台API协议.md](./knowledge/数据平台API协议.md)；按协议/认证分类 → [knowledge/免费数据源接口分类分析.md](./knowledge/免费数据源接口分类分析.md)。  
+> **文档地图** → [README.md](./README.md)。
 
 ---
 
