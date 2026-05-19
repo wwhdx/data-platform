@@ -754,9 +754,10 @@ rawJson = { ...esummaryRecord, abstract: "<AbstractText>" }
 
 待做（按 ROI）：
   A12  存量 openalex/pubmed re-embed（可选 CLI）
-  A7   arXiv OAI-PMH（摘要 + 部分全文）
-  A8   段落级分块（有长文源后）
   PatentsView（专利摘要，P2）
+
+已完成（arXiv 正文 P1）：
+  ✅ arXiv HTML 正文  `processors/arxivFulltext.ts`；`ARXIV_FULLTEXT_ENABLED=1`；dedup 入库后同步 → `raw_json.fulltext` → chunk embed
 
 明确不做（近期）：
   A9 Embedding 队列 · RSS 哨兵 · CrossRef 摘要补全
@@ -773,3 +774,4 @@ rawJson = { ...esummaryRecord, abstract: "<AbstractText>" }
 | v1.2 | 2026-05-19 | A4：`SemanticScholarConnector`（search + offset 采集 + abstract/tldr）；bootstrap 注册；默认 YAML disabled |
 | v1.3 | 2026-05-19 | 代码对照同步：§1.1–§1.3、§3、§6 标 A1/A5/L1–L6 已完成；A10/A11 ✅；§7 区分新文档/存量；新增 §6.5 剩余任务摘要 |
 | v1.4 | 2026-05-19 | P2：A7 `arxiv_oai`、A8 `chunk.ts`、B8 `/health` 探活；`paginateResumptionToken`；迁移 `011` |
+| v1.5 | 2026-05-19 | P1 arXiv HTML 正文：`arxivFulltext.ts` + dedup 采集后同步；ENV `ARXIV_FULLTEXT_*` |

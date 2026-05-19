@@ -141,6 +141,24 @@ export async function listRawDocumentsForExport(
   return result.rows.map(r => mapExportRow(r as Record<string, unknown>));
 }
 
+/** 合并 patch 进 raw_json（用于 arXiv fulltext 等后处理） */
+export async function patchRawDocumentJson(
+  id: number,
+  patch: Record<string, unknown>,
+): Promise<InsertedRawRow> {
+  const result = await query(
+    `UPDATE raw_documents
+     SET raw_json = raw_json || $2::jsonb,
+         fetched_at = fetched_at
+     WHERE id = $1
+     RETURNING id, source_id, external_id, raw_json, fetched_at, collection_job_id, fetch_provenance`,
+    [id, JSON.stringify(patch)],
+  );
+  const row = result.rows[0];
+  if (!row) throw new Error(`raw_documents id=${id} not found`);
+  return mapInsertedRow(row as Record<string, unknown>);
+}
+
 export async function findExistingIds(
   sourceId: string,
   externalIds: string[],

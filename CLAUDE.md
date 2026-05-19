@@ -158,6 +158,9 @@ psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.
 | `OPENALEX_API_KEY` | 否 | OpenAlex API Key（无 Key 可用但速率低） |
 | `SEMANTIC_SCHOLAR_API_KEY` | 否 | Semantic Scholar `x-api-key`（推荐；无 Key 易 402/低 RPS） |
 | `PORT` | 否 | 服务端口（默认 3400） |
+| `ARXIV_FULLTEXT_ENABLED` | 否 | `1`/`true` 时 `arxiv_oai` 采集后同步拉 HTML 写入 `raw_json.fulltext`（`processors/arxivFulltext.ts`） |
+| `ARXIV_FULLTEXT_MAX_PER_JOB` | 否 | 每批 dedup 最多补全文篇数（默认 50） |
+| `ARXIV_FULLTEXT_MIN_INTERVAL_MS` | 否 | HTML 请求间隔（默认 3000） |
 | `DATA_PLATFORM_EXPORT_DIR` | 否 | D1 默认导出根（默认 `./data/export`），见 `docs/plans/原始数据本地导出与镜像方案.md` |
 | `DATA_PLATFORM_RAW_MIRROR` | 否 | D2 采集镜像根；未设置则关闭 |
 | `DATA_PLATFORM_RAW_MIRROR_OVERWRITE` | 否 | `1` 时镜像覆盖已存在文件（默认跳过） |

@@ -96,8 +96,9 @@ GET  /recommendations/v1/papers/{id}     # 推荐
 | 速率 | ≥3秒间隔 |
 | 许可 | 元数据可用 |
 | **摘要可用性** | ✅ `<summary>` / OAI `<abstract>` |
-| **RAG 适用性** | ⭐⭐⭐⭐⭐ |
-| 代码 | `src/connectors/arxivOai.ts` · `arxivOaiHelpers.ts` |
+| **全文** | 🟡 HTML `arxiv.org/html/{id}`（`ARXIV_FULLTEXT_ENABLED=1` 时 dedup 后同步写入 `raw_json.fulltext`） |
+| **RAG 适用性** | ⭐⭐⭐⭐⭐（有 HTML 版时更高） |
+| 代码 | `src/connectors/arxivOai.ts` · `arxivOaiHelpers.ts` · `src/processors/arxivFulltext.ts` |
 
 ---
 

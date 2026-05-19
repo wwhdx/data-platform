@@ -4,6 +4,10 @@ import { insertRawDocuments, findExistingIds } from "../storage/models/rawDocume
 import { insertCollectionJobEvent } from "../storage/models/collectionJobEvent";
 import { embedDocuments } from "../rag/vectorStore";
 import { mirrorInsertedDocuments } from "../export/mirror";
+import {
+  enrichArxivInsertedRows,
+  isArxivFulltextEnabled,
+} from "./arxivFulltext";
 
 /**
  * 去重处理（Stage 1）。
@@ -66,29 +70,59 @@ export async function dedup(
         }
       });
 
-      // Stage 4: 对新文档生成 embedding
-      const docsWithContent = inserted.filter(d => d.title);
-      if (docsWithContent.length > 0) {
-        embedDocuments(
-          docsWithContent.map((d) => ({
-            id: d.id,
-            title: d.title,
-            abstract: d.abstract,
-            sourceId: d.sourceId,
-            rawJson: d.rawJson,
-          })),
-        ).catch(err => {
+      // Stage 3b: arXiv HTML 正文（采集后同步，再 embed）
+      let docsWithContent = inserted.filter((d) => d.title);
+      const syncArxivFulltext =
+        sourceId === "arxiv_oai" && isArxivFulltextEnabled();
+
+      if (syncArxivFulltext && docsWithContent.length > 0) {
+        try {
+          docsWithContent = await enrichArxivInsertedRows(docsWithContent, {
+            jobId,
+          });
+        } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          logger.warn({ jobId, sourceId, err: msg }, "embedDocuments failed");
+          logger.warn({ jobId, sourceId, err: msg }, "enrichArxivInsertedRows failed");
           if (jobId != null) {
             void insertCollectionJobEvent({
               jobId,
-              level: "error",
-              eventType: "embed_fail",
+              level: "warn",
+              eventType: "fulltext_enrich_fail",
               payload: { sourceId, message: msg },
             }).catch(() => {});
           }
-        });
+        }
+      }
+
+      // Stage 4: 对新文档生成 embedding
+      if (docsWithContent.length > 0) {
+        const embedInput = docsWithContent.map((d) => ({
+          id: d.id,
+          title: d.title,
+          abstract: d.abstract,
+          sourceId: d.sourceId,
+          rawJson: d.rawJson,
+        }));
+
+        const runEmbed = () =>
+          embedDocuments(embedInput).catch((err) => {
+            const msg = err instanceof Error ? err.message : String(err);
+            logger.warn({ jobId, sourceId, err: msg }, "embedDocuments failed");
+            if (jobId != null) {
+              void insertCollectionJobEvent({
+                jobId,
+                level: "error",
+                eventType: "embed_fail",
+                payload: { sourceId, message: msg },
+              }).catch(() => {});
+            }
+          });
+
+        if (syncArxivFulltext) {
+          await runEmbed();
+        } else {
+          void runEmbed();
+        }
       }
 
       allNewDocs = allNewDocs.concat(fresh);

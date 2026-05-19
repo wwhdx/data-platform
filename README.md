@@ -98,7 +98,7 @@ pnpm cli search --query "deep learning" --source semanticscholar
 
 # 采集
 pnpm cli collect --source openalex
-pnpm cli collect --source arxiv_oai --max-items 50   # OAI-PMH 增量（≥3s/请求）
+pnpm cli collect --source arxiv_oai --max-items 50   # OAI-PMH 增量（≥3s/请求）；需 ARXIV_FULLTEXT_ENABLED=1 时入库后拉 HTML 正文
 pnpm cli collect --source semanticscholar --query "machine learning"
 pnpm cli collect --all
 
