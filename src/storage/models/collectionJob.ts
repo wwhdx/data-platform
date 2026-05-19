@@ -54,6 +54,21 @@ export async function listJobs(limit: number = 20): Promise<CollectionJob[]> {
   return result.rows.map(rowToJob);
 }
 
+/** 每个数据源最近一次采集任务（B14 schedules 报告） */
+export async function getLatestJobPerSource(): Promise<Map<string, CollectionJob>> {
+  const result = await query(
+    `SELECT DISTINCT ON (source_id) *
+     FROM collection_jobs
+     ORDER BY source_id, started_at DESC`,
+  );
+  const map = new Map<string, CollectionJob>();
+  for (const row of result.rows) {
+    const job = rowToJob(row);
+    map.set(job.sourceId, job);
+  }
+  return map;
+}
+
 function rowToJob(row: Record<string, unknown>): CollectionJob {
   return {
     id: Number(row.id),

@@ -10,6 +10,14 @@ import { WORLD_BANK_META } from "./worldbank";
 
 export { OPENALEX_META, CROSSREF_META, WORLD_BANK_META, PUBMED_META };
 
+/** 运行时已 registerConnector 的源 id（与 scheduleReport / B14 对齐） */
+export const REGISTERED_CONNECTOR_IDS = [
+  "openalex",
+  "crossref",
+  "worldbank",
+  "pubmed",
+] as const;
+
 export async function registerDefaultConnectors(
   scheduler: Scheduler,
 ): Promise<void> {

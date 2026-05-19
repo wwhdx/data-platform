@@ -214,6 +214,161 @@ async function cmdHealth(args: string[]) {
   }
 }
 
+function formatLastJobSummary(
+  lastJob: { status: string; startedAt: string; itemsCollected: number; errorMessage?: string } | undefined,
+): string {
+  if (!lastJob) return "—";
+  const icon =
+    lastJob.status === "success" ? "✅" : lastJob.status === "failed" ? "❌" : "⏳";
+  const when = lastJob.startedAt.slice(0, 19).replace("T", " ");
+  return `${icon} ${when} (${lastJob.itemsCollected} 条)`;
+}
+
+function formatNextRunSummary(nextRunAt: string | null | undefined): string {
+  if (!nextRunAt) return "—";
+  return nextRunAt.slice(0, 19).replace("T", " ");
+}
+
+function printScheduleReport(
+  report: import("../scheduler/scheduleReport").ScheduleReportRow[],
+  opts: {
+    mode: "config" | "live";
+    configPath: string;
+    jobsAttached: boolean;
+    drift?: import("../scheduler/scheduleReport").ScheduleDriftWarning[];
+  },
+): void {
+  const activeCount = report.filter((r) => r.status === "active").length;
+  console.log(
+    `调度计划 (${opts.configPath}) · mode: ${opts.mode} · ${activeCount} 个 active cron\n`,
+  );
+
+  for (const row of report) {
+    const icon = row.status === "active" ? "✅" : "⏸ ";
+    const cron = row.cronExpr ?? "—";
+    const skip = row.skipReason ? `  skip: ${row.skipReason}` : "";
+    const live =
+      opts.mode === "live" && row.liveActive !== undefined
+        ? row.liveActive
+          ? "  [live]"
+          : "  [not live]"
+        : "";
+    console.log(`  ${icon} ${row.sourceId.padEnd(18)} cron ${cron}${skip}${live}`);
+    console.log(`     下次执行: ${formatNextRunSummary(row.nextRunAt)}`);
+    console.log(`     上次采集: ${formatLastJobSummary(row.lastJob)}`);
+    if (row.lastJob?.errorMessage) {
+      console.log(`     错误: ${row.lastJob.errorMessage}`);
+    }
+  }
+
+  console.log(`\n共 ${report.length} 个源 · ${activeCount} 个将注册 cron`);
+
+  if (opts.drift && opts.drift.length > 0) {
+    console.log("\n⚠️  配置漂移（改 YAML 后需 restart app）:");
+    for (const d of opts.drift) {
+      console.log(`  · ${d.sourceId}: ${d.message}`);
+    }
+  }
+
+  if (!opts.jobsAttached && !process.env.DATA_PLATFORM_DATABASE_URL) {
+    console.log("提示: 设置 DATA_PLATFORM_DATABASE_URL 可显示上次采集时间");
+  }
+}
+
+async function buildConfigScheduleReport(configPath: string) {
+  const { parseConfigFile } = await import("../config/loader");
+  const { expandProfiles } = await import("../config/expand");
+  const {
+    buildScheduleReport,
+    attachLastJobsToReport,
+    attachNextRunTimes,
+  } = await import("../scheduler/scheduleReport");
+  const { REGISTERED_CONNECTOR_IDS } = await import("../connectors/bootstrap");
+
+  const file = parseConfigFile(configPath);
+  if (!file) {
+    process.exit(1);
+  }
+
+  const sources = expandProfiles(file);
+  let report = buildScheduleReport(
+    { version: file.version, defaults: file.defaults, sources },
+    new Set(REGISTERED_CONNECTOR_IDS),
+  );
+  report = attachNextRunTimes(report);
+
+  let jobsAttached = false;
+  if (process.env.DATA_PLATFORM_DATABASE_URL) {
+    try {
+      report = await attachLastJobsToReport(report);
+      jobsAttached = true;
+    } catch {
+      console.warn("⚠️  无法读取 collection_jobs，跳过上次采集信息");
+    }
+  }
+
+  return { report, jobsAttached, configPath };
+}
+
+async function cmdSchedules(args: string[]) {
+  const opts = parseArgs(args);
+  const jsonOutput = opts.json === "true";
+  const liveMode = opts.live === "true";
+  const configPath = DEFAULT_CONFIG_PATH;
+
+  const { detectScheduleDrift } = await import("../scheduler/scheduleReport");
+
+  let { report, jobsAttached } = await buildConfigScheduleReport(configPath);
+
+  const sourceFilter = opts.source
+    ?.split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (sourceFilter && sourceFilter.length > 0) {
+    report = report.filter((r) => sourceFilter.includes(r.sourceId));
+  }
+
+  let mode: "config" | "live" = "config";
+  let drift: import("../scheduler/scheduleReport").ScheduleDriftWarning[] = [];
+
+  if (liveMode) {
+    mode = "live";
+    try {
+      const live = await apiGet<{
+        mode: string;
+        active: Array<{ sourceId: string; cronExpr: string }>;
+      }>("/api/admin/schedules");
+      const liveIds = new Set(live.active.map((a) => a.sourceId));
+      const result = detectScheduleDrift(report, liveIds);
+      report = result.report;
+      drift = result.drift;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`❌ live 模式需要 API 已启动: ${msg}`);
+      process.exit(1);
+    }
+  }
+
+  if (jsonOutput) {
+    console.log(
+      JSON.stringify(
+        {
+          mode,
+          configPath,
+          jobsAttached,
+          drift,
+          schedules: report,
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+
+  printScheduleReport(report, { mode, configPath, jobsAttached, drift });
+}
+
 const DEFAULT_CONFIG_PATH =
   process.env.SOURCES_CONFIG_PATH ?? "config/sources.yml";
 
@@ -623,6 +778,7 @@ function printHelp() {
 命令（直连数据库 / 本地文件）:
   migrate   执行数据库迁移
   serve     启动 API 服务
+  schedules 查看 cron 调度计划（YAML；--live 需 API）
   config validate|sync|diff|export|profiles|list --by-profile
 
 选项:
@@ -642,6 +798,11 @@ function printHelp() {
 
   jobs:
     --limit <数字>           返回条数 (默认: 20)
+
+  schedules:
+    --source <id>[,id...]    仅显示指定源
+    --live                   对照运行中 Scheduler（需 API）
+    --json                   JSON 格式输出
 
   serve:
     --port <数字>            服务端口 (默认: 3400)
@@ -669,6 +830,9 @@ function printHelp() {
   data-platform search --query "transformer attention"
   data-platform collect --source openalex
   data-platform jobs --limit 10
+  data-platform schedules
+  data-platform schedules --live
+  data-platform schedules --source openalex,crossref --json
   data-platform config list`);
 }
 
@@ -696,6 +860,9 @@ async function main() {
       break;
     case "health":
       await cmdHealth(rest);
+      break;
+    case "schedules":
+      await cmdSchedules(rest);
       break;
     case "config":
       await cmdConfig(rest);

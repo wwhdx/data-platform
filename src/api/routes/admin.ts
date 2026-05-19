@@ -48,6 +48,17 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(jobs);
   });
 
+  // 运行中 cron 调度（B14 live 可观测）
+  app.get("/schedules", async (_req, reply) => {
+    const scheduler = app.scheduler;
+    if (!scheduler) {
+      return reply.status(500).send({ error: "scheduler not configured" });
+    }
+
+    const active = scheduler.getScheduleDetails();
+    return reply.send({ mode: "live", active });
+  });
+
   // 配置更新
   app.put("/sources/:id", async (req, reply) => {
     const { id } = req.params as { id: string };

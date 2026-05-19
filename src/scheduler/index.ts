@@ -9,8 +9,15 @@ interface ConnectorFactory {
   create: () => import("../types").Connector;
 }
 
+export interface ScheduledTaskMeta {
+  sourceId: string;
+  cronExpr: string;
+  query: string;
+}
+
 export class Scheduler {
   private jobs: Map<string, cron.ScheduledTask> = new Map();
+  private scheduleMeta: Map<string, ScheduledTaskMeta> = new Map();
   private connectors: Map<string, ConnectorFactory> = new Map();
 
   registerConnector(factory: ConnectorFactory): void {
@@ -26,6 +33,11 @@ export class Scheduler {
     return [...this.jobs.keys()];
   }
 
+  /** 内存中已注册 cron 详情（B14 live 可观测） */
+  getScheduleDetails(): ScheduledTaskMeta[] {
+    return [...this.scheduleMeta.values()];
+  }
+
   schedule(sourceId: string, cronExpr: string, searchQuery: string): void {
     if (this.jobs.has(sourceId)) return;
 
@@ -34,6 +46,11 @@ export class Scheduler {
     });
 
     this.jobs.set(sourceId, task);
+    this.scheduleMeta.set(sourceId, {
+      sourceId,
+      cronExpr,
+      query: searchQuery,
+    });
   }
 
   async trigger(sourceId: string, query?: string): Promise<CollectionJob> {

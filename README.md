@@ -97,6 +97,8 @@ pnpm cli collect --all
 # 信息查询
 pnpm cli sources          # 数据源列表
 pnpm cli jobs --limit 10  # 采集任务历史
+pnpm cli schedules       # cron 调度计划（YAML + 下次执行 + 可选 DB）
+pnpm cli schedules --live  # 对照运行中 Scheduler（需 API）
 pnpm cli stats             # 统计信息
 pnpm cli health --json     # 健康检查
 
@@ -127,6 +129,7 @@ pnpm cli config list                  # 数据源表格（含文档数、最近�
 | `/api/sources` | GET | 已注册数据源列表 |
 | `/api/admin/collect` | POST | 手动触发采集 |
 | `/api/admin/jobs` | GET | 采集任务历史 |
+| `/api/admin/schedules` | GET | 运行中 cron 调度（B14 live） |
 | `/api/admin/stats` | GET | 文档/数据源/任务统计 |
 
 ### POST /api/search

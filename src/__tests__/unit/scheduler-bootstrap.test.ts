@@ -75,6 +75,10 @@ describe("registerSchedulesFromConfig", () => {
 
     expect(registered.map((r) => r.sourceId)).toEqual(["openalex", "crossref"]);
     expect(scheduler.getScheduledSourceIds()).toEqual(["openalex", "crossref"]);
+    expect(scheduler.getScheduleDetails()).toEqual([
+      { sourceId: "openalex", cronExpr: "0 7 * * *", query: "" },
+      { sourceId: "crossref", cronExpr: "0 8 * * *", query: "" },
+    ]);
   });
 
   it("skips enabled sources without connector implementation", () => {
