@@ -88,6 +88,7 @@ pnpm cli <命令>
 # 搜索
 pnpm cli search --query "transformer attention mechanism"
 pnpm cli search --query "machine learning" --json --max-results 5
+pnpm cli search --query "covid vaccine" --source openalex,crossref --commercial-only --date-from 2020-01-01
 
 # 采集
 pnpm cli collect --source openalex
@@ -133,7 +134,7 @@ pnpm cli config list                  # 数据源表格（含文档数、最近�
 ```bash
 curl -X POST http://localhost:3400/api/search \
   -H "Content-Type: application/json" \
-  -d '{"query":"transformer attention","maxResults":5}'
+  -d '{"query":"transformer attention","maxResults":5,"filters":{"sourceIds":["openalex"],"commercialUse":true}}'
 
 # Response
 {

@@ -40,15 +40,20 @@ export async function hybridSearch(
   opts?: SearchOptions,
 ): Promise<SearchResult[]> {
   const topK = opts?.maxResults ?? 10;
+  const filters = opts?.filters;
 
   const [queryVec, keywordHits] = await Promise.all([
     embedQuery(searchQuery).catch(() => null),
-    keywordSearch(searchQuery, { maxResults: 50 }).catch(() => [] as InternalSearchHit[]),
+    keywordSearch(searchQuery, { maxResults: 50, filters }).catch(
+      () => [] as InternalSearchHit[],
+    ),
   ]);
 
   let semanticResults: Array<{ docId: number; similarity: number }> = [];
   if (queryVec) {
-    semanticResults = await semanticSearch(queryVec.embedding, 50).catch(() => []);
+    semanticResults = await semanticSearch(queryVec.embedding, 50, filters).catch(
+      () => [],
+    );
   }
 
   // 降级：仅语义结果

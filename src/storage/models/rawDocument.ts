@@ -1,5 +1,6 @@
 import type { RawDocument, SearchResult, SearchOptions } from "../../types";
 import { query } from "../db";
+import { buildDocumentFilterClause } from "../../rag/searchFilters";
 
 // ── CRUD ──
 
@@ -79,6 +80,7 @@ export async function keywordSearch(
   opts?: SearchOptions,
 ): Promise<InternalSearchHit[]> {
   const maxResults = opts?.maxResults ?? 10;
+  const filter = buildDocumentFilterClause(opts?.filters, 3);
   const sql = `
     SELECT
       rd.id AS doc_id,
@@ -90,12 +92,12 @@ export async function keywordSearch(
       ts_rank(to_tsvector('english', rd.raw_json::text), plainto_tsquery('english', $1)) AS rank
     FROM raw_documents rd
     JOIN data_sources ds ON ds.id = rd.source_id
-    WHERE to_tsvector('english', rd.raw_json::text) @@ plainto_tsquery('english', $1)
+    WHERE to_tsvector('english', rd.raw_json::text) @@ plainto_tsquery('english', $1)${filter.sql}
     ORDER BY rank DESC
     LIMIT $2
   `;
 
-  const result = await query(sql, [searchQuery, maxResults]);
+  const result = await query(sql, [searchQuery, maxResults, ...filter.params]);
 
   return result.rows.map((row: Record<string, unknown>) => {
     const raw = row.raw_json as Record<string, unknown>;

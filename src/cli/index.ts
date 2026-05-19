@@ -11,7 +11,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import type { CollectionJob } from "../types";
+import type { CollectionJob, SearchRequest } from "../types";
 
 // ── 参数解析 ──
 
@@ -61,11 +61,36 @@ async function apiPost<T>(endpoint: string, body: unknown): Promise<T> {
 
 // ── 命令实现 ──
 
+function parseSearchFilters(opts: Record<string, string>): SearchRequest["filters"] | undefined {
+  const filters: NonNullable<SearchRequest["filters"]> = {};
+  let hasFilter = false;
+
+  if (opts.source) {
+    filters.sourceIds = opts.source.split(",").map((s) => s.trim()).filter(Boolean);
+    hasFilter = true;
+  }
+  if (opts["commercial-only"] === "true") {
+    filters.commercialUse = true;
+    hasFilter = true;
+  }
+  if (opts["date-from"]) {
+    filters.dateFrom = opts["date-from"];
+    hasFilter = true;
+  }
+  if (opts["date-to"]) {
+    filters.dateTo = opts["date-to"];
+    hasFilter = true;
+  }
+
+  return hasFilter ? filters : undefined;
+}
+
 async function cmdSearch(args: string[]) {
   const opts = parseArgs(args);
   const query = opts.query;
   const maxResults = parseInt(opts["max-results"] ?? "10", 10);
   const jsonOutput = opts.json === "true";
+  const filters = parseSearchFilters(opts);
 
   if (!query) {
     console.error("❌ 缺少 --query 参数");
@@ -76,7 +101,7 @@ async function cmdSearch(args: string[]) {
     results: Array<Record<string, unknown>>;
     totalCount: number;
     tookMs: number;
-  }>("/api/search", { query, maxResults });
+  }>("/api/search", { query, maxResults, filters });
 
   if (jsonOutput) {
     console.log(JSON.stringify(resp, null, 2));
@@ -604,6 +629,10 @@ function printHelp() {
   search:
     --query <文本>           搜索查询（必填）
     --max-results <数字>     最大结果数 (默认: 10)
+    --source <id>[,id...]    限定数据源
+    --commercial-only        仅商用许可源
+    --date-from <YYYY-MM-DD> 发布日期下限
+    --date-to <YYYY-MM-DD>   发布日期上限
     --json                   JSON 格式输出
 
   collect:

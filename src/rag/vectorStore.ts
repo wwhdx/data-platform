@@ -4,6 +4,8 @@
 
 import { query } from "../storage/db";
 import { embedBatch, getEmbeddingModel } from "./embed";
+import { buildDocumentFilterClause } from "./searchFilters";
+import type { SearchOptions } from "../types";
 
 export interface DocumentChunk {
   id?: number;
@@ -64,20 +66,25 @@ export async function embedDocuments(
 export async function semanticSearch(
   queryEmbedding: number[],
   topK: number = 50,
+  filters?: SearchOptions["filters"],
 ): Promise<Array<{ docId: number; similarity: number }>> {
+  const filter = buildDocumentFilterClause(filters, 3);
   const sql = `
     SELECT
-      doc_id,
-      1 - (embedding <=> $1::vector) AS similarity
-    FROM document_chunks
-    WHERE embedding IS NOT NULL
-    ORDER BY embedding <=> $1::vector
+      dc.doc_id,
+      1 - (dc.embedding <=> $1::vector) AS similarity
+    FROM document_chunks dc
+    JOIN raw_documents rd ON rd.id = dc.doc_id
+    JOIN data_sources ds ON ds.id = rd.source_id
+    WHERE dc.embedding IS NOT NULL${filter.sql}
+    ORDER BY dc.embedding <=> $1::vector
     LIMIT $2
   `;
 
   const result = await query(sql, [
     `[${queryEmbedding.join(",")}]`,
     topK,
+    ...filter.params,
   ]);
 
   return result.rows.map(row => ({
