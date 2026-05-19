@@ -100,9 +100,22 @@ pnpm cli stats             # 统计信息
 pnpm cli health --json     # 健康检查
 
 # 运维
-pnpm cli migrate           # 执行数据库迁移
+pnpm cli migrate           # 执行数据库迁移（需 DATA_PLATFORM_DATABASE_URL）
 pnpm cli serve --port 3400 # 启动 API 服务
+
+# 配置（YAML ↔ DB，无需 API）
+pnpm cli config validate              # 校验 sources.yml
+pnpm cli config sync                  # YAML 展开后同步到数据库
+pnpm cli config diff                  # 对比 YAML 与 DB
+pnpm cli config export                # DB 状态写回 YAML（v1.1）
+pnpm cli config profiles              # 列出 interface_profiles
+pnpm cli config list --by-profile     # 按 profile 分组（读 YAML）
+
+# 配置（运行时，需 API 已启动）
+pnpm cli config list                  # 数据源表格（含文档数、最近采集）
 ```
+
+> **模式说明**：`search`/`collect`/`sources`/`jobs`/`stats`/`health`/`config list` 通过 HTTP 调 API（默认 `http://localhost:3400`）；`migrate`/`config validate|sync|diff|export` 直连数据库或读本地 YAML。
 
 ## API
 

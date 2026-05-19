@@ -39,7 +39,8 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
     try {
       const result = await query(
         `SELECT ds.*,
-          (SELECT COUNT(*) FROM raw_documents WHERE source_id = ds.id) AS total_docs
+          (SELECT COUNT(*) FROM raw_documents WHERE source_id = ds.id) AS total_docs,
+          (SELECT MAX(fetched_at) FROM raw_documents WHERE source_id = ds.id) AS last_fetch
          FROM data_sources ds ORDER BY ds.id`
       );
       return reply.send(result.rows);

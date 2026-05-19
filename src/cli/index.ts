@@ -11,6 +11,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
+import type { CollectionJob } from "../types";
 
 // ── 参数解析 ──
 
@@ -133,18 +134,20 @@ async function cmdJobs(args: string[]) {
   const opts = parseArgs(args);
   const limit = parseInt(opts.limit ?? "20", 10);
 
-  const jobs = await apiGet<Array<Record<string, unknown>>>(`/api/admin/jobs?limit=${limit}`);
+  const jobs = await apiGet<CollectionJob[]>(`/api/admin/jobs?limit=${limit}`);
   console.log(`最近 ${jobs.length} 次采集任务:\n`);
 
   for (const j of jobs) {
-    const duration = j.finished_at
-      ? `${((new Date(String(j.finished_at)).getTime() - new Date(String(j.started_at)).getTime()) / 1000).toFixed(1)}s`
+    const startedAt = new Date(j.startedAt);
+    const finishedAt = j.finishedAt ? new Date(j.finishedAt) : null;
+    const duration = finishedAt
+      ? `${((finishedAt.getTime() - startedAt.getTime()) / 1000).toFixed(1)}s`
       : "运行中";
 
     const icon = j.status === "success" ? "✅" : j.status === "failed" ? "❌" : "⏳";
-    console.log(`  ${icon} ${j.source_id}  ${duration}`);
+    console.log(`  ${icon} ${j.sourceId}  ${duration}`);
     console.log(`     状态: ${j.status}  采集: ${j.itemsCollected} 条`);
-    if (j.error_message) console.log(`     错误: ${j.error_message}`);
+    if (j.errorMessage) console.log(`     错误: ${j.errorMessage}`);
     console.log();
   }
 }
@@ -407,19 +410,20 @@ async function cmdConfig(args: string[]) {
       return;
     }
     const sources = await apiGet<Array<Record<string, unknown>>>("/api/sources");
-    const rows = sources.map(s => {
-      const date = s.lastCollectionAt
-        ? new Date(String(s.lastCollectionAt)).toISOString().slice(0, 16).replace("T", " ")
+    const rows = sources.map((s) => {
+      const lastFetch = s.last_fetch ?? s.lastFetch;
+      const date = lastFetch
+        ? new Date(String(lastFetch)).toISOString().slice(0, 16).replace("T", " ")
         : "—";
       return {
         id: String(s.id ?? ""),
         name: String(s.name ?? ""),
         status: String(s.status ?? "unknown"),
         base_url: String(s.base_url ?? ""),
-        rate_limit: String(s.rateLimit ?? ""),
+        rate_limit: String(s.rate_limit ?? ""),
         license: String(s.license ?? ""),
-        commercial_use: s.commercialUse ? "是" : "否",
-        total_docs: String(s.totalDocuments ?? "0"),
+        commercial_use: s.commercial_use ? "是" : "否",
+        total_docs: String(s.total_docs ?? "0"),
         last_collect: date,
       };
     });
@@ -448,7 +452,8 @@ async function cmdConfig(args: string[]) {
     console.log(divider);
 
     for (const r of rows) {
-      const icon = r.status === "healthy" ? "🟢" : r.status === "disabled" ? "⚫" : "🟡";
+      const icon =
+        r.status === "active" ? "🟢" : r.status === "disabled" ? "⚫" : "🟡";
       const fields = [
         r.id,
         `${icon} ${r.status}`,
@@ -464,7 +469,7 @@ async function cmdConfig(args: string[]) {
     return;
   }
 
-  console.error(`用法: data-platform-cli config <子命令>
+  console.error(`用法: data-platform config <子命令>
 
 子命令:
   list              运行时数据源（API）
@@ -551,7 +556,8 @@ async function cmdServe(args: string[]) {
   const { loadConfig } = await import("../config/loader");
   const { syncToDb } = await import("../config/sync");
 
-  const config = loadConfig("config/sources.yml");
+  const configPath = DEFAULT_CONFIG_PATH;
+  const config = loadConfig(configPath);
   if (config) {
     await syncToDb(config).catch(() => undefined);
   }
@@ -566,6 +572,7 @@ async function cmdServe(args: string[]) {
 
   await createServer({ port, scheduler });
   console.log(`Data Platform 运行在 http://localhost:${port}`);
+  console.log(`配置: ${configPath}`);
   console.log(
     `Scheduler (YAML): ${formatSchedulesSummary(schedules)}`,
   );
@@ -577,18 +584,21 @@ function printHelp() {
   console.log(`data-platform CLI
 
 用法:
-  data-platform-cli <命令> [选项]
+  data-platform <命令> [选项]
 
-命令:
+命令（需 API 已启动，DATA_PLATFORM_URL）:
   search    搜索数据
   collect   触发数据采集
   sources   列出数据源
   jobs      查看采集任务
   stats     统计信息
   health    健康检查
-  config    配置 validate|sync|diff|export|list|profiles
+  config list              运行时数据源表格（读 API）
+
+命令（直连数据库 / 本地文件）:
   migrate   执行数据库迁移
   serve     启动 API 服务
+  config validate|sync|diff|export|profiles|list --by-profile
 
 选项:
   search:
@@ -597,8 +607,8 @@ function printHelp() {
     --json                   JSON 格式输出
 
   collect:
-    --source <id>            数据源 ID (openalex, crossref, semanticscholar, patentsview)
-    --all                    采集所有已注册数据源
+    --source <id>            数据源 ID
+    --all                    采集所有 active 数据源
     --query <文本>           搜索查询（可选）
 
   jobs:
@@ -610,26 +620,27 @@ function printHelp() {
   health:
     --json                   JSON 格式输出
 
+  config:
+    list --by-profile       按 interface_profile 分组（读 YAML）
+
 环境变量:
-  DATA_PLATFORM_DATABASE_URL   数据库连接（migrate 必填）
+  DATA_PLATFORM_DATABASE_URL   数据库连接（migrate/config sync 必填）
   DATA_PLATFORM_URL            API 地址 (默认: http://localhost:3400)
+  SOURCES_CONFIG_PATH          YAML 路径 (默认: config/sources.yml)
   EMBED_BACKEND                ollama (默认) / voyage / openai
   EMBED_API_URL                Embedding 服务地址 (默认: http://localhost:11434)
   OPENALEX_API_KEY             OpenAlex API Key
   CROSSREF_MAILTO              CrossRef polite pool email
 
-Embedding 后端:
-  ollama (默认)   本地 bge-m3，免费，中英跨语言最优
-  voyage          Voyage AI voyage-3-large，学术文本强 ($0.06/M)
-  openai          OpenAI text-embedding-3-small ($0.02/M)
-
 示例:
-  data-platform-cli search --query "transformer attention"
-  data-platform-cli collect --source openalex
-  data-platform-cli sources
-  data-platform-cli health
-  data-platform-cli migrate
-  data-platform-cli serve --port 3400`);
+  data-platform migrate
+  data-platform serve --port 3400
+  data-platform config validate
+  data-platform config sync
+  data-platform search --query "transformer attention"
+  data-platform collect --source openalex
+  data-platform jobs --limit 10
+  data-platform config list`);
 }
 
 // ── 入口 ──
