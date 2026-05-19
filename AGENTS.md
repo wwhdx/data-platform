@@ -20,6 +20,7 @@ docker compose up -d --build   # API :3400, PG :5433
 - **独立库** `DATA_PLATFORM_DATABASE_URL`，禁止父仓 `DATABASE_URL`
 - 凭证仅 `process.env`；API 带 User-Agent
 - 新 Connector → `src/connectors/index.ts` + 运行时 `registerConnector`（见规则 §3）
+- **任务结束前 `pnpm build` 必须通过**（Docker 同命令；见规则 §2 Build 门闸）
 
 ## Commit
 
