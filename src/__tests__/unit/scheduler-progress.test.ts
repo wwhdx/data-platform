@@ -157,7 +157,7 @@ describe("Scheduler collect progress", () => {
   });
 
   it("patentsview 缺 Key 时 failed job 且不调用 collect", async () => {
-    delete process.env.PATENTSVIEW_API_KEY;
+    delete process.env.USPTO_ODP_API_KEY;
 
     const collect = vi.fn();
     const scheduler = new Scheduler();
@@ -174,13 +174,13 @@ describe("Scheduler collect progress", () => {
     const job = await scheduler.trigger("patentsview", "");
 
     expect(job.status).toBe("failed");
-    expect(job.errorMessage).toMatch(/PATENTSVIEW_API_KEY/);
+    expect(job.errorMessage).toMatch(/USPTO_ODP_API_KEY/);
     expect(collect).not.toHaveBeenCalled();
     expect(collectionJob.updateCollectionJob).toHaveBeenCalledWith(
       7,
       expect.objectContaining({
         status: "failed",
-        errorMessage: expect.stringMatching(/PATENTSVIEW_API_KEY/),
+        errorMessage: expect.stringMatching(/USPTO_ODP_API_KEY/),
       }),
     );
   });

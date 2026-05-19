@@ -10,7 +10,7 @@ describe("connectors/credentials", () => {
 
   beforeEach(() => {
     process.env = { ...env };
-    delete process.env.PATENTSVIEW_API_KEY;
+    delete process.env.USPTO_ODP_API_KEY;
   });
 
   afterEach(() => {
@@ -19,12 +19,12 @@ describe("connectors/credentials", () => {
 
   it("patentsview 缺 Key 时返回可读错误", () => {
     const msg = validateCredentialsForCollect("patentsview");
-    expect(msg).toContain("PATENTSVIEW_API_KEY");
+    expect(msg).toContain("USPTO_ODP_API_KEY");
     expect(msg).toContain("enabled: true");
   });
 
   it("有 Key 时 patentsview 通过预检", () => {
-    process.env.PATENTSVIEW_API_KEY = "test-key";
+    process.env.USPTO_ODP_API_KEY = "test-key";
     expect(validateCredentialsForCollect("patentsview")).toBeNull();
   });
 

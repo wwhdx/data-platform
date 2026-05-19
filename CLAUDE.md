@@ -157,7 +157,7 @@ psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.
 | `DATA_PLATFORM_DATABASE_URL` | 是 | 独立数据库，不共享父项目 |
 | `OPENALEX_API_KEY` | 否 | OpenAlex API Key（无 Key 可用但速率低） |
 | `SEMANTIC_SCHOLAR_API_KEY` | 否 | Semantic Scholar `x-api-key`（推荐；无 Key 易 402/低 RPS） |
-| `PATENTSVIEW_API_KEY` | 是（仅 PatentSearch REST） | `X-Api-Key`；旧 Atlassian 申请已停用 → ODP Key 见 [getting-started](https://data.uspto.gov/apis/getting-started)（需新 Adapter） |
+| `USPTO_ODP_API_KEY` | 是（patentsview） | ODP `X-API-KEY` → `api.uspto.gov`；[getting-started](https://data.uspto.gov/apis/getting-started) |
 | `SEC_EDGAR_USER_AGENT` | 是（sec_edgar 采集） | `CompanyName email@domain.com` |
 | `GITHUB_TOKEN` | 否 | GitHub REST Bearer |
 | `FRED_API_KEY` | 是（fred 采集） | FRED `api_key` 查询参数 |

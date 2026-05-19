@@ -122,57 +122,50 @@ GET  /recommendations/v1/papers/{id}     # 推荐
 | 速率 | 2.5 GB/周 |
 | 响应 | XML / JSON |
 
-### 2.3 PatentsView (USPTO) — PatentSearch API
+### 2.3 USPTO ODP 专利（`patentsview` 源）
 
 | 字段 | 值 |
 |------|-----|
-| Base URL | `https://search.patentsview.org/api/v1/` |
-| 认证 | Header `X-Api-Key`（**必填**，无匿名/无 Key 不可用） |
-| 速率 | 45 次/分钟（有 Key） |
-| 响应 | JSON |
-| 核心端点 | `POST /patent/`（body：`{ q, f, o }`） |
-| 分页 | `o.size`（单页最大 1000）+ `o.after` 游标（**非**旧版 `page`/`per_page`） |
+| API 主机 | `https://api.uspto.gov`（**勿**对 `data.uspto.gov` 调 REST） |
+| 认证 | Header `X-API-KEY`（**必填**） |
+| ENV | `USPTO_ODP_API_KEY` |
+| 核心端点 | `POST /api/v1/patent/applications/search` |
+| 分页 | `pagination.offset` + `pagination.limit` |
 | 代码 | `src/connectors/patentsview.ts`、`patentsviewHelpers.ts` |
-| ENV | `PATENTSVIEW_API_KEY` |
-| **摘要可用性** | ✅ `patent_abstract`（`/patent`）；长文本需 `/g_claim` 等（未接） |
-| **RAG 适用性** | ⭐⭐⭐ |
+| **RAG 适用性** | ⭐⭐⭐（`inventionTitle` 作 title/abstract；完整说明书需 Documents API 或 Bulk） |
 
-**凭证（2026-05 更新：旧 Help Center 已停用）**
+**API Key 申请**
 
-| 方式 | 能否用于本包 `PatentsViewConnector` | 说明 |
-|------|--------------------------------------|------|
-| ~~[Atlassian Help Center](https://patentsview-support.atlassian.net/servicedesk/customer/portals)~~ | — | **已停用**（Cloud 订阅取消），无法再申请 `PATENTSVIEW_API_KEY` |
-| [ODP REST API Key](https://data.uspto.gov/apis/getting-started) | ❌ 不能直接填 `PATENTSVIEW_API_KEY` | USPTO 新平台；需 MyUSPTO +（常需）ID.me；2026-06-18 起登录 ODP 强制 |
-| [ODP Bulk 下载](https://data.uspto.gov/bulkdata/datasets/pvgpatdis) | ❌（待 Bulk Connector） | **多数 Bulk 产品无需 API Key**；表结构与 REST 不同 |
-| 邮件咨询 | 🟡 | `data@uspto.gov`（ODP）；`economicsdata@uspto.gov`（PatentsView）— 可问 PatentSearch Key 是否仍发放 |
+1. [USPTO 账号](https://account.uspto.gov/profile/create-account)
+2. [ODP Getting Started](https://data.uspto.gov/apis/getting-started) → MyODP 获取 Key
+3. `.env`：`USPTO_ODP_API_KEY=<Key>`
 
-**若仅有 ODP Key、无 PatentsView Key**：请把 `config/sources.yml` 中 `patentsview` 设为 `enabled: false`，避免调度失败；专利数据改走 ODP Bulk 或等本包 ODP Adapter。
+~~`PATENTSVIEW_API_KEY` / `search.patentsview.org`~~ 已废弃（Atlassian 申请入口停用）。
 
-**若仍有旧版 `PATENTSVIEW_API_KEY`**：可写入 `.env` 试 `collect`；迁移窗口内 `search.patentsview.org` 可能 503。
-
-**USPTO ODP 迁移（2026 起）**
-
-| 时间 | 说明 |
-|------|------|
-| 2026-03-20 起 | PatentsView 迁入 [Open Data Portal](https://data.uspto.gov)；PatentSearch API、站内搜索等**可能阶段性暂停**（见 [过渡指南](https://data.uspto.gov/support/transition-guide/patentsview)、[USPTO 公告](https://www.uspto.gov/subscription-center/2026/patentsview-migrating-uspto-open-data-portal-march-20)） |
-| 现已可用 | Bulk 表在 ODP（如 `pvgpatdis`、`pvgpattxt`），本包 **尚未** 接 Bulk Connector |
-| 2026-06-18 起 | 访问 ODP 需 [USPTO.gov 账号](https://www.uspto.gov/subscription-center/2026/uspto-open-data-portal-require-registration-access-beginning-june-18-2026)；ODP REST 使用 **另一套** API Key → [Getting Started](https://data.uspto.gov/apis/getting-started) |
-
-当前 `PatentsViewConnector` 仅对接 **PatentSearch REST**（`search.patentsview.org`），与 ODP Swagger（`data.uspto.gov`）不是同一契约；长期需 Bulk 或 ODP Adapter。
+**Bulk（免 Key，本包未接 Connector）**：[pvgpatdis](https://data.uspto.gov/bulkdata/datasets/pvgpatdis) · [过渡指南](https://data.uspto.gov/support/transition-guide/patentsview)
 
 **典型请求（与代码一致）**
 
 ```bash
-curl -X POST "https://search.patentsview.org/api/v1/patent" \
+curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
   -H "Content-Type: application/json" \
-  -H "X-Api-Key: YOUR_KEY" \
+  -H "X-API-KEY: YOUR_ODP_KEY" \
   -d '{
-    "q": { "_and": [
-      { "_gte": { "patent_date": "2024-01-01" } },
-      { "_text_any": { "patent_title": "machine learning" } }
-    ]},
-    "f": ["patent_id","patent_title","patent_date","patent_abstract","assignee_organization"],
-    "o": { "size": 50 }
+    "q": "machine learning",
+    "rangeFilters": [{
+      "field": "applicationMetaData.grantDate",
+      "valueFrom": "2024-01-01"
+    }],
+    "filters": [{
+      "name": "applicationMetaData.applicationStatusDescriptionText",
+      "value": ["Patented Case"]
+    }],
+    "fields": [
+      "applicationNumberText",
+      "applicationMetaData.inventionTitle",
+      "applicationMetaData.grantDate"
+    ],
+    "pagination": { "offset": 0, "limit": 25 }
   }'
 ```
 
@@ -262,7 +255,7 @@ curl -X POST "https://search.patentsview.org/api/v1/patent" \
   ✅ Semantic Scholar ← abstract + tldr（A4；YAML 默认 disabled；`SEMANTIC_SCHOLAR_API_KEY`）
   ✅ arXiv OAI-PMH    ← `arxiv_oai` 采集 + Legacy Atom 搜索（A7；YAML enabled；可选 `ARXIV_FULLTEXT_*`）
 
-  ✅ PatentsView       ← patentsview.ts（需 PATENTSVIEW_API_KEY）
+  ✅ PatentsView       ← patentsview.ts（需 USPTO_ODP_API_KEY）
   ✅ ClinicalTrials   ← clinicaltrials.ts（无 Key）
   ✅ SEC EDGAR        ← secEdgar.ts（EFTS；SEC_EDGAR_USER_AGENT 必填）
   ✅ GitHub           ← github.ts（GITHUB_TOKEN 可选）

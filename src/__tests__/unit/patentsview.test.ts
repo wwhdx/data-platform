@@ -1,37 +1,56 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
-  buildPatentQuery,
-  mapPatentToRawJson,
+  buildOdpSearchBody,
+  extractOdpRecords,
+  mapOdpRecordToRawJson,
   scalarField,
 } from "../../connectors/patentsviewHelpers";
 import { PatentsViewConnector } from "../../connectors/patentsview";
 
-describe("patentsview helpers", () => {
+describe("patentsview ODP helpers", () => {
   it("scalarField 处理标量与数组", () => {
     expect(scalarField(["A", "B"])).toBe("A");
-    expect(scalarField(10881042)).toBe("10881042");
+    expect(scalarField(16123456)).toBe("16123456");
   });
 
-  it("mapPatentToRawJson 写入 title/abstract", () => {
-    const { externalId, rawJson } = mapPatentToRawJson({
-      patent_id: "10881042",
-      patent_title: "Test patent",
-      patent_date: "2021-01-05",
-      patent_abstract: "Abstract text.",
+  it("mapOdpRecordToRawJson 写入 title 与 application_number", () => {
+    const { externalId, rawJson } = mapOdpRecordToRawJson({
+      applicationNumberText: "16123456",
+      applicationMetaData: {
+        inventionTitle: "Machine learning system",
+        grantDate: "2021-01-05",
+        firstApplicantName: "Example Corp",
+      },
     });
-    expect(externalId).toBe("10881042");
-    expect(rawJson.title).toBe("Test patent");
-    expect(rawJson.abstract).toBe("Abstract text.");
+    expect(externalId).toBe("16123456");
+    expect(rawJson.title).toBe("Machine learning system");
     expect(rawJson.type).toBe("patent");
+    expect(rawJson.data_source).toBe("uspto_odp");
+    expect(String(rawJson.url)).toContain("16123456");
   });
 
-  it("buildPatentQuery 合并 since 与 query", () => {
-    const q = buildPatentQuery("ml", "2024-01-01");
-    expect(q).toHaveProperty("_and");
+  it("buildOdpSearchBody 含 grantDate range 与 query", () => {
+    const body = buildOdpSearchBody({
+      query: "ml",
+      since: "2024-01-01",
+      offset: 0,
+      limit: 25,
+    });
+    expect(body.q).toBe("ml");
+    expect(body.rangeFilters?.[0]?.valueFrom).toBe("2024-01-01");
+    expect(body.pagination).toEqual({ offset: 0, limit: 25 });
+  });
+
+  it("extractOdpRecords 解析 patentFileWrapperDataBag", () => {
+    const rows = extractOdpRecords({
+      count: 1,
+      patentFileWrapperDataBag: [{ applicationNumberText: "1" }],
+    });
+    expect(rows).toHaveLength(1);
   });
 });
 
-describe("PatentsViewConnector", () => {
+describe("PatentsViewConnector (ODP)", () => {
   const originalFetch = global.fetch;
 
   beforeEach(() => {
@@ -49,22 +68,22 @@ describe("PatentsViewConnector", () => {
       for await (const _ of c.collect({ maxItems: 1 })) {
         /* drain */
       }
-    }).rejects.toThrow(/PATENTSVIEW_API_KEY/);
+    }).rejects.toThrow(/USPTO_ODP_API_KEY/);
   });
 
-  it("collect 解析 patents 分页", async () => {
+  it("collect 解析 ODP 分页", async () => {
     vi.mocked(global.fetch).mockResolvedValueOnce({
       ok: true,
       status: 200,
       json: async () => ({
-        error: false,
         count: 1,
-        patents: [
+        patentFileWrapperDataBag: [
           {
-            patent_id: "1",
-            patent_title: "A",
-            patent_date: "2024-06-01",
-            patent_abstract: "abs",
+            applicationNumberText: "16123456",
+            applicationMetaData: {
+              inventionTitle: "Test patent",
+              grantDate: "2024-06-01",
+            },
           },
         ],
       }),
@@ -76,7 +95,7 @@ describe("PatentsViewConnector", () => {
       docs.push(d);
     }
     expect(docs).toHaveLength(1);
-    expect(docs[0]?.externalId).toBe("1");
-    expect(docs[0]?.rawJson.title).toBe("A");
+    expect(docs[0]?.externalId).toBe("16123456");
+    expect(docs[0]?.rawJson.title).toBe("Test patent");
   });
 });

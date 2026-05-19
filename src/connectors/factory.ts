@@ -27,7 +27,7 @@ function guessApiKeyEnv(sourceId: string): string | undefined {
     pubmed: "NCBI_API_KEY",
     crossref: "CROSSREF_MAILTO",
     semanticscholar: "SEMANTIC_SCHOLAR_API_KEY",
-    patentsview: "PATENTSVIEW_API_KEY",
+    patentsview: "USPTO_ODP_API_KEY",
     fred: "FRED_API_KEY",
     github: "GITHUB_TOKEN",
   };

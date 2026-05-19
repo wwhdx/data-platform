@@ -84,7 +84,7 @@ export async function registerDefaultConnectors(
   );
   const patentsview = new PatentsViewConnector(
     await resolveConnectorConfig("patentsview", PATENTSVIEW_META, {
-      apiKey: process.env.PATENTSVIEW_API_KEY,
+      apiKey: process.env.USPTO_ODP_API_KEY,
     }),
   );
   const clinicaltrials = new ClinicalTrialsConnector(

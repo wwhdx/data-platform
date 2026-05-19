@@ -11,7 +11,7 @@ export interface SourceCredentialSpec {
 
 /** 需要 Key 的源；未列出者视为无强制 Key */
 export const SOURCE_CREDENTIAL_SPECS: Record<string, SourceCredentialSpec> = {
-  patentsview: { envVar: "PATENTSVIEW_API_KEY", required: true },
+  patentsview: { envVar: "USPTO_ODP_API_KEY", required: true },
   sec_edgar: { envVar: "SEC_EDGAR_USER_AGENT", required: true },
   fred: { envVar: "FRED_API_KEY", required: true },
   github: { envVar: "GITHUB_TOKEN", required: false },
@@ -73,7 +73,7 @@ export function probeAuthHeaders(
 
   switch (sourceId) {
     case "patentsview":
-      return { "X-Api-Key": key };
+      return { "X-API-KEY": key };
     case "semanticscholar":
       return { "x-api-key": key };
     case "github":

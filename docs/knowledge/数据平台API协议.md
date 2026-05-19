@@ -325,32 +325,19 @@ pa=Tesla AND ipc=B60L     # Tesla 公司的电动车专利
 
 ---
 
-### 2.3 USPTO PatentsView（PatentSearch API）
+### 2.3 USPTO ODP 专利（Patent File Wrapper）
 
 | 项目               | 详情                                                      |
 | ------------------ | --------------------------------------------------------- |
 | **协议类型** | REST（POST JSON body）                                    |
-| **Base URL** | `https://search.patentsview.org/api/v1/`                |
-| **认证方式** | Header `X-Api-Key`（**必填**；无 Key 请求会被拒绝）       |
-| **Key 申请** | ~~Atlassian Help Center~~ 已停用；ODP：[getting-started](https://data.uspto.gov/apis/getting-started)；Bulk 多无需 Key |
-| **速率限制** | 45 次 / 分钟（有 Key）                                    |
-| **分页** | `o.size` + `o.after` 游标（旧版 `page`/`per_page` 已废弃） |
-| **响应格式** | JSON                                                      |
-| **数据特点** | 已清洗的研究级数据，含发明人-专利权人标准化、机构地理编码 |
-| **迁移** | 2026-03 起迁入 [USPTO ODP](https://data.uspto.gov)；API 可能阶段性暂停；Bulk 与 ODP REST 见 `docs/data-sources.md` §2.3 |
+| **API 主机** | `https://api.uspto.gov`                                   |
+| **认证方式** | Header `X-API-KEY`（ENV `USPTO_ODP_API_KEY`）             |
+| **Key 申请** | [ODP Getting Started](https://data.uspto.gov/apis/getting-started) |
+| **核心端点** | `POST /api/v1/patent/applications/search`                 |
+| **分页** | `pagination.offset` + `pagination.limit`                  |
+| **响应格式** | JSON（`patentFileWrapperDataBag`）                          |
 
-**典型请求（与 `PatentsViewConnector` 一致）：**
-
-```bash
-curl -X POST "https://search.patentsview.org/api/v1/patent" \
-  -H "Content-Type: application/json" \
-  -H "X-Api-Key: YOUR_KEY" \
-  -d '{
-    "q": {"_text_any": {"patent_title": "machine learning"}},
-    "f": ["patent_id","patent_title","patent_date","patent_abstract","assignee_organization"],
-    "o": {"size": 50}
-  }'
-```
+详见 `docs/data-sources.md` §2.3。
 
 ---
 

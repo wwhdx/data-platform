@@ -10,21 +10,23 @@ import { BaseConnector } from "./base";
 import { RateLimiter } from "./rateLimiter";
 import { validateCredentialsForCollect } from "./credentials";
 import {
-  PATENT_FIELDS,
-  buildPatentQuery,
-  mapPatentToRawJson,
-  type PatentSearchResponse,
+  ODP_API_BASE_URL,
+  ODP_PATENT_SEARCH_PATH,
+  buildOdpSearchBody,
+  extractOdpRecords,
+  mapOdpRecordToRawJson,
+  type OdpSearchResponse,
 } from "./patentsviewHelpers";
 
 export const PATENTSVIEW_META: ConnectorMeta = {
   id: "patentsview",
-  name: "PatentsView (USPTO)",
-  baseUrl: "https://search.patentsview.org/api/v1",
+  name: "USPTO ODP Patents (Patent File Wrapper)",
+  baseUrl: ODP_API_BASE_URL,
   license: "public domain (US gov)",
   commercialUse: true,
   authType: "header_custom",
-  rateLimit: "45/min",
-  description: "USPTO 清洗专利数据，含标题与摘要",
+  rateLimit: "not specified",
+  description: "USPTO Open Data Portal 专利检索（PFW applications/search）",
 };
 
 export class PatentsViewConnector extends BaseConnector {
@@ -39,59 +41,61 @@ export class PatentsViewConnector extends BaseConnector {
       },
       PATENTSVIEW_META.baseUrl,
     );
-    this.rateLimiter = RateLimiter.fromRPS(0.7, 1500);
+    this.rateLimiter = RateLimiter.fromRPS(2, 500);
   }
 
   private authHeaders(): Record<string, string> {
-    return this.apiKey ? { "X-Api-Key": this.apiKey } : {};
+    return this.apiKey ? { "X-API-KEY": this.apiKey } : {};
   }
 
-  private patentUrl(): string {
-    return `${this.runtimeBaseUrl.replace(/\/$/, "")}/patent`;
+  private searchUrl(): string {
+    const root = this.runtimeBaseUrl.replace(/\/$/, "");
+    return `${root}${ODP_PATENT_SEARCH_PATH}`;
   }
 
-  private async searchPatents(
-    q: Record<string, unknown>,
-    opts: { size: number; after?: string },
-  ): Promise<PatentSearchResponse> {
-    const res = await this.fetchPost(
-      this.patentUrl(),
-      {
-        q,
-        f: [...PATENT_FIELDS],
-        o: { size: opts.size, ...(opts.after ? { after: opts.after } : {}) },
-      },
-      this.authHeaders(),
-    );
+  private async postSearch(
+    body: ReturnType<typeof buildOdpSearchBody>,
+  ): Promise<OdpSearchResponse> {
+    const res = await this.fetchPost(this.searchUrl(), body, this.authHeaders());
     this.assertAuthorizedResponse(res);
     if (!res.ok) {
+      const text = await res.text().catch(() => "");
       throw new Error(
-        `PatentsView API 请求失败 (HTTP ${res.status})`,
+        `USPTO ODP 专利检索失败 (HTTP ${res.status})${text ? `: ${text.slice(0, 200)}` : ""}`,
       );
     }
-    return (await res.json()) as PatentSearchResponse;
+    return (await res.json()) as OdpSearchResponse;
   }
 
   async search(query: string, opts?: SearchOptions): Promise<SearchResult[]> {
     const maxResults = opts?.maxResults ?? 10;
-    const body = await this.searchPatents(
-      buildPatentQuery(query, undefined),
-      { size: Math.min(maxResults, 100) },
+    const since = new Date(Date.now() - 365 * 86400000)
+      .toISOString()
+      .slice(0, 10);
+    const body = await this.postSearch(
+      buildOdpSearchBody({
+        query,
+        since,
+        offset: 0,
+        limit: Math.min(maxResults, 100),
+      }),
     );
-    return (body.patents ?? []).slice(0, maxResults).map((p) => {
-      const { rawJson } = mapPatentToRawJson(p);
-      return {
-        title: String(rawJson.title),
-        url: String(rawJson.url ?? ""),
-        snippet: String(rawJson.abstract ?? "").slice(0, 300),
-        sourceId: PATENTSVIEW_META.id,
-        sourceName: PATENTSVIEW_META.name,
-        publishedAt: rawJson.publication_date as string | undefined,
-        score: 1,
-        license: PATENTSVIEW_META.license,
-        commercialUse: PATENTSVIEW_META.commercialUse,
-      };
-    });
+    return extractOdpRecords(body)
+      .slice(0, maxResults)
+      .map((record) => {
+        const { rawJson } = mapOdpRecordToRawJson(record);
+        return {
+          title: String(rawJson.title),
+          url: String(rawJson.url ?? ""),
+          snippet: String(rawJson.abstract ?? "").slice(0, 300),
+          sourceId: PATENTSVIEW_META.id,
+          sourceName: PATENTSVIEW_META.name,
+          publishedAt: rawJson.publication_date as string | undefined,
+          score: 1,
+          license: PATENTSVIEW_META.license,
+          commercialUse: PATENTSVIEW_META.commercialUse,
+        };
+      });
   }
 
   async *collect(params: CollectParams = {}): AsyncGenerator<RawDocument> {
@@ -102,24 +106,28 @@ export class PatentsViewConnector extends BaseConnector {
     if (credErr) throw new Error(credErr);
 
     const maxItems = params.maxItems ?? Infinity;
-    const q = buildPatentQuery(params.query, params.since);
-    let after: string | undefined;
+    let offset = 0;
     let yielded = 0;
     const pageSize = 100;
 
     while (yielded < maxItems) {
       if (params.signal?.aborted) break;
 
-      const body = await this.searchPatents(q, {
-        size: Math.min(pageSize, maxItems - yielded),
-        after,
-      });
-      const patents = body.patents ?? [];
-      if (patents.length === 0) break;
+      const limit = Math.min(pageSize, maxItems - yielded);
+      const payload = await this.postSearch(
+        buildOdpSearchBody({
+          query: params.query,
+          since: params.since,
+          offset,
+          limit,
+        }),
+      );
+      const records = extractOdpRecords(payload);
+      if (records.length === 0) break;
 
       const now = new Date();
-      for (const patent of patents) {
-        const { externalId, rawJson } = mapPatentToRawJson(patent);
+      for (const record of records) {
+        const { externalId, rawJson } = mapOdpRecordToRawJson(record);
         yield {
           sourceId: PATENTSVIEW_META.id,
           externalId,
@@ -130,8 +138,8 @@ export class PatentsViewConnector extends BaseConnector {
         if (yielded >= maxItems) break;
       }
 
-      after = body.after;
-      if (!after || patents.length < pageSize) break;
+      offset += records.length;
+      if (records.length < limit) break;
     }
   }
 }

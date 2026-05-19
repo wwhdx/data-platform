@@ -19,7 +19,8 @@ const PROBE_TARGETS: Record<string, string | ((baseUrl: string) => string)> = {
   pubmed: (base) =>
     `${base.replace(/\/$/, "")}/esearch.fcgi?db=pubmed&term=test&retmax=1`,
   semanticscholar: "/paper/search?query=test&limit=1",
-  patentsview: (base) => `${base.replace(/\/$/, "")}/patent`,
+  patentsview: (base) =>
+    `${base.replace(/\/$/, "")}/api/v1/patent/applications/search`,
   clinicaltrials: "/studies?pageSize=1&format=json",
   sec_edgar: () =>
     "https://efts.sec.gov/LATEST/search-index?q=*&dateRange=custom&startdt=2024-01-01&enddt=2024-01-02&from=0&size=1",
@@ -124,10 +125,10 @@ function formatHeaderLog(
   const lines: string[] = [];
   lines.push(`User-Agent: ${headers["User-Agent"] ?? "(none)"}`);
 
-  if (headers["X-Api-Key"]) {
-    lines.push("X-Api-Key: *** (已设置)");
+  if (headers["X-API-KEY"] || headers["X-Api-Key"]) {
+    lines.push("X-API-KEY: *** (已设置)");
   } else if (sourceId === "patentsview") {
-    lines.push("X-Api-Key: (未发送)");
+    lines.push("X-API-KEY: (未发送，须 USPTO_ODP_API_KEY)");
   }
 
   if (headers["x-api-key"]) {
@@ -235,16 +236,15 @@ export async function probeExternalSourceDetailed(
   const body =
     sourceId === "patentsview"
       ? JSON.stringify({
-          q: { _gte: { patent_date: "2020-01-01" } },
-          f: ["patent_id"],
-          o: { size: 1 },
+          pagination: { offset: 0, limit: 1 },
+          fields: ["applicationNumberText"],
         })
       : undefined;
 
   const requestHeaders = formatHeaderLog(sourceId, headers);
   const requestBodySummary =
     sourceId === "patentsview"
-      ? 'POST JSON { q, f:["patent_id"], o:{ size:1 } }'
+      ? 'POST JSON { pagination:{offset:0,limit:1}, fields:["applicationNumberText"] }'
       : undefined;
 
   if (collectBlock) {

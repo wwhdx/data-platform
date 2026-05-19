@@ -293,7 +293,7 @@ class ExponentialBackoff {
 |-----------|------|-----|------|------|------|
 | `OpenAlexConnector` | 2.4亿论文元数据 | `api.openalex.org` | API Key (Query) | 100K/天 | CC0 |
 | `SemanticScholarConnector` | 2亿论文 + 引文图 | `api.semanticscholar.org` | `x-api-key` Header | 1-10 RPS | 非商业免费 |
-| `PatentsViewConnector` | USPTO 清洗专利 | `search.patentsview.org` | `X-Api-Key` Header | 45/分钟 | 免费 |
+| `PatentsViewConnector` | USPTO ODP 专利 PFW | `api.uspto.gov` | `X-API-KEY` Header | — | 免费 |
 
 ### 4.4 扩展 Connector 清单（Phase 2+）
 
@@ -318,7 +318,7 @@ export function listConnectors(): ConnectorMeta[];
 // 启动时自动注册
 registerConnector("openalex", () => new OpenAlexConnector({ apiKey: env.OPENALEX_KEY }));
 registerConnector("semanticscholar", () => new SemanticScholarConnector({ apiKey: env.S2_KEY }));
-registerConnector("patentsview", () => new PatentsViewConnector({ apiKey: env.PATENTSVIEW_KEY }));
+registerConnector("patentsview", () => new PatentsViewConnector({ apiKey: env.USPTO_ODP_KEY }));
 ```
 
 ---
@@ -916,7 +916,7 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 |-----------|---------|---------|
 | `openalex` | `GET /works?filter=...&search=...` | id, title, abstract, authorships, cited_by_count, publication_date, primary_location |
 | `semanticscholar` | `GET /paper/search?query=...&fields=...` | paperId, title, abstract, year, citationCount, authors, url, externalIds |
-| `patentsview` | `POST /patent/ { q, f, o }` | patent_id, patent_title, patent_abstract, patent_date, assignee_organization |
+| `patentsview` | `POST /api/v1/patent/applications/search` | applicationNumberText, inventionTitle, grantDate, firstApplicantName |
 
 ## 附录 B：Embedding 模型选型
 
@@ -934,7 +934,8 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
-| 2026-05-19 | v0.2.7 | PatentsView 文档同步：`data-sources.md` §2.3 ODP 迁移与 Key 申请；附录 A `after`/`size` 与代码一致 |
+| 2026-05-19 | v0.2.8 | `patentsview` 迁至 ODP（`api.uspto.gov` + `USPTO_ODP_API_KEY`）；废弃 PatentSearch / `PATENTSVIEW_API_KEY` |
+| 2026-05-19 | v0.2.7 | PatentsView 文档同步：`data-sources.md` §2.3 ODP 迁移与 Key 申请 |
 | 2026-05-19 | v0.2.6 | 12 Connector 全景；Phase 2 分块标 A8；链 [实施进度总览](plans/实施进度总览.md) v3.1 |
 | 2026-05-19 | v0.2.5 | A4：`SemanticScholarConnector`（`src/connectors/semanticscholar.ts` + bootstrap）；附录 A 速查已对齐 |
 | 2026-05-19 | v0.2.4 | §十一 I 轨组件标 ✅（I1–I6 落地） |
@@ -944,7 +945,7 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 | 2025-05-15 | v0.1 | 初始草案 |
 | 2026-05-15 | v0.2 | 职责边界澄清：移除 `/api/context`（LLM 摘要生成 → engine-core）；§9.1 接入点从 3 个精简为 2 个；§1.2 边界表新增 LLM 摘要/实体抽取行；Phase 4 移除 `/api/context` |
 
-> **版本**: v0.2.7 | **状态**: Phase 1/2 + 12 Connector + I 轨已落地 | **最后更新**: 2026-05-19
+> **版本**: v0.2.8 | **状态**: Phase 1/2 + 12 Connector + I 轨已落地 | **最后更新**: 2026-05-19
 >
 > 相关文档：
 > - 实施进度总览：`docs/plans/实施进度总览.md`

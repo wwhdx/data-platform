@@ -145,15 +145,15 @@ sources:
 
   - id: patentsview
     profile: rest_header_custom
-    name: "PatentsView (USPTO)"
+    name: "USPTO ODP Patents"
     enabled: true
-    base_url: https://search.patentsview.org/api/v1
-    rate_limit: "45/min"
+    base_url: https://api.uspto.gov
+    rate_limit: "not specified"
     license: "public domain (US gov)"
     commercial_use: true
     schedule: "0 3 * * 0"
-    # 须 PATENTSVIEW_API_KEY（PatentSearch）；Atlassian 申请已停用 → ODP/Bulk 见 data-sources.md §2.3
-    description: "USPTO 清洗专利；POST /patent {q,f,o}；须 API Key"
+    # 须 USPTO_ODP_API_KEY（Header X-API-KEY）；申请 https://data.uspto.gov/apis/getting-started
+    description: "ODP PFW POST /api/v1/patent/applications/search"
 
   - id: sec_edgar
     profile: rest_polite
