@@ -106,6 +106,7 @@ export const IMPLEMENTED_CONNECTOR_IDS = [
   "openalex",
   "crossref",
   "worldbank",
+  "pubmed",
 ] as const;
 
 export interface ValidationIssue {

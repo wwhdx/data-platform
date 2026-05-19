@@ -543,23 +543,17 @@ async function cmdServe(args: string[]) {
   // 直接启动 API 服务（复用 src/index.ts 的模块）
   const { createServer } = await import("../api/server");
   const { Scheduler } = await import("../scheduler");
-  const { OpenAlexConnector } = await import("../connectors/openalex");
-  const { CrossRefConnector } = await import("../connectors/crossref");
-  const { WorldBankConnector } = await import("../connectors/worldbank");
+  const { registerDefaultConnectors } = await import("../connectors/bootstrap");
+  const { loadConfig } = await import("../config/loader");
+  const { syncToDb } = await import("../config/sync");
+
+  const config = loadConfig("config/sources.yml");
+  if (config) {
+    await syncToDb(config).catch(() => undefined);
+  }
 
   const scheduler = new Scheduler();
-  scheduler.registerConnector({
-    id: "openalex",
-    create: () => new OpenAlexConnector({ apiKey: process.env.OPENALEX_API_KEY }),
-  });
-  scheduler.registerConnector({
-    id: "crossref",
-    create: () => new CrossRefConnector({ apiKey: process.env.CROSSREF_MAILTO }),
-  });
-  scheduler.registerConnector({
-    id: "worldbank",
-    create: () => new WorldBankConnector(),
-  });
+  await registerDefaultConnectors(scheduler);
   scheduler.start();
 
   await createServer({ port, scheduler });

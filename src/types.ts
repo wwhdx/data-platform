@@ -21,6 +21,10 @@ export interface ConnectorMeta {
 
 export interface ConnectorConfig {
   apiKey?: string;
+  /** resolveRuntimeConfig / YAML 展开后的 base_url */
+  baseUrl?: string;
+  /** sources.yml options（如 entrez_db） */
+  sourceOptions?: Record<string, unknown>;
   timeoutMs?: number;
   userAgent?: string;
   degradation?: {
@@ -66,6 +70,8 @@ export interface CollectionSchedule {
 // ── 采集参数 ──
 export interface CollectParams {
   since?: string;
+  /** 采集检索词（如 PubMed esearch term 片段） */
+  query?: string;
   maxItems?: number;
   signal?: AbortSignal;
 }

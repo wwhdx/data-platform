@@ -32,6 +32,7 @@ export async function resolveRuntimeConfig(
   authType: AuthType;
   rateLimit: string;
   options: Record<string, unknown>;
+  apiKeyEnv?: string;
 }> {
   const expanded = expandedCache.find((s) => s.id === sourceId);
 
@@ -69,5 +70,11 @@ export async function resolveRuntimeConfig(
 
   const options = expanded?.options ?? {};
 
-  return { baseUrl, authType, rateLimit, options };
+  return {
+    baseUrl,
+    authType,
+    rateLimit,
+    options,
+    apiKeyEnv: expanded?.env_key,
+  };
 }

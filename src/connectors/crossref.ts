@@ -2,7 +2,7 @@ import type { ConnectorMeta, ConnectorConfig, RawDocument, SearchResult, Collect
 import { BaseConnector } from "./base";
 import { RateLimiter } from "./rateLimiter";
 
-const META: ConnectorMeta = {
+export const CROSSREF_META: ConnectorMeta = {
   id: "crossref",
   name: "CrossRef",
   baseUrl: "https://api.crossref.org/v1",
@@ -44,15 +44,19 @@ interface CRResponse {
 }
 
 export class CrossRefConnector extends BaseConnector {
-  readonly meta: ConnectorMeta = META;
+  readonly meta: ConnectorMeta = CROSSREF_META;
 
   private mailto: string;
 
   constructor(config: ConnectorConfig = {}) {
-    super({
-      ...config,
-      userAgent: config.userAgent ?? "WangyeDataPlatform/0.1 (mailto:dev@wangye.app)",
-    });
+    super(
+      {
+        ...config,
+        userAgent:
+          config.userAgent ?? "WangyeDataPlatform/0.1 (mailto:dev@wangye.app)",
+      },
+      CROSSREF_META.baseUrl,
+    );
     // CrossRef polite pool: mailto query param for better service
     this.mailto = config.apiKey?.includes("@") ? config.apiKey : "dev@wangye.app";
     // Conservative rate limit for polite pool (5 req/s)
@@ -67,7 +71,7 @@ export class CrossRefConnector extends BaseConnector {
       query,
       rows: String(Math.min(maxResults, 100)),
     });
-    const url = `${META.baseUrl}/works?${params.toString()}${this.politeParam()}`;
+    const url = `${this.runtimeBaseUrl}/works?${params.toString()}${this.politeParam()}`;
 
     const res = await this.fetch(url);
     if (!res.ok) return [];
@@ -94,7 +98,7 @@ export class CrossRefConnector extends BaseConnector {
         rows: "200",
         cursor,
       });
-      const url = `${META.baseUrl}/works?${sp.toString()}${this.politeParam()}`;
+      const url = `${this.runtimeBaseUrl}/works?${sp.toString()}${this.politeParam()}`;
 
       const res = await this.fetch(url);
       if (!res.ok) break;
@@ -126,19 +130,19 @@ export class CrossRefConnector extends BaseConnector {
       title: pickTitle(work),
       url,
       snippet: cleanAbstract(work.abstract).slice(0, 300),
-      sourceId: META.id,
-      sourceName: META.name,
+      sourceId: CROSSREF_META.id,
+      sourceName: CROSSREF_META.name,
       publishedAt: pickDate(work),
       score: work["is-referenced-by-count"] ?? 0,
       license: pickLicense(work),
-      commercialUse: META.commercialUse,
+      commercialUse: CROSSREF_META.commercialUse,
     };
   }
 
   private toRawDocument(work: CRWork): RawDocument {
     const extId = work.DOI ?? `cr-${hashWork(work)}`;
     return {
-      sourceId: META.id,
+      sourceId: CROSSREF_META.id,
       externalId: extId,
       rawJson: work as unknown as Record<string, unknown>,
       fetchedAt: new Date(),

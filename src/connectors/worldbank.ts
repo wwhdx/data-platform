@@ -2,7 +2,7 @@ import type { ConnectorMeta, ConnectorConfig, RawDocument, SearchResult, Collect
 import { BaseConnector } from "./base";
 import { RateLimiter } from "./rateLimiter";
 
-const META: ConnectorMeta = {
+export const WORLD_BANK_META: ConnectorMeta = {
   id: "worldbank",
   name: "World Bank Indicators",
   baseUrl: "https://api.worldbank.org/v2",
@@ -54,13 +54,17 @@ const CORE_INDICATORS = [
 ];
 
 export class WorldBankConnector extends BaseConnector {
-  readonly meta: ConnectorMeta = META;
+  readonly meta: ConnectorMeta = WORLD_BANK_META;
 
   constructor(config: ConnectorConfig = {}) {
-    super({
-      ...config,
-      userAgent: config.userAgent ?? "WangyeDataPlatform/0.1 (mailto:dev@wangye.app)",
-    });
+    super(
+      {
+        ...config,
+        userAgent:
+          config.userAgent ?? "WangyeDataPlatform/0.1 (mailto:dev@wangye.app)",
+      },
+      WORLD_BANK_META.baseUrl,
+    );
     this.rateLimiter = RateLimiter.fromRPS(3, 500); // 每秒 3 次，最小间隔 500ms
   }
 
@@ -72,7 +76,7 @@ export class WorldBankConnector extends BaseConnector {
     const results: SearchResult[] = [];
 
     // 搜索指标名称匹配
-    const url = `${META.baseUrl}/indicator?format=json&per_page=50`;
+    const url = `${this.runtimeBaseUrl}/indicator?format=json&per_page=50`;
 
     const res = await this.fetch(url);
     if (!res.ok) return [];
@@ -114,7 +118,7 @@ export class WorldBankConnector extends BaseConnector {
 
     for await (const obs of this.paginateOffset<ObservationItem>(
       async (page, perPage) => {
-        const url = `${META.baseUrl}/country/all/indicator/${code}?format=json&mrv=${mrv}&per_page=${perPage}&page=${page}`;
+        const url = `${this.runtimeBaseUrl}/country/all/indicator/${code}?format=json&mrv=${mrv}&per_page=${perPage}&page=${page}`;
         const res = await this.fetch(url);
         if (!res.ok) return [];
 
@@ -138,18 +142,18 @@ export class WorldBankConnector extends BaseConnector {
       title: `${item.name} (${item.id})`,
       url: `https://data.worldbank.org/indicator/${item.id}`,
       snippet: item.sourceNote?.slice(0, 300) ?? item.name,
-      sourceId: META.id,
-      sourceName: META.name,
+      sourceId: WORLD_BANK_META.id,
+      sourceName: WORLD_BANK_META.name,
       score: 0,
-      license: META.license,
-      commercialUse: META.commercialUse,
+      license: WORLD_BANK_META.license,
+      commercialUse: WORLD_BANK_META.commercialUse,
     };
   }
 
   private toRawDocument(obs: ObservationItem): RawDocument {
     const extId = `${obs.indicator.id}/${obs.country.id}/${obs.date}`;
     return {
-      sourceId: META.id,
+      sourceId: WORLD_BANK_META.id,
       externalId: extId,
       rawJson: {
         indicator_name: obs.indicator.value,

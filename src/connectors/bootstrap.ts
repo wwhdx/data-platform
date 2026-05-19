@@ -1,0 +1,39 @@
+import type { Scheduler } from "../scheduler";
+import { resolveConnectorConfig } from "./factory";
+import { OpenAlexConnector } from "./openalex";
+import { CrossRefConnector } from "./crossref";
+import { WorldBankConnector } from "./worldbank";
+import { PubMedConnector, PUBMED_META } from "./pubmed";
+import { OPENALEX_META } from "./openalex";
+import { CROSSREF_META } from "./crossref";
+import { WORLD_BANK_META } from "./worldbank";
+
+export { OPENALEX_META, CROSSREF_META, WORLD_BANK_META, PUBMED_META };
+
+export async function registerDefaultConnectors(
+  scheduler: Scheduler,
+): Promise<void> {
+  const openalex = new OpenAlexConnector(
+    await resolveConnectorConfig("openalex", OPENALEX_META, {
+      apiKey: process.env.OPENALEX_API_KEY,
+    }),
+  );
+  const crossref = new CrossRefConnector(
+    await resolveConnectorConfig("crossref", CROSSREF_META, {
+      apiKey: process.env.CROSSREF_MAILTO,
+    }),
+  );
+  const worldbank = new WorldBankConnector(
+    await resolveConnectorConfig("worldbank", WORLD_BANK_META),
+  );
+  const pubmed = new PubMedConnector(
+    await resolveConnectorConfig("pubmed", PUBMED_META, {
+      apiKey: process.env.NCBI_API_KEY,
+    }),
+  );
+
+  scheduler.registerConnector({ id: "openalex", create: () => openalex });
+  scheduler.registerConnector({ id: "crossref", create: () => crossref });
+  scheduler.registerConnector({ id: "worldbank", create: () => worldbank });
+  scheduler.registerConnector({ id: "pubmed", create: () => pubmed });
+}

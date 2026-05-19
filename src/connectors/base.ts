@@ -10,9 +10,14 @@ export abstract class BaseConnector implements Connector {
   protected timeoutMs: number;
   protected userAgent: string;
   protected apiKey?: string;
+  /** resolveRuntimeConfig 或 META 默认 */
+  protected readonly runtimeBaseUrl: string;
+  protected readonly sourceOptions: Record<string, unknown>;
 
-  constructor(config: ConnectorConfig = {}) {
+  constructor(config: ConnectorConfig = {}, metaDefaultBaseUrl = "") {
     this.apiKey = config.apiKey;
+    this.runtimeBaseUrl = config.baseUrl ?? metaDefaultBaseUrl;
+    this.sourceOptions = config.sourceOptions ?? {};
     this.timeoutMs = config.timeoutMs ?? 30_000;
     this.userAgent = config.userAgent ?? "WangyeDataPlatform/0.1";
     this.rateLimiter = RateLimiter.fromDailyLimit(100_000);

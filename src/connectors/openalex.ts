@@ -2,7 +2,7 @@ import type { ConnectorMeta, ConnectorConfig, RawDocument, SearchResult, Collect
 import { BaseConnector } from "./base";
 import { RateLimiter } from "./rateLimiter";
 
-const META: ConnectorMeta = {
+export const OPENALEX_META: ConnectorMeta = {
   id: "openalex",
   name: "OpenAlex",
   baseUrl: "https://api.openalex.org",
@@ -27,13 +27,17 @@ interface OAWORK {
 }
 
 export class OpenAlexConnector extends BaseConnector {
-  readonly meta: ConnectorMeta = META;
+  readonly meta: ConnectorMeta = OPENALEX_META;
 
   constructor(config: ConnectorConfig = {}) {
-    super({
-      ...config,
-      userAgent: config.userAgent ?? "WangyeDataPlatform/0.1 (mailto:dev@wangye.app)",
-    });
+    super(
+      {
+        ...config,
+        userAgent:
+          config.userAgent ?? "WangyeDataPlatform/0.1 (mailto:dev@wangye.app)",
+      },
+      OPENALEX_META.baseUrl,
+    );
     this.rateLimiter = RateLimiter.fromDailyLimit(100_000);
   }
 
@@ -45,7 +49,7 @@ export class OpenAlexConnector extends BaseConnector {
 
   async search(query: string, opts?: SearchOptions): Promise<SearchResult[]> {
     const maxResults = opts?.maxResults ?? 10;
-    const url = `${META.baseUrl}/works?search=${encodeURIComponent(query)}&per_page=${maxResults}${this.authParam}`;
+    const url = `${this.runtimeBaseUrl}/works?search=${encodeURIComponent(query)}&per_page=${maxResults}${this.authParam}`;
 
     const res = await this.fetch(url);
     if (!res.ok) return [];
@@ -61,7 +65,7 @@ export class OpenAlexConnector extends BaseConnector {
     const maxItems = params.maxItems ?? Infinity;
     let yielded = 0;
 
-    const baseUrl = `${META.baseUrl}/works?filter=from_publication_date:${since}&per_page=200${this.authParam}`;
+    const baseUrl = `${this.runtimeBaseUrl}/works?filter=from_publication_date:${since}&per_page=200${this.authParam}`;
 
     for await (const doc of this.paginate<RawDocument>(
       async (cursor) => {
@@ -99,19 +103,19 @@ export class OpenAlexConnector extends BaseConnector {
       title: work.title ?? "Untitled",
       url,
       snippet: (work.abstract ?? "").slice(0, 300),
-      sourceId: META.id,
-      sourceName: META.name,
+      sourceId: OPENALEX_META.id,
+      sourceName: OPENALEX_META.name,
       publishedAt: work.publication_date,
       score: work.cited_by_count ?? 0,
-      license: META.license,
-      commercialUse: META.commercialUse,
+      license: OPENALEX_META.license,
+      commercialUse: OPENALEX_META.commercialUse,
     };
   }
 
   private toRawDocument(work: OAWORK): RawDocument {
     const extId = work.id.startsWith("https://") ? new URL(work.id).pathname.replace("/", "") : work.id;
     return {
-      sourceId: META.id,
+      sourceId: OPENALEX_META.id,
       externalId: extId,
       rawJson: work as unknown as Record<string, unknown>,
       fetchedAt: new Date(),
