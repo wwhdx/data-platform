@@ -4,6 +4,16 @@ import type { SourceStatus } from "../types";
 const PROBE_TIMEOUT_MS = 5000;
 const USER_AGENT = "WangyeDataPlatform/0.1 (health-probe)";
 
+function probeUserAgent(sourceId: string): string {
+  if (sourceId === "sec_edgar") {
+    return (
+      process.env.SEC_EDGAR_USER_AGENT?.trim() ??
+      "WangyeDataPlatform/0.1 (mailto:dev@wangye.app)"
+    );
+  }
+  return USER_AGENT;
+}
+
 export type ProbeResult = SourceStatus["status"];
 
 /** 各源轻量探活 URL（相对 base_url 或绝对路径） */
@@ -16,6 +26,16 @@ const PROBE_TARGETS: Record<string, string | ((baseUrl: string) => string)> = {
   semanticscholar: "/paper/search?query=test&limit=1",
   patentsview: (base) => `${base.replace(/\/$/, "")}/patent`,
   clinicaltrials: "/studies?pageSize=1&format=json",
+  sec_edgar: () =>
+    "https://efts.sec.gov/LATEST/search-index?q=*&dateRange=custom&startdt=2024-01-01&enddt=2024-01-02&from=0&size=1",
+  github: "/zen",
+  hackernews: "https://hacker-news.firebaseio.com/v0/maxitem.json",
+  fred: (base) => {
+    const root = base.replace(/\/$/, "");
+    const key = process.env.FRED_API_KEY?.trim();
+    const ak = key ? `&api_key=${encodeURIComponent(key)}` : "";
+    return `${root}/series/search?search_text=gdp&file_type=json&limit=1${ak}`;
+  },
   arxiv_oai: "?verb=Identify",
   arxiv: "https://export.arxiv.org/api/query?search_query=all:test&max_results=1",
 };
@@ -44,7 +64,7 @@ export async function probeExternalSource(
     const res = await fetch(url, {
       method: sourceId === "patentsview" ? "POST" : "GET",
       headers: {
-        "User-Agent": USER_AGENT,
+        "User-Agent": probeUserAgent(sourceId),
         ...probeAuthHeaders(sourceId),
         ...(sourceId === "patentsview"
           ? { "Content-Type": "application/json" }

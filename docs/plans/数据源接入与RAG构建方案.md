@@ -624,7 +624,7 @@ const results = await dataPlatform.search(query, {
 | RAG 架构 | **A8** | `processors/chunk.ts` 按类型分块 | ✅ |
 | Connector | **A7** | arXiv OAI-PMH（`arxiv_oai`） | ✅ |
 | 运维 | **B8** | `/health` 外部 API 探活 | ✅ |
-| Connector | patentsview / clinicaltrials ✅ | sec_edgar / fred / github / hackernews | P2–P3 |
+| Connector | 全部 12 源 ✅（除 Legacy `arxiv`） | SEC 全文 / HN 外链 | 增强 |
 | 协议 | — | `last_cursor` 断点续传接线 | P3 |
 | 平台 | **C2→C3** | 父仓 DataPlatformClient + SearchProvider | P0 |
 | 明确不做 | **A9** | Embedding 队列 | ⏸ |

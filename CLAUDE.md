@@ -158,6 +158,9 @@ psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.
 | `OPENALEX_API_KEY` | 否 | OpenAlex API Key（无 Key 可用但速率低） |
 | `SEMANTIC_SCHOLAR_API_KEY` | 否 | Semantic Scholar `x-api-key`（推荐；无 Key 易 402/低 RPS） |
 | `PATENTSVIEW_API_KEY` | 是（patentsview 采集） | PatentsView `X-Api-Key` |
+| `SEC_EDGAR_USER_AGENT` | 是（sec_edgar 采集） | `CompanyName email@domain.com` |
+| `GITHUB_TOKEN` | 否 | GitHub REST Bearer |
+| `FRED_API_KEY` | 是（fred 采集） | FRED `api_key` 查询参数 |
 | `PORT` | 否 | 服务端口（默认 3400） |
 | `ARXIV_FULLTEXT_ENABLED` | 否 | `1`/`true` 时 `arxiv_oai` 采集后同步拉 HTML 写入 `raw_json.fulltext`（`processors/arxivFulltext.ts`） |
 | `ARXIV_FULLTEXT_MAX_PER_JOB` | 否 | 每批 dedup 最多补全文篇数（默认 50） |

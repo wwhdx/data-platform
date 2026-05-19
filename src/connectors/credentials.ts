@@ -12,6 +12,7 @@ export interface SourceCredentialSpec {
 /** 需要 Key 的源；未列出者视为无强制 Key */
 export const SOURCE_CREDENTIAL_SPECS: Record<string, SourceCredentialSpec> = {
   patentsview: { envVar: "PATENTSVIEW_API_KEY", required: true },
+  sec_edgar: { envVar: "SEC_EDGAR_USER_AGENT", required: true },
   fred: { envVar: "FRED_API_KEY", required: true },
   github: { envVar: "GITHUB_TOKEN", required: false },
   semanticscholar: { envVar: "SEMANTIC_SCHOLAR_API_KEY", required: false },
@@ -40,8 +41,14 @@ export function validateCredentialsForCollect(
   const spec = SOURCE_CREDENTIAL_SPECS[sourceId];
   if (!spec?.required) return null;
 
-  const key = resolveApiKeyForSource(sourceId, injectedKey);
-  if (key) return null;
+  if (sourceId === "sec_edgar") {
+    const ua =
+      injectedKey?.trim() || process.env.SEC_EDGAR_USER_AGENT?.trim();
+    if (ua) return null;
+  } else {
+    const key = resolveApiKeyForSource(sourceId, injectedKey);
+    if (key) return null;
+  }
 
   return (
     `${spec.envVar} 未配置：数据源「${sourceId}」在 sources.yml 中可为 enabled: true，` +
@@ -74,8 +81,6 @@ export function probeAuthHeaders(
     case "openalex":
       return {};
     case "pubmed":
-      return {};
-    case "fred":
       return {};
     default:
       return {};

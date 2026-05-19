@@ -219,21 +219,22 @@ GET  /recommendations/v1/papers/{id}     # 推荐
   ✅ Semantic Scholar ← abstract + tldr（A4；YAML 默认 disabled；`SEMANTIC_SCHOLAR_API_KEY`）
   ✅ arXiv OAI-PMH    ← `arxiv_oai` 采集 + Legacy Atom 搜索（A7；YAML enabled）
 
-  ✅ PatentsView       ← patentsview.ts（需 PATENTSVIEW_API_KEY；YAML 默认 disabled）
-  ✅ ClinicalTrials   ← clinicaltrials.ts（无 Key；YAML 默认 disabled）
+  ✅ PatentsView       ← patentsview.ts（需 PATENTSVIEW_API_KEY）
+  ✅ ClinicalTrials   ← clinicaltrials.ts（无 Key）
+  ✅ SEC EDGAR        ← secEdgar.ts（EFTS；SEC_EDGAR_USER_AGENT 必填）
+  ✅ GitHub           ← github.ts（GITHUB_TOKEN 可选）
+  ✅ Hacker News      ← hackernews.ts
+  ✅ FRED             ← fred.ts（FRED_API_KEY 必填）
 
-RAG 质量优先（按摘要可用性排序）：
+RAG 质量优先（遗留增强）：
 
 平台价值优先（业务联通）：
   P0  DataPlatformClient（父仓）+ engine-core SearchProvider → C2/C3
 
-其他（P2-P3）：
-  SEC EDGAR        ← 财报全文，需段落分块
-  ClinicalTrials   ← 临床试验
-  GitHub           ← 技术趋势
-  FRED             ← 经济指标（不建议向量化）
+远期（未入 YAML）：
   EPO OPS / Google Patents ← 欧洲/全球专利
-  Hacker News / Reddit    ← 舆情
+  Reddit                   ← 舆情
+  SEC EDGAR Phase B        ← 申报 HTML 全文 + fulltext 分块
 
 详排期与分源接入清单 → [plans/剩余数据源接入实施方案.md](./plans/剩余数据源接入实施方案.md)
 ```

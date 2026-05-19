@@ -14,6 +14,10 @@ import {
   ClinicalTrialsConnector,
   CLINICALTRIALS_META,
 } from "./clinicaltrials";
+import { SecEdgarConnector, SEC_EDGAR_META } from "./secEdgar";
+import { GitHubConnector, GITHUB_META } from "./github";
+import { HackerNewsConnector, HACKERNEWS_META } from "./hackernews";
+import { FredConnector, FRED_META } from "./fred";
 import { OPENALEX_META } from "./openalex";
 import { CROSSREF_META } from "./crossref";
 import { WORLD_BANK_META } from "./worldbank";
@@ -27,6 +31,10 @@ export {
   ARXIV_OAI_META,
   PATENTSVIEW_META,
   CLINICALTRIALS_META,
+  SEC_EDGAR_META,
+  GITHUB_META,
+  HACKERNEWS_META,
+  FRED_META,
 };
 
 /** 运行时已 registerConnector 的源 id（与 scheduleReport / B14 对齐） */
@@ -39,6 +47,10 @@ export const REGISTERED_CONNECTOR_IDS = [
   "arxiv_oai",
   "patentsview",
   "clinicaltrials",
+  "sec_edgar",
+  "github",
+  "hackernews",
+  "fred",
 ] as const;
 
 export async function registerDefaultConnectors(
@@ -78,6 +90,24 @@ export async function registerDefaultConnectors(
   const clinicaltrials = new ClinicalTrialsConnector(
     await resolveConnectorConfig("clinicaltrials", CLINICALTRIALS_META),
   );
+  const secEdgar = new SecEdgarConnector(
+    await resolveConnectorConfig("sec_edgar", SEC_EDGAR_META, {
+      userAgent: process.env.SEC_EDGAR_USER_AGENT,
+    }),
+  );
+  const github = new GitHubConnector(
+    await resolveConnectorConfig("github", GITHUB_META, {
+      apiKey: process.env.GITHUB_TOKEN,
+    }),
+  );
+  const hackernews = new HackerNewsConnector(
+    await resolveConnectorConfig("hackernews", HACKERNEWS_META),
+  );
+  const fred = new FredConnector(
+    await resolveConnectorConfig("fred", FRED_META, {
+      apiKey: process.env.FRED_API_KEY,
+    }),
+  );
 
   scheduler.registerConnector({ id: "openalex", create: () => openalex });
   scheduler.registerConnector({ id: "crossref", create: () => crossref });
@@ -93,4 +123,8 @@ export async function registerDefaultConnectors(
     id: "clinicaltrials",
     create: () => clinicaltrials,
   });
+  scheduler.registerConnector({ id: "sec_edgar", create: () => secEdgar });
+  scheduler.registerConnector({ id: "github", create: () => github });
+  scheduler.registerConnector({ id: "hackernews", create: () => hackernews });
+  scheduler.registerConnector({ id: "fred", create: () => fred });
 }

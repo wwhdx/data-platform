@@ -107,6 +107,14 @@ export const IMPLEMENTED_CONNECTOR_IDS = [
   "crossref",
   "worldbank",
   "pubmed",
+  "semanticscholar",
+  "arxiv_oai",
+  "patentsview",
+  "clinicaltrials",
+  "sec_edgar",
+  "github",
+  "hackernews",
+  "fred",
 ] as const;
 
 export interface ValidationIssue {

@@ -15,5 +15,9 @@ export {
   ClinicalTrialsConnector,
   CLINICALTRIALS_META,
 } from "./clinicaltrials";
+export { SecEdgarConnector, SEC_EDGAR_META } from "./secEdgar";
+export { GitHubConnector, GITHUB_META } from "./github";
+export { HackerNewsConnector, HACKERNEWS_META } from "./hackernews";
+export { FredConnector, FRED_META } from "./fred";
 export { resolveConnectorConfig } from "./factory";
 export { registerDefaultConnectors } from "./bootstrap";
