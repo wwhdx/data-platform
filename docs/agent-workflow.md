@@ -16,6 +16,7 @@
 | 文件 | 用途 |
 |------|------|
 | `docs/plans/实施进度总览.md` | **代码 ↔ 任务状态真源**（改规划/勾 Phase 前先更新） |
+| `docs/plans/集成测试最小闭环方案.md` | **I 轨**：子包内 collect→search 自动化（不依赖父仓） |
 | `CLAUDE.md` | 领域说明（Connector/RAG/Docker/CLI）+ 顶部 `@import` 规则 |
 | `AGENTS.md` | OpenCode 主入口：命令、索引、commit 策略摘要 |
 | `opencode.json` | `instructions` 机械加载两个 `.mdc`（**非**父仓根目录） |

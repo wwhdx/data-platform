@@ -37,6 +37,7 @@ docker compose up -d --build   # API :3400, PG :5433
 | 共识知识（API 分类、协议） | `docs/knowledge/`（见 `docs/knowledge/README.md`） |
 | 数据源速查 | `docs/data-sources.md` |
 | Phase1 | `docs/phase1-plan.md` |
+| **集成测试（I 轨）** | `docs/plans/集成测试最小闭环方案.md` |
 | engine-core 对接 | `../engine-core/ENGINE_CONTRACTS.md` |
 | 父仓 API 协议 | `../../docs/knowledge/数据平台API协议.md` |
 

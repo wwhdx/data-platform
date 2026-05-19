@@ -17,6 +17,7 @@
 - [八、调度系统](#八调度系统)
 - [九、与 engine-core 对接](#九与-engine-core-对接)
 - [十、分阶段实施计划](#十分阶段实施计划)
+- [十一、集成测试与质量门禁（I 轨）](#十一集成测试与质量门禁i-轨)
 
 ---
 
@@ -862,6 +863,52 @@ ctx.state.dataPlatformResults = data.results.map(r => ({
 
 ---
 
+## 十一、集成测试与质量门禁（I 轨）
+
+> 详案：[plans/集成测试最小闭环方案.md](plans/集成测试最小闭环方案.md) · 任务状态见 [plans/实施进度总览.md](plans/实施进度总览.md) §3 I 轨
+
+### 11.1 目标
+
+在**不依赖望野父仓**的前提下，于本仓库验证完整业务链：
+
+```
+FixtureConnector → Scheduler.trigger → dedup → embedDocuments
+  → hybridSearch → createDataPlatformSearchProvider(baseUrl).search()
+```
+
+后者替代 C2/C3 联调前的 HTTP 消费验证；父仓接入时仅需将 `baseUrl` 换为 `DATA_PLATFORM_URL`。
+
+### 11.2 测试分层
+
+| 层级 | 命令 | 依赖 | 说明 |
+|------|------|------|------|
+| L0 | `pnpm test:run` | 无 | 单元 + smoke inject（mock DB/RAG） |
+| L1 | `pnpm cli config validate` | YAML | 配置离线校验 |
+| **L2-fast** | `pnpm test:integration` | Docker DB `:5433` | I 轨闭环（`EMBED_BACKEND=mock`） |
+| L2-full | `pnpm test:integration:full` | DB + Ollama | I 轨 + 真实 bge-m3 |
+| L2-live | `pnpm smoke:live` | DB + serve | 运维探活（**不替代** I 轨） |
+| L3 | `pnpm e2e:live-openalex`（可选） | 外网 + Key | 真源 smoke，不进 CI |
+
+### 11.3 核心组件
+
+| 组件 | 路径 | 状态 |
+|------|------|------|
+| `FixtureConnector` | `src/__tests__/fixtures/fixtureConnector.ts` | ✅ |
+| mock embed | `src/rag/embed.ts`（`EMBED_BACKEND=mock`） | ✅ |
+| harness | `src/__tests__/integration/helpers/harness.ts` | ✅ |
+| 闭环用例 | `src/__tests__/integration/pipeline-closed-loop.test.ts` | ✅ |
+| Shell | `scripts/e2e-loop.sh` | ✅ |
+
+### 11.4 接 C2/C3 前门禁
+
+```
+必须：pnpm test:run
+推荐：pnpm test:integration   # 需 docker compose up -d db
+可选：pnpm test:integration:full
+```
+
+---
+
 ## 附录 A：MVP Connector 速查
 
 | Connector | 搜索接口 | 返回字段 |
@@ -886,15 +933,18 @@ ctx.state.dataPlatformResults = data.results.map(r => ({
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-05-19 | v0.2.4 | §十一 I 轨组件标 ✅（I1–I6 落地） |
+| 2026-05-19 | v0.2.3 | 新增 §十一 I 轨集成测试最小闭环；链至 `plans/集成测试最小闭环方案.md` |
 | 2026-05-19 | v0.2.2 | §十 Phase 1/2 勾选与代码对齐；链至 `docs/plans/实施进度总览.md` |
 | 2026-05-19 | v0.2.1 | **Agent 工作流**：新增 `.cursor/rules/*.mdc`、`opencode.json`、`AGENTS.md`、`docs/agent-workflow.md`；`CLAUDE.md` 改为 `@import` 规则；commit 须用户明确说明（与望野主仓对齐）。 |
 | 2025-05-15 | v0.1 | 初始草案 |
 | 2026-05-15 | v0.2 | 职责边界澄清：移除 `/api/context`（LLM 摘要生成 → engine-core）；§9.1 接入点从 3 个精简为 2 个；§1.2 边界表新增 LLM 摘要/实体抽取行；Phase 4 移除 `/api/context` |
 
-> **版本**: v0.2.2 | **状态**: Phase 1/2 已落地 | **最后更新**: 2026-05-19
+> **版本**: v0.2.4 | **状态**: Phase 1/2 + I 轨已落地 | **最后更新**: 2026-05-19
 >
 > 相关文档：
 > - 实施进度总览：`docs/plans/实施进度总览.md`
+> - 集成测试最小闭环（I 轨）：`docs/plans/集成测试最小闭环方案.md`
 > - 下一阶段排期：`docs/plans/下一阶段实施方案.md`
 > - Agent 工作流：`docs/agent-workflow.md`
 > - engine-core 接口协议：`../engine-core/ENGINE_CONTRACTS.md`

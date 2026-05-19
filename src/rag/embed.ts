@@ -7,13 +7,16 @@
  * voyage   voyage-3-large       1024   VOYAGE_API_KEY
  *
  * 环境变量：
- *   EMBED_BACKEND=ollama|openai|voyage (default: ollama)
+ *   EMBED_BACKEND=ollama|openai|voyage|mock (default: ollama)
+ *   mock — 确定性 1024d 向量，供 I 轨集成测（`pnpm test:integration`）
  *   EMBED_MODEL=<model>              (可选，覆盖默认模型)
  *   EMBED_API_URL=<url>              (Ollama: http://ollama:11434, OpenAI/Voyage 自动)
  *   EMBED_API_KEY=<key>              (OpenAI/Voyage 必填)
  */
 
-type Backend = "ollama" | "openai" | "voyage";
+import { createHash } from "node:crypto";
+
+type Backend = "ollama" | "openai" | "voyage" | "mock";
 
 interface BackendConfig {
   backend: Backend;
@@ -43,6 +46,14 @@ function getConfig(): BackendConfig {
         apiKey: process.env.EMBED_API_KEY ?? process.env.VOYAGE_API_KEY ?? "",
         dimensions: 1024,
       };
+    case "mock":
+      return {
+        backend: "mock",
+        model: process.env.EMBED_MODEL ?? "mock-deterministic",
+        baseUrl: "",
+        apiKey: "",
+        dimensions: 1024,
+      };
     case "ollama":
     default:
       return {
@@ -53,6 +64,20 @@ function getConfig(): BackendConfig {
         dimensions: 1024,
       };
   }
+}
+
+/** 确定性 mock 向量（同文同向量，L2 归一化）；I 轨集成测专用 */
+export function mockDeterministicEmbedding(text: string, dimensions = 1024): number[] {
+  const vec = new Float64Array(dimensions);
+  const hash = createHash("sha256").update(text).digest();
+  for (let i = 0; i < dimensions; i++) {
+    const b = hash[i % hash.length]!;
+    vec[i] = (b / 255) * 2 - 1 + (i % 7) * 0.001;
+  }
+  let norm = 0;
+  for (let i = 0; i < dimensions; i++) norm += vec[i]! * vec[i]!;
+  norm = Math.sqrt(norm) || 1;
+  return Array.from(vec, (v) => v / norm);
 }
 
 export interface EmbedResult {
@@ -76,6 +101,12 @@ export async function embedBatch(
   const cfg = getConfig();
 
   switch (cfg.backend) {
+    case "mock":
+      return texts.map((t) => ({
+        embedding: mockDeterministicEmbedding(t, cfg.dimensions),
+        model: cfg.model,
+        dimensions: cfg.dimensions,
+      }));
     case "ollama":
       return embedBatchOllama(cfg, texts);
     case "openai":
