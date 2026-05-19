@@ -196,15 +196,24 @@ curl -X POST http://localhost:3400/api/search \
 data-platform 导出 engine-core 兼容的 `SearchProvider`，一行切换：
 
 ```typescript
-import { createDataPlatformSearchProvider } from "@wangye/data-platform";
+import {
+  DataPlatformClient,
+  createDataPlatformSearchProvider,
+} from "@wangye/data-platform";
 
-// engine-core 消费
-const searchProvider = createDataPlatformSearchProvider(
-  "http://localhost:3400"
-);
+// C2：父仓 HTTP 客户端（子包真源）
+const dp = DataPlatformClient.fromEnv() ?? new DataPlatformClient({
+  baseUrl: "http://localhost:3400",
+});
+const papers = await dp.search({ query: "transformer", maxResults: 5 });
+
+// C3：engine-core SearchProvider
+const searchProvider = createDataPlatformSearchProvider("http://localhost:3400");
 const results = await searchProvider.search("transformer");
 // → [{ title, url, snippet }]
 ```
+
+**门禁**：`pnpm e2e:loop`（L0 + I 轨 + P 轨父仓 HTTP 契约，需 DB :5433）。
 
 ## 数据流
 

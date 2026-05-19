@@ -1,11 +1,11 @@
 /**
- * engine-core SearchProvider 适配器。
+ * engine-core SearchProvider 适配器（C3 子包侧）。
  *
  * 用法（engine-core 侧）：
  *   import { createDataPlatformSearchProvider } from "@wangye/data-platform";
- *   const searchProvider = createDataPlatformSearchProvider();
- *   const results = await searchProvider.search("transformer attention");
+ *   const searchProvider = createDataPlatformSearchProvider(process.env.DATA_PLATFORM_URL);
  */
+import { createDataPlatformClient } from "../client/dataPlatformClient";
 
 export interface SearchProviderResult {
   title: string;
@@ -27,43 +27,21 @@ export interface SearchProvider {
 export function createDataPlatformSearchProvider(
   baseUrl: string = "http://localhost:3400",
 ): SearchProvider {
+  const client = createDataPlatformClient(baseUrl);
+
   return {
     id: "data-platform",
     search: async (query, opts) => {
-      const controller = new AbortController();
-      if (opts?.signal) {
-        opts.signal.addEventListener("abort", () => controller.abort(), { once: true });
-      }
-
-      try {
-        const res = await fetch(`${baseUrl}/api/search`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query,
-            maxResults: opts?.maxResults ?? 10,
-          }),
-          signal: controller.signal,
-        });
-
-        if (!res.ok) return [];
-
-        const data = await res.json() as {
-          results: Array<{
-            title: string;
-            url: string;
-            snippet: string;
-          }>;
-        };
-
-        return (data.results ?? []).map(r => ({
-          title: r.title,
-          url: r.url,
-          snippet: r.snippet,
-        }));
-      } catch {
-        return [];
-      }
+      const results = await client.search({
+        query,
+        maxResults: opts?.maxResults,
+        signal: opts?.signal,
+      });
+      return results.map((r) => ({
+        title: r.title,
+        url: r.url,
+        snippet: r.snippet,
+      }));
     },
   };
 }

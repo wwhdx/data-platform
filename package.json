@@ -3,8 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "description": "望野数据采集/存储/RAG 引擎",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/lib/index.js",
+  "types": "dist/lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib/index.d.ts",
+      "default": "./dist/lib/index.js"
+    }
+  },
   "bin": {
     "data-platform": "./dist/cli/index.js"
   },
@@ -16,7 +22,8 @@
     "test": "vitest",
     "test:run": "vitest --run",
     "test:api": "vitest --run src/__tests__/integration/api",
-    "test:integration": "vitest --run --no-file-parallelism src/__tests__/integration/pipeline src/__tests__/integration/embed.test.ts",
+    "test:integration": "vitest --run --no-file-parallelism src/__tests__/integration/pipeline src/__tests__/integration/parent src/__tests__/integration/embed.test.ts",
+    "test:integration:parent": "vitest --run --no-file-parallelism src/__tests__/integration/parent",
     "test:integration:full": "EMBED_BACKEND=ollama vitest --run --no-file-parallelism src/__tests__/integration",
     "test:live": "bash scripts/live-probe.sh",
     "test:smoke": "pnpm test:api",

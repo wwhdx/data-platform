@@ -25,7 +25,7 @@ fi
 echo "== migrate =="
 pnpm cli migrate
 
-echo "== L2-fast: integration closed loop =="
+echo "== L2-fast: I 轨 + P 轨（pipeline + parent） =="
 pnpm test:integration
 
-echo "✅ I 轨 e2e-loop 完成"
+echo "✅ e2e-loop 完成（L0 + I 轨 + P 轨父仓契约）"
