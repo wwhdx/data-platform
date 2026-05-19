@@ -15,6 +15,7 @@ import { appendCollectLogEvent, getJobLogFilePath, resetCollectLogSession } from
 import { getCollectLogRoot } from "../collect/env";
 import * as fs from "fs";
 import * as path from "path";
+import type { CollectProgressEvent } from "../scheduler/progress";
 import type { CollectionJob, SearchRequest } from "../types";
 
 /** 控制流退出：由 run() 的 finally 统一 closePool，避免 process.exit 跳过清理 */
@@ -91,34 +92,6 @@ async function apiPost<T>(endpoint: string, body: unknown): Promise<T> {
   }
   return res.json() as Promise<T>;
 }
-
-type CollectProgressEvent = {
-  type: string;
-  sourceId?: string;
-  jobId?: number;
-  since?: string;
-  query?: string;
-  fetched?: number;
-  itemsCollected?: number;
-  inserted?: number;
-  skippedDuplicate?: number;
-  stats?: {
-    fetched: number;
-    inserted: number;
-    skippedDuplicate: number;
-    since?: string;
-    query?: string;
-  };
-  job?: Record<string, unknown>;
-  error?: string;
-  reason?: string;
-  message?: string;
-  sourceIds?: string[];
-  activeCount?: number;
-  jobs?: Array<Record<string, unknown>>;
-  failures?: Array<{ sourceId: string; error: string }>;
-  skipped?: Array<{ sourceId: string; reason: string }>;
-};
 
 async function apiCollectStream(
   body: Record<string, unknown>,
@@ -325,14 +298,14 @@ async function fetchSourceRows(): Promise<SourceRow[]> {
 }
 
 type CollectAllResponse = {
-  jobs?: Array<Record<string, unknown>>;
+  jobs?: CollectionJob[];
   failures?: Array<{ sourceId: string; error: string }>;
   skipped?: Array<{ sourceId: string; reason: string }>;
   activeCount?: number;
 };
 
-function printCollectJobLine(j: Record<string, unknown>): void {
-  const status = String(j.status ?? "unknown");
+function printCollectJobLine(j: CollectionJob): void {
+  const status = j.status ?? "unknown";
   const icon = status === "success" ? "✅" : status === "failed" ? "❌" : "⏳";
   const items = j.itemsCollected ?? 0;
   const errMsg = j.errorMessage ? ` — ${j.errorMessage}` : "";
@@ -387,16 +360,15 @@ function printCollectProgressEvent(
     }
     case "source_done": {
       clearProgressLine();
-      const job = ev.job ?? {};
-      const stats = ev.stats;
-      const status = String(job.status ?? "unknown");
+      const { job, stats } = ev;
+      const status = job.status ?? "unknown";
       const icon = status === "success" ? "✅" : status === "failed" ? "❌" : "⏳";
 
       if (quiet && stats) {
         console.log(
           `  ${icon} ${job.sourceId}  job #${job.id}: 抓取 ${stats.fetched}，新入库 ${stats.inserted}，重复跳过 ${stats.skippedDuplicate}`,
         );
-        const logPath = getJobLogFilePath(String(job.sourceId), Number(job.id));
+        const logPath = getJobLogFilePath(job.sourceId, job.id);
         if (logPath) console.log(`     详细日志: ${logPath}`);
       } else {
         printCollectJobLine(job);
@@ -405,7 +377,7 @@ function printCollectProgressEvent(
             `     抓取 ${stats.fetched}，新入库 ${stats.inserted}，重复跳过 ${stats.skippedDuplicate}`,
           );
         }
-        const logPath = getJobLogFilePath(String(job.sourceId), Number(job.id));
+        const logPath = getJobLogFilePath(job.sourceId, job.id);
         if (logPath) console.log(`     详细日志: ${logPath}`);
       }
       break;
