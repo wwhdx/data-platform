@@ -111,6 +111,23 @@ pgvector `vector(1024)` 对 bge-m3 和 voyage-3-large 通用（都是 1024 维�
 
 ## 故障排查
 
+### 宿主机 Ollama 与 Compose 冲突（`address already in use`）
+
+Compose 会映射宿主机 `11434`。若本机已运行 `ollama serve`（systemd 或手动），`data-platform-ollama-1` 无法绑定端口。
+
+**仅使用 Docker 内 Ollama 时**，先停本机服务再 `docker compose up -d`：
+
+```bash
+sudo systemctl stop ollama 2>/dev/null || true
+pkill -f "ollama serve" 2>/dev/null || true
+ss -tlnp | grep 11434   # 应无输出后再 up
+
+docker compose down
+docker compose up -d
+```
+
+长期禁用本机服务：`sudo systemctl disable --now ollama`。
+
 ### 模型拉取失败
 
 ```bash

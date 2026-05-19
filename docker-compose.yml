@@ -24,7 +24,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Ollama (本地 Embedding) ──────────────
+  # ── Ollama (Docker 内 Embedding；勿与本机 ollama serve 同占 11434) ──
   ollama:
     image: ollama/ollama:latest
     restart: unless-stopped
@@ -35,29 +35,30 @@ services:
     ports:
       - "11434:11434"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags"]
+      test: ["CMD", "ollama", "list"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
 
-  # ── 模型拉取（一次性）────────────────────
+  # ── 模型拉取（一次性，经 ollama 服务拉取，不另起 serve）────────
   ollama-init:
     image: ollama/ollama:latest
     networks:
       - dp-network
-    volumes:
-      - ollama_models:/root/.ollama
+    environment:
+      OLLAMA_HOST: http://ollama:11434
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
+        echo "Waiting for ollama..."
+        until ollama list >/dev/null 2>&1; do sleep 2; done
         echo "Pulling bge-m3..."
-        ollama serve &
-        sleep 5
         ollama pull bge-m3
         echo "bge-m3 ready"
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
 
   # ── data-platform API 服务 ────────────────
   app:

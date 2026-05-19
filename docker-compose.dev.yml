@@ -24,6 +24,7 @@ services:
       timeout: 5s
       retries: 5
 
+  # 勿与本机 `ollama serve` 同占宿主机 11434
   ollama:
     image: ollama/ollama:latest
     restart: unless-stopped
@@ -33,23 +34,30 @@ services:
       - dev_ollama_models:/root/.ollama
     ports:
       - "11434:11434"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   ollama-init:
     image: ollama/ollama:latest
     networks:
       - dp-network
-    volumes:
-      - dev_ollama_models:/root/.ollama
+    environment:
+      OLLAMA_HOST: http://ollama:11434
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
+        echo "Waiting for ollama..."
+        until ollama list >/dev/null 2>&1; do sleep 2; done
         echo "Pulling bge-m3..."
-        ollama serve &
-        sleep 5
         ollama pull bge-m3
         echo "bge-m3 ready"
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
 
   app:
     build:
