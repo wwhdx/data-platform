@@ -69,6 +69,10 @@ interface_profiles:
     protocol: graphql
     auth_type: header_bearer
 
+# schedule（cron「分 时 日 月 周」，服务器本地时区）：
+#   批处理：每日 03:00 → `0 3 * * *`（12 源同时触发，由 Scheduler 串行/并行执行各 job）
+#   慢变数据：每周日 03:00 → `0 3 * * 0`（worldbank、patentsview）
+#   实时热点：hackernews 每 2 小时 → `0 */2 * * *`
 sources:
   - id: openalex
     profile: rest_query_param_key
@@ -78,7 +82,7 @@ sources:
     rate_limit: "100000/day"
     license: CC0
     commercial_use: true
-    schedule: "0 7 * * *"
+    schedule: "0 3 * * *"
     description: "2.4亿+ 学术作品元数据，CC0 完全开放，含作者/机构/引用/主题"
 
   - id: crossref
@@ -89,18 +93,18 @@ sources:
     rate_limit: "5 RPS (polite pool)"
     license: "varies (per-work)"
     commercial_use: true
-    schedule: "0 8 * * *"
+    schedule: "0 3 * * *"
     description: "1.8亿+ DOI 元数据记录，覆盖学术出版物/会议/书籍"
 
   - id: semanticscholar
     profile: rest_header_custom
     name: Semantic Scholar
-    enabled: false
+    enabled: true
     base_url: https://api.semanticscholar.org/graph/v1
     rate_limit: "10 RPS (authenticated)"
     license: "non-commercial free"
     commercial_use: false
-    schedule: "0 9 * * *"
+    schedule: "0 3 * * *"
     description: "2亿+ 论文 + 引用图，商业需授权"
     options:
       default_collect_query: science
@@ -108,11 +112,11 @@ sources:
   - id: pubmed
     profile: ncbi_eutils
     name: "PubMed / NCBI E-utilities"
-    enabled: false
+    enabled: true
     rate_limit: "10/sec (authenticated)"
     license: "public domain (US gov)"
     commercial_use: true
-    schedule: "0 10 * * *"
+    schedule: "0 3 * * *"
     description: "生物医学权威数据库，38 个子库"
     options:
       entrez_db: pubmed
@@ -124,8 +128,8 @@ sources:
     rate_limit: ">=3s interval"
     license: "metadata free"
     commercial_use: true
-    schedule: "0 11 * * *"
-    description: "物理/数学/CS 预印本，Legacy Atom 搜索（采集见 arxiv_oai）"
+    schedule: "0 3 * * *"
+    description: "Legacy 占位，无 Connector；采集请用 arxiv_oai（enabled: true）"
 
   - id: arxiv_oai
     profile: oai_pmh
@@ -134,7 +138,7 @@ sources:
     rate_limit: ">=3s interval"
     license: "metadata free"
     commercial_use: true
-    schedule: "0 11 * * *"
+    schedule: "0 3 * * *"
     description: "arXiv 预印本 OAI-PMH 批量采集；搜索走 Legacy Atom API"
     options:
       search_base_url: https://export.arxiv.org/api/query
@@ -142,7 +146,7 @@ sources:
   - id: patentsview
     profile: rest_header_custom
     name: "PatentsView (USPTO)"
-    enabled: false
+    enabled: true
     base_url: https://search.patentsview.org/api/v1
     rate_limit: "45/min"
     license: "public domain (US gov)"
@@ -153,23 +157,23 @@ sources:
   - id: sec_edgar
     profile: rest_polite
     name: SEC EDGAR
-    enabled: false
+    enabled: true
     base_url: https://data.sec.gov/
     rate_limit: "10/sec"
     license: "public domain (US gov)"
     commercial_use: true
-    schedule: "0 6 * * *"
+    schedule: "0 3 * * *"
     description: "SEC 上市公司申报文件 (10-K, 10-Q, 8-K)，完全免费"
 
   - id: fred
     profile: rest_query_param_key
     name: "FRED (Federal Reserve)"
-    enabled: false
+    enabled: true
     base_url: https://api.stlouisfed.org/fred/
     rate_limit: "not specified"
     license: "free (verify commercial)"
     commercial_use: false
-    schedule: "0 5 * * *"
+    schedule: "0 3 * * *"
     description: "80万+ 经济时间序列"
 
   - id: worldbank
@@ -180,37 +184,37 @@ sources:
     rate_limit: "unlimited"
     license: "CC BY"
     commercial_use: true
-    schedule: "0 4 * * 0"
+    schedule: "0 3 * * 0"
     description: "16,000+ 时间序列，覆盖 200+ 国家"
 
   - id: clinicaltrials
     profile: rest_none
     name: ClinicalTrials.gov
-    enabled: false
+    enabled: true
     base_url: https://clinicaltrials.gov/api/v2/
     rate_limit: "<=10/sec"
     license: "public domain (US gov)"
     commercial_use: true
-    schedule: "0 12 * * *"
+    schedule: "0 3 * * *"
     description: "全球临床试验注册数据"
 
   - id: github
     profile: rest_bearer
     name: GitHub
-    enabled: false
+    enabled: true
     base_url: https://api.github.com/
     rate_limit: "5000/hour (authenticated)"
     license: "varies (per-repo)"
     commercial_use: true
-    schedule: "0 2 * * *"
+    schedule: "0 3 * * *"
     description: "开源仓库元数据 + 技术趋势 (stars/forks/commits)"
 
   - id: hackernews
     profile: firebase_rest
     name: Hacker News
-    enabled: false
+    enabled: true
     rate_limit: "unlimited"
     license: "free"
     commercial_use: true
-    schedule: "0 */6 * * *"
-    description: "技术社区热点，Firebase 实时数据库"
+    schedule: "0 */1 * * *"
+    description: "技术社区热点，Firebase 实时数据库（每 1 小时采集）"
