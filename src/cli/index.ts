@@ -89,6 +89,85 @@ async function apiPost<T>(endpoint: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+type CollectProgressEvent = {
+  type: string;
+  sourceId?: string;
+  jobId?: number;
+  since?: string;
+  query?: string;
+  fetched?: number;
+  itemsCollected?: number;
+  job?: Record<string, unknown>;
+  error?: string;
+  reason?: string;
+  message?: string;
+  sourceIds?: string[];
+  activeCount?: number;
+  jobs?: Array<Record<string, unknown>>;
+  failures?: Array<{ sourceId: string; error: string }>;
+  skipped?: Array<{ sourceId: string; reason: string }>;
+};
+
+async function apiCollectStream(
+  body: Record<string, unknown>,
+  onEvent: (event: CollectProgressEvent) => void,
+): Promise<{ summary: CollectAllResponse | null; hadError: boolean }> {
+  let summary: CollectAllResponse | null = null;
+  let hadError = false;
+
+  const dispatch = (event: CollectProgressEvent): void => {
+    if (event.type === "error") hadError = true;
+    if (event.type === "run_done") {
+      summary = {
+        jobs: event.jobs,
+        failures: event.failures,
+        skipped: event.skipped,
+        activeCount: event.activeCount,
+      };
+    }
+    onEvent(event);
+  };
+
+  const res = await fetch(`${getBaseUrl()}/api/admin/collect`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...body, stream: true }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+
+  if (!res.body) {
+    throw new Error("API 未返回流式响应（请重启 data-platform 服务）");
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      dispatch(JSON.parse(trimmed) as CollectProgressEvent);
+    }
+  }
+
+  const tail = buffer.trim();
+  if (tail) {
+    dispatch(JSON.parse(tail) as CollectProgressEvent);
+  }
+
+  return { summary, hadError };
+}
+
 // ── 命令实现 ──
 
 function parseSearchFilters(opts: Record<string, string>): SearchRequest["filters"] | undefined {
@@ -230,17 +309,173 @@ async function fetchSourceRows(): Promise<SourceRow[]> {
   return sources.map(mapSourceToRow);
 }
 
+type CollectAllResponse = {
+  jobs?: Array<Record<string, unknown>>;
+  failures?: Array<{ sourceId: string; error: string }>;
+  skipped?: Array<{ sourceId: string; reason: string }>;
+  activeCount?: number;
+};
+
+function printCollectJobLine(j: Record<string, unknown>): void {
+  const status = String(j.status ?? "unknown");
+  const icon = status === "success" ? "✅" : status === "failed" ? "❌" : "⏳";
+  const items = j.itemsCollected ?? 0;
+  const errMsg = j.errorMessage ? ` — ${j.errorMessage}` : "";
+  console.log(`  ${icon} ${j.sourceId}: ${status} (${items} 条)${errMsg}`);
+}
+
+let progressLineActive = false;
+
+function clearProgressLine(): void {
+  if (progressLineActive) {
+    process.stdout.write("\n");
+    progressLineActive = false;
+  }
+}
+
+function printCollectProgressEvent(ev: CollectProgressEvent, jsonOutput: boolean): void {
+  if (jsonOutput) {
+    console.log(JSON.stringify(ev));
+    return;
+  }
+
+  switch (ev.type) {
+    case "run_start":
+      clearProgressLine();
+      console.log(
+        `将采集 ${ev.activeCount ?? ev.sourceIds?.length ?? 0} 个信源: ${(ev.sourceIds ?? []).join(", ")}`,
+      );
+      break;
+    case "source_start":
+      clearProgressLine();
+      console.log(
+        `\n▶ ${ev.sourceId}  job #${ev.jobId}  since=${ev.since}${ev.query ? `  query="${ev.query}"` : ""}`,
+      );
+      break;
+    case "progress": {
+      const line = `  · ${ev.sourceId}  已抓取 ${ev.fetched ?? 0}，新入库 ${ev.itemsCollected ?? 0}`;
+      process.stdout.write(`\r${line.padEnd(72)}`);
+      progressLineActive = true;
+      break;
+    }
+    case "source_done": {
+      clearProgressLine();
+      const job = ev.job ?? {};
+      printCollectJobLine(job);
+      break;
+    }
+    case "source_failed":
+      clearProgressLine();
+      console.log(`  ❌ ${ev.sourceId}: 触发失败 — ${ev.error ?? "unknown"}`);
+      break;
+    case "source_skipped":
+      clearProgressLine();
+      console.log(`  ⏭️  ${ev.sourceId}: 跳过 — ${ev.reason ?? "unknown"}`);
+      break;
+    case "error":
+      clearProgressLine();
+      console.error(`❌ ${ev.message ?? "unknown error"}`);
+      break;
+    case "run_done":
+      break;
+    default:
+      break;
+  }
+}
+
+function reportCollectAll(
+  resp: CollectAllResponse,
+  opts?: { skipDetailLines?: boolean },
+): number {
+  const jobs = resp.jobs ?? [];
+  const failures = resp.failures ?? [];
+  const skipped = resp.skipped ?? [];
+  const activeCount = resp.activeCount ?? jobs.length + failures.length + skipped.length;
+
+  if (activeCount === 0) {
+    console.log("  ⚠️  无 active 数据源（请检查 config sync 或 data_sources.status）");
+    return 0;
+  }
+
+  if (!opts?.skipDetailLines) {
+    for (const j of jobs) {
+      printCollectJobLine(j);
+    }
+    for (const f of failures) {
+      console.log(`  ❌ ${f.sourceId}: 触发失败 — ${f.error}`);
+    }
+    for (const s of skipped) {
+      console.log(`  ⏭️  ${s.sourceId}: 跳过 — ${s.reason}`);
+    }
+  }
+
+  const jobFailed = jobs.filter((j) => j.status === "failed").length;
+  const jobOk = jobs.filter((j) => j.status === "success").length;
+  console.log(
+    `\n汇总: active ${activeCount}，成功 ${jobOk}，任务失败 ${jobFailed}，触发失败 ${failures.length}，跳过 ${skipped.length}`,
+  );
+
+  if (
+    jobs.length === 0 &&
+    failures.length === 0 &&
+    skipped.length === 0 &&
+    activeCount > 0
+  ) {
+    console.error(
+      "❌ 未收到任何信源结果（API 可能过旧）；请重启 data-platform 服务后重试",
+    );
+    return 1;
+  }
+
+  return failures.length + jobFailed > 0 ? 1 : 0;
+}
+
+async function runCollectWithStream(
+  body: Record<string, unknown>,
+  jsonOutput: boolean,
+): Promise<number> {
+  const { summary, hadError } = await apiCollectStream(body, (ev) => {
+    printCollectProgressEvent(ev, jsonOutput);
+  });
+
+  clearProgressLine();
+
+  if (hadError) return 1;
+  if (!summary) {
+    console.error("❌ 未收到 run_done（API 可能过旧，请重启服务）");
+    return 1;
+  }
+
+  if (!jsonOutput) {
+    return reportCollectAll(summary, { skipDetailLines: true });
+  }
+
+  const jobFailed =
+    (summary.jobs ?? []).filter((j) => j.status === "failed").length +
+    (summary.failures ?? []).length;
+  return jobFailed > 0 ? 1 : 0;
+}
+
 async function cmdCollect(args: string[]) {
   const opts = parseArgs(args);
   const sourceId = opts.source ?? opts.all;
   const query = opts.query ?? "";
+  const jsonOutput = opts.json === "true";
+  const noStream = opts["no-stream"] === "true";
 
   if (opts.all === "true") {
-    console.log("⏳ 触发全部数据源采集...");
-    const resp = await apiPost<{ jobs: Array<Record<string, unknown>> }>("/api/admin/collect", {});
-    for (const j of resp.jobs) {
-      console.log(`  ${j.sourceId}: ${j.status} (${j.itemsCollected} 条)`);
+    if (noStream) {
+      const resp = await apiPost<CollectAllResponse>("/api/admin/collect", { query });
+      if (jsonOutput) {
+        console.log(JSON.stringify(resp, null, 2));
+      } else {
+        const code = reportCollectAll(resp);
+        if (code !== 0) throw new CliExit(code);
+      }
+      return;
     }
+    const code = await runCollectWithStream({ query }, jsonOutput);
+    if (code !== 0) throw new CliExit(code);
     return;
   }
 
@@ -249,9 +484,17 @@ async function cmdCollect(args: string[]) {
     throw new CliExit(1);
   }
 
-  console.log(`⏳ 采集 ${sourceId}...`);
-  const resp = await apiPost<Record<string, unknown>>("/api/admin/collect", { sourceId, query });
-  console.log(JSON.stringify(resp, null, 2));
+  if (noStream) {
+    const resp = await apiPost<Record<string, unknown>>("/api/admin/collect", {
+      sourceId,
+      query,
+    });
+    console.log(JSON.stringify(resp, null, 2));
+    return;
+  }
+
+  const code = await runCollectWithStream({ sourceId, query }, jsonOutput);
+  if (code !== 0) throw new CliExit(code);
 }
 
 async function cmdSources(args: string[]) {
@@ -949,6 +1192,8 @@ function printHelp() {
     --source <id>            数据源 ID
     --all                    采集所有 active 数据源
     --query <文本>           搜索查询（可选）
+    --json                   JSON 行流式输出（NDJSON，含 progress 事件）
+    --no-stream              关闭实时进度，等待结束后一次性 JSON
 
   jobs:
     --limit <数字>           返回条数 (默认: 20)

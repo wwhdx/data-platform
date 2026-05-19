@@ -131,4 +131,99 @@ describe("API smoke (Fastify inject)", () => {
     expect(res.statusCode).toBe(500);
     await app.close();
   });
+
+  it("POST /api/admin/collect --all 返回 failures 而非静默空 jobs", async () => {
+    vi.mocked(query).mockImplementation(async (sql: string) => {
+      if (sql.includes("data_sources") && sql.includes("active")) {
+        return { rows: [{ id: "openalex" }, { id: "crossref" }] };
+      }
+      return { rows: [] };
+    });
+
+    const stubConnector = {
+      meta: { id: "stub" },
+      search: async () => [],
+      collect: async function* () {},
+    } as import("../../types").Connector;
+
+    const scheduler = new Scheduler();
+    scheduler.registerConnector({ id: "openalex", create: () => stubConnector });
+    scheduler.registerConnector({ id: "crossref", create: () => stubConnector });
+
+    const triggerSpy = vi
+      .spyOn(scheduler, "trigger")
+      .mockRejectedValueOnce(new Error("db constraint missing"))
+      .mockResolvedValueOnce({
+        id: 2,
+        sourceId: "crossref",
+        status: "success",
+        itemsCollected: 3,
+        startedAt: new Date(),
+      });
+
+    const app = await buildApp({ scheduler, logger: false });
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/admin/collect",
+      payload: {},
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body) as {
+      jobs: Array<{ sourceId: string; status: string }>;
+      failures: Array<{ sourceId: string; error: string }>;
+      skipped: Array<{ sourceId: string; reason: string }>;
+      activeCount: number;
+    };
+    expect(body.activeCount).toBe(2);
+    expect(body.failures).toEqual([
+      { sourceId: "openalex", error: "db constraint missing" },
+    ]);
+    expect(body.jobs).toHaveLength(1);
+    expect(body.jobs[0]?.sourceId).toBe("crossref");
+    expect(body.skipped).toEqual([]);
+    expect(triggerSpy).toHaveBeenCalledTimes(2);
+    await app.close();
+  });
+
+  it("POST /api/admin/collect stream=true 返回 NDJSON 进度", async () => {
+    vi.mocked(query).mockImplementation(async (sql: string) => {
+      if (sql.includes("data_sources") && sql.includes("active")) {
+        return { rows: [{ id: "openalex" }] };
+      }
+      return { rows: [] };
+    });
+
+    const stubConnector = {
+      meta: { id: "stub" },
+      search: async () => [],
+      collect: async function* () {
+        yield {
+          sourceId: "openalex",
+          externalId: "W1",
+          rawJson: {},
+          fetchedAt: new Date(),
+        };
+      },
+    } as import("../../types").Connector;
+
+    const scheduler = new Scheduler();
+    scheduler.registerConnector({ id: "openalex", create: () => stubConnector });
+
+    const app = await buildApp({ scheduler, logger: false });
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/admin/collect",
+      payload: { stream: true },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toContain("application/x-ndjson");
+    const lines = res.body.trim().split("\n");
+    expect(lines.length).toBeGreaterThanOrEqual(2);
+    const types = lines.map((line) => JSON.parse(line).type);
+    expect(types).toContain("run_start");
+    expect(types).toContain("run_done");
+    await app.close();
+  });
 });

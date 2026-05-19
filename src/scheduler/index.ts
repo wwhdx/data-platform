@@ -1,5 +1,7 @@
 import cron from "node-cron";
 import type { CollectionJob, RawDocument } from "../types";
+import type { CollectProgressReporter } from "./progress";
+import { throttledProgress } from "./progress";
 import { createCollectionJob, updateCollectionJob } from "../storage/models/collectionJob";
 import {
   ensureScheduleRow,
@@ -19,6 +21,10 @@ export interface ScheduledTaskMeta {
   sourceId: string;
   cronExpr: string;
   query: string;
+}
+
+export interface TriggerOptions {
+  onProgress?: CollectProgressReporter;
 }
 
 export class Scheduler {
@@ -59,8 +65,12 @@ export class Scheduler {
     });
   }
 
-  async trigger(sourceId: string, query?: string): Promise<CollectionJob> {
-    return this.runCollection(sourceId, query ?? "");
+  async trigger(
+    sourceId: string,
+    query?: string,
+    options?: TriggerOptions,
+  ): Promise<CollectionJob> {
+    return this.runCollection(sourceId, query ?? "", options?.onProgress);
   }
 
   start(): void {
@@ -75,11 +85,17 @@ export class Scheduler {
     }
   }
 
-  private async runCollection(sourceId: string, searchQuery: string): Promise<CollectionJob> {
+  private async runCollection(
+    sourceId: string,
+    searchQuery: string,
+    onProgress?: CollectProgressReporter,
+  ): Promise<CollectionJob> {
     const factory = this.connectors.get(sourceId);
     if (!factory) {
       throw new Error(`Unknown connector: ${sourceId}`);
     }
+
+    const report = throttledProgress(onProgress);
 
     const schedule = await ensureScheduleRow(sourceId);
     const collectQuery = (searchQuery || schedule.query || "").trim();
@@ -90,28 +106,48 @@ export class Scheduler {
       query: collectQuery || searchQuery,
     });
 
+    report?.({
+      type: "source_start",
+      sourceId,
+      jobId: job.id,
+      since,
+      query: collectQuery || undefined,
+    });
+
     try {
       await touchScheduleRunStart(sourceId);
       const connector = factory.create();
       let total = 0;
+      let fetched = 0;
       const BUFFER_SIZE = 200;
       const buffer: RawDocument[] = [];
+
+      const emitProgress = () => {
+        report?.({
+          type: "progress",
+          sourceId,
+          jobId: job.id,
+          fetched,
+          itemsCollected: total,
+        });
+      };
 
       for await (const doc of connector.collect({
         since,
         query: collectQuery || undefined,
       })) {
         buffer.push(doc);
+        fetched++;
 
         if (buffer.length >= BUFFER_SIZE) {
           const { newDocs } = await dedup(buffer);
           total += newDocs.length;
           buffer.length = 0;
           await updateCollectionJob(job.id, { itemsCollected: total });
+          emitProgress();
         }
       }
 
-      // 处理尾部剩余
       if (buffer.length > 0) {
         const { newDocs } = await dedup(buffer);
         total += newDocs.length;
@@ -121,12 +157,15 @@ export class Scheduler {
       await markScheduleCollectionSuccess(sourceId);
       job.status = "success";
       job.itemsCollected = total;
+      emitProgress();
+      report?.({ type: "source_done", job });
       return job;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       await updateCollectionJob(job.id, { status: "failed", errorMessage: msg });
       job.status = "failed";
       job.errorMessage = msg;
+      report?.({ type: "source_done", job });
       return job;
     }
   }

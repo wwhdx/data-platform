@@ -1,11 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const PACKAGE_ROOT = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../..",
-);
+/** 编译产物位于 dist/config/，上两级为包根目录 */
+const PACKAGE_ROOT = path.resolve(__dirname, "../..");
 
 /** 仅解析项目根目录 `.env`（不读 .env.local / .env.*） */
 export function parseEnvContent(content: string): Record<string, string> {

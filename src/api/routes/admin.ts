@@ -1,11 +1,24 @@
 import type { FastifyPluginAsync } from "fastify";
 import { listJobs } from "../../storage/models/collectionJob";
 import { query } from "../../storage/db";
+import { runCollectAll, runCollectOne } from "../collectRunner";
+import type { CollectProgressEvent } from "../../scheduler/progress";
+
+function writeNdjson(
+  write: (event: CollectProgressEvent) => void,
+  event: CollectProgressEvent,
+): void {
+  write(event);
+}
 
 export const adminRoutes: FastifyPluginAsync = async (app) => {
-  // 手动触发采集
+  // 手动触发采集（body.stream=true 时返回 NDJSON 实时进度）
   app.post("/collect", async (req, reply) => {
-    const body = req.body as { sourceId?: string; query?: string } | null;
+    const body = req.body as {
+      sourceId?: string;
+      query?: string;
+      stream?: boolean;
+    } | null;
     const scheduler = app.scheduler;
 
     if (!scheduler) {
@@ -13,32 +26,45 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const sourceId = body?.sourceId;
+    const searchQuery = body?.query ?? "";
+    const useStream = body?.stream === true;
 
-    if (sourceId) {
+    const run = async (report?: (event: CollectProgressEvent) => void) => {
+      if (sourceId) {
+        return runCollectOne(scheduler, sourceId, searchQuery, report);
+      }
+      return runCollectAll(scheduler, searchQuery, report);
+    };
+
+    if (!useStream) {
       try {
-        const job = await scheduler.trigger(sourceId, body?.query);
-        return reply.send(job);
+        const result = await run();
+        return reply.send(result);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         return reply.status(400).send({ error: msg });
       }
     }
 
-    // 触发所有 active 数据源（动态查询 data_sources 表）
-    const jobs = [];
-    const result = await query(
-      `SELECT id FROM data_sources WHERE status = 'active' ORDER BY id`,
-    );
-    for (const row of result.rows) {
-      try {
-        const job = await scheduler.trigger(String(row.id), body?.query ?? "");
-        jobs.push(job);
-      } catch {
-        // 某些 Connector 可能未注册
-      }
-    }
+    reply.hijack();
+    reply.raw.writeHead(200, {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+    });
 
-    return reply.send({ jobs });
+    const send = (event: CollectProgressEvent) => {
+      reply.raw.write(`${JSON.stringify(event)}\n`);
+    };
+
+    try {
+      await run((event) => writeNdjson(send, event));
+      reply.raw.end();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      writeNdjson(send, { type: "error", message: msg });
+      reply.raw.end();
+    }
   });
 
   // 采集任务历史
