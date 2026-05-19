@@ -1,4 +1,5 @@
 import { query } from "../storage/db";
+import { syncSchedulesToDb } from "../storage/models/collectionSchedule";
 import type { DataPlatformConfig } from "./types";
 
 /**
@@ -72,9 +73,11 @@ export async function syncToDb(config: DataPlatformConfig): Promise<{
     skipped++;
   }
 
-  if (inserted + updated > 0) {
+  const { upserted: schedulesUpserted } = await syncSchedulesToDb(config);
+
+  if (inserted + updated > 0 || schedulesUpserted > 0) {
     console.log(
-      `[config] 同步完成: ${inserted} 新源, ${updated} 覆盖, ${skipped} 跳过 (API 已修改)`,
+      `[config] 同步完成: ${inserted} 新源, ${updated} 覆盖, ${skipped} 跳过 (API 已修改), ${schedulesUpserted} 调度行`,
     );
   }
 

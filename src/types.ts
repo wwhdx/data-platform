@@ -65,6 +65,10 @@ export interface CollectionSchedule {
   enabled: boolean;
   lastRunAt?: Date;
   nextRunAt?: Date;
+  /** 上次成功采集完成时间，作为下次 collect({ since }) 起点 */
+  lastCollectedAt?: Date;
+  /** 采集中途断点（后续 A5+ 可选） */
+  lastCursor?: string;
 }
 
 // ── 采集参数 ──

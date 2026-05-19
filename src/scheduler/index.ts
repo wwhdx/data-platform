@@ -1,6 +1,12 @@
 import cron from "node-cron";
 import type { CollectionJob, RawDocument } from "../types";
 import { createCollectionJob, updateCollectionJob } from "../storage/models/collectionJob";
+import {
+  ensureScheduleRow,
+  markScheduleCollectionSuccess,
+  toCollectSinceDate,
+  touchScheduleRunStart,
+} from "../storage/models/collectionSchedule";
 import { dedup } from "../processors/dedup";
 import { query } from "../storage/db";
 
@@ -75,15 +81,26 @@ export class Scheduler {
       throw new Error(`Unknown connector: ${sourceId}`);
     }
 
-    const job = await createCollectionJob({ sourceId, query: searchQuery });
+    const schedule = await ensureScheduleRow(sourceId);
+    const collectQuery = (searchQuery || schedule.query || "").trim();
+    const since = toCollectSinceDate(schedule.lastCollectedAt);
+
+    const job = await createCollectionJob({
+      sourceId,
+      query: collectQuery || searchQuery,
+    });
 
     try {
+      await touchScheduleRunStart(sourceId);
       const connector = factory.create();
       let total = 0;
       const BUFFER_SIZE = 200;
       const buffer: RawDocument[] = [];
 
-      for await (const doc of connector.collect({})) {
+      for await (const doc of connector.collect({
+        since,
+        query: collectQuery || undefined,
+      })) {
         buffer.push(doc);
 
         if (buffer.length >= BUFFER_SIZE) {
@@ -101,6 +118,7 @@ export class Scheduler {
       }
 
       await updateCollectionJob(job.id, { status: "success", itemsCollected: total });
+      await markScheduleCollectionSuccess(sourceId);
       job.status = "success";
       job.itemsCollected = total;
       return job;
