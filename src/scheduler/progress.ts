@@ -1,4 +1,6 @@
-import type { CollectionJob } from "../types";
+import type { CollectJobStats, CollectionJob } from "../types";
+
+export type { CollectJobStats };
 
 export interface CollectAllFailure {
   sourceId: string;
@@ -8,16 +10,6 @@ export interface CollectAllFailure {
 export interface CollectAllSkipped {
   sourceId: string;
   reason: string;
-}
-
-/** 单次采集任务汇总（L1：进度/CLI；L2 将持久化至 collection_jobs.stats） */
-export interface CollectJobStats {
-  fetched: number;
-  inserted: number;
-  skippedDuplicate: number;
-  since: string;
-  query?: string;
-  batchCount?: number;
 }
 
 export type CollectProgressReporter = (event: CollectProgressEvent) => void;

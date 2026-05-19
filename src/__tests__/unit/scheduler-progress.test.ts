@@ -8,6 +8,9 @@ import { dedup } from "../../processors/dedup";
 vi.mock("../../storage/models/collectionSchedule");
 vi.mock("../../storage/models/collectionJob");
 vi.mock("../../processors/dedup");
+vi.mock("../../storage/models/collectionJobEvent", () => ({
+  insertCollectionJobEvent: vi.fn().mockResolvedValue(undefined),
+}));
 
 describe("Scheduler collect progress", () => {
   beforeEach(() => {
@@ -106,5 +109,50 @@ describe("Scheduler collect progress", () => {
     const last = progressEvents[progressEvents.length - 1]!;
     expect(last.skippedDuplicate).toBe(3);
     expect(last.inserted).toBe(0);
+  });
+
+  it("persists stats and collectionJobId on success", async () => {
+    vi.mocked(dedup).mockImplementation(async (docs) => {
+      const first = docs[0];
+      expect(first?.collectionJobId).toBe(7);
+      return { newDocs: docs, skippedCount: 0 };
+    });
+
+    const scheduler = new Scheduler();
+    scheduler.registerConnector({
+      id: "openalex",
+      create: () =>
+        ({
+          meta: { id: "openalex" },
+          search: async () => [],
+          collect(_params: CollectParams) {
+            return (async function* () {
+              yield {
+                sourceId: "openalex",
+                externalId: "W9",
+                rawJson: { title: "T" },
+                fetchedAt: new Date(),
+              };
+            })();
+          },
+        }) as import("../../types").Connector,
+    });
+
+    await scheduler.trigger("openalex", "ml", {});
+
+    expect(collectionJob.updateCollectionJob).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({
+        status: "success",
+        itemsCollected: 1,
+        stats: expect.objectContaining({
+          fetched: 1,
+          inserted: 1,
+          skippedDuplicate: 0,
+          since: "2026-05-19",
+          connectorId: "openalex",
+        }),
+      }),
+    );
   });
 });

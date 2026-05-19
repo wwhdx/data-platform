@@ -23,7 +23,8 @@
     "fastify": "^4.28.0",
     "js-yaml": "^4.1.1",
     "node-cron": "^3.0.3",
-    "pg": "^8.13.0"
+    "pg": "^8.13.0",
+    "pino": "^9.6.0"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

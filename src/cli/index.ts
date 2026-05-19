@@ -476,16 +476,27 @@ async function runCollectWithStream(
   return jobFailed > 0 ? 1 : 0;
 }
 
+function withCollectVerbose(
+  body: Record<string, unknown>,
+  verbose: boolean,
+): Record<string, unknown> {
+  return verbose ? { ...body, verbose: true } : body;
+}
+
 async function cmdCollect(args: string[]) {
   const opts = parseArgs(args);
   const sourceId = opts.source ?? opts.all;
   const query = opts.query ?? "";
   const jsonOutput = opts.json === "true";
   const noStream = opts["no-stream"] === "true";
+  const verbose = opts.verbose === "true";
 
   if (opts.all === "true") {
     if (noStream) {
-      const resp = await apiPost<CollectAllResponse>("/api/admin/collect", { query });
+      const resp = await apiPost<CollectAllResponse>(
+        "/api/admin/collect",
+        withCollectVerbose({ query }, verbose),
+      );
       if (jsonOutput) {
         console.log(JSON.stringify(resp, null, 2));
       } else {
@@ -494,7 +505,10 @@ async function cmdCollect(args: string[]) {
       }
       return;
     }
-    const code = await runCollectWithStream({ query }, jsonOutput);
+    const code = await runCollectWithStream(
+      withCollectVerbose({ query }, verbose),
+      jsonOutput,
+    );
     if (code !== 0) throw new CliExit(code);
     return;
   }
@@ -505,15 +519,18 @@ async function cmdCollect(args: string[]) {
   }
 
   if (noStream) {
-    const resp = await apiPost<Record<string, unknown>>("/api/admin/collect", {
-      sourceId,
-      query,
-    });
+    const resp = await apiPost<Record<string, unknown>>(
+      "/api/admin/collect",
+      withCollectVerbose({ sourceId, query }, verbose),
+    );
     console.log(JSON.stringify(resp, null, 2));
     return;
   }
 
-  const code = await runCollectWithStream({ sourceId, query }, jsonOutput);
+  const code = await runCollectWithStream(
+    withCollectVerbose({ sourceId, query }, verbose),
+    jsonOutput,
+  );
   if (code !== 0) throw new CliExit(code);
 }
 
@@ -533,6 +550,38 @@ async function cmdSources(args: string[]) {
 async function cmdJobs(args: string[]) {
   const opts = parseArgs(args);
   const limit = parseInt(opts.limit ?? "20", 10);
+  const jsonOutput = opts.json === "true";
+
+  if (opts["job-id"]) {
+    const jobId = parseInt(opts["job-id"], 10);
+    if (!Number.isFinite(jobId)) {
+      console.error("❌ --job-id 须为数字");
+      throw new CliExit(1);
+    }
+    const events = await apiGet<
+      Array<{
+        id: number;
+        jobId: number;
+        ts: string;
+        level: string;
+        eventType: string;
+        payload: Record<string, unknown>;
+      }>
+    >(`/api/admin/jobs/${jobId}/events?limit=${limit}`);
+
+    if (jsonOutput) {
+      console.log(JSON.stringify(events, null, 2));
+      return;
+    }
+
+    console.log(`job #${jobId} 事件（${events.length} 条）:\n`);
+    for (const ev of events) {
+      const ts = new Date(ev.ts).toISOString();
+      console.log(`  [${ev.level}] ${ts}  ${ev.eventType}`);
+      console.log(`    ${JSON.stringify(ev.payload)}`);
+    }
+    return;
+  }
 
   const jobs = await apiGet<CollectionJob[]>(`/api/admin/jobs?limit=${limit}`);
   console.log(`最近 ${jobs.length} 次采集任务:\n`);
@@ -545,8 +594,14 @@ async function cmdJobs(args: string[]) {
       : "运行中";
 
     const icon = j.status === "success" ? "✅" : j.status === "failed" ? "❌" : "⏳";
-    console.log(`  ${icon} ${j.sourceId}  ${duration}`);
-    console.log(`     状态: ${j.status}  采集: ${j.itemsCollected} 条`);
+    console.log(`  ${icon} ${j.sourceId}  job #${j.id}  ${duration}`);
+    console.log(`     状态: ${j.status}  新入库: ${j.itemsCollected} 条`);
+    if (j.stats) {
+      const stats = j.stats;
+      console.log(
+        `     抓取 ${stats.fetched}，新入库 ${stats.inserted}，重复跳过 ${stats.skippedDuplicate}`,
+      );
+    }
     if (j.errorMessage) console.log(`     错误: ${j.errorMessage}`);
     console.log();
   }
@@ -1214,9 +1269,12 @@ function printHelp() {
     --query <文本>           搜索查询（可选）
     --json                   JSON 行流式输出（NDJSON，含 progress 事件）
     --no-stream              关闭实时进度，等待结束后一次性 JSON
+    --verbose                启用 skip_sample 抽样（每批最多 5 条重复 ID）
 
   jobs:
     --limit <数字>           返回条数 (默认: 20)
+    --job-id <n>             查看指定任务事件（须配合 --events）
+    --events                 拉取 collection_job_events（须配合 --job-id）
 
   schedules:
     --source <id>[,id...]    仅显示指定源

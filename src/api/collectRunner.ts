@@ -1,3 +1,4 @@
+import { withCollectLogSink } from "../collect/logWriter";
 import type { Scheduler } from "../scheduler";
 import type { CollectionJob } from "../types";
 import type {
@@ -21,7 +22,11 @@ function emit(
   report: CollectProgressReporter | undefined,
   event: CollectProgressEvent,
 ): void {
-  report?.(event);
+  withCollectLogSink(report)?.(event);
+}
+
+export interface CollectRunOptions {
+  skipSampleLimit?: number;
 }
 
 export async function runCollectOne(
@@ -29,6 +34,7 @@ export async function runCollectOne(
   sourceId: string,
   searchQuery: string,
   report?: CollectProgressReporter,
+  runOpts?: CollectRunOptions,
 ): Promise<CollectionJob> {
   if (!scheduler.hasConnector(sourceId)) {
     throw new Error(`Unknown connector: ${sourceId}`);
@@ -38,6 +44,7 @@ export async function runCollectOne(
 
   const job = await scheduler.trigger(sourceId, searchQuery, {
     onProgress: report,
+    skipSampleLimit: runOpts?.skipSampleLimit,
   });
 
   const summary: CollectAllResult = {
@@ -54,6 +61,7 @@ export async function runCollectAll(
   scheduler: Scheduler,
   searchQuery: string,
   report?: CollectProgressReporter,
+  runOpts?: CollectRunOptions,
 ): Promise<CollectAllResult> {
   const jobs: CollectionJob[] = [];
   const failures: CollectAllFailure[] = [];
@@ -87,6 +95,7 @@ export async function runCollectAll(
     try {
       const job = await scheduler.trigger(sourceId, searchQuery, {
         onProgress: report,
+        skipSampleLimit: runOpts?.skipSampleLimit,
       });
       jobs.push(job);
     } catch (err) {

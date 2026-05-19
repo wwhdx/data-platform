@@ -1,7 +1,8 @@
 import type { FastifyPluginAsync } from "fastify";
 import { listJobs } from "../../storage/models/collectionJob";
 import { query } from "../../storage/db";
-import { runCollectAll, runCollectOne } from "../collectRunner";
+import { runCollectAll, runCollectOne, type CollectRunOptions } from "../collectRunner";
+import { listJobEvents } from "../../storage/models/collectionJobEvent";
 import type { CollectProgressEvent } from "../../scheduler/progress";
 
 function writeNdjson(
@@ -18,6 +19,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       sourceId?: string;
       query?: string;
       stream?: boolean;
+      verbose?: boolean;
     } | null;
     const scheduler = app.scheduler;
 
@@ -28,12 +30,15 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     const sourceId = body?.sourceId;
     const searchQuery = body?.query ?? "";
     const useStream = body?.stream === true;
+    const runOpts: CollectRunOptions | undefined = body?.verbose
+      ? { skipSampleLimit: 5 }
+      : undefined;
 
     const run = async (report?: (event: CollectProgressEvent) => void) => {
       if (sourceId) {
-        return runCollectOne(scheduler, sourceId, searchQuery, report);
+        return runCollectOne(scheduler, sourceId, searchQuery, report, runOpts);
       }
-      return runCollectAll(scheduler, searchQuery, report);
+      return runCollectAll(scheduler, searchQuery, report, runOpts);
     };
 
     if (!useStream) {
@@ -72,6 +77,17 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     const limit = parseInt(String((req.query as Record<string, string>)?.limit ?? "20"), 10);
     const jobs = await listJobs(limit);
     return reply.send(jobs);
+  });
+
+  app.get("/jobs/:jobId/events", async (req, reply) => {
+    const { jobId } = req.params as { jobId: string };
+    const id = parseInt(jobId, 10);
+    if (!Number.isFinite(id)) {
+      return reply.status(400).send({ error: "invalid jobId" });
+    }
+    const limit = parseInt(String((req.query as Record<string, string>)?.limit ?? "100"), 10);
+    const events = await listJobEvents(id, limit);
+    return reply.send(events);
   });
 
   // 运行中 cron 调度（B14 live 可观测）

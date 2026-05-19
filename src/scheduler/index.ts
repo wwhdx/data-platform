@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import type { CollectionJob, RawDocument } from "../types";
-import type { CollectJobStats, CollectProgressReporter } from "./progress";
+import type { CollectJobStats } from "../types";
+import type { CollectProgressReporter } from "./progress";
 import { throttledProgress } from "./progress";
 import { createCollectionJob, updateCollectionJob } from "../storage/models/collectionJob";
 import {
@@ -9,7 +10,9 @@ import {
   toCollectSinceDate,
   touchScheduleRunStart,
 } from "../storage/models/collectionSchedule";
+import { collectLogSkipSampleLimit } from "../collect/env";
 import { dedup } from "../processors/dedup";
+import { insertCollectionJobEvent } from "../storage/models/collectionJobEvent";
 import { query } from "../storage/db";
 
 interface ConnectorFactory {
@@ -25,6 +28,8 @@ export interface ScheduledTaskMeta {
 
 export interface TriggerOptions {
   onProgress?: CollectProgressReporter;
+  /** 每批 dedup 写入 skip_sample 的抽样条数；未设则用 COLLECT_LOG_SKIP_SAMPLES */
+  skipSampleLimit?: number;
 }
 
 export class Scheduler {
@@ -70,7 +75,12 @@ export class Scheduler {
     query?: string,
     options?: TriggerOptions,
   ): Promise<CollectionJob> {
-    return this.runCollection(sourceId, query ?? "", options?.onProgress);
+    return this.runCollection(
+      sourceId,
+      query ?? "",
+      options?.onProgress,
+      options?.skipSampleLimit,
+    );
   }
 
   start(): void {
@@ -89,6 +99,7 @@ export class Scheduler {
     sourceId: string,
     searchQuery: string,
     onProgress?: CollectProgressReporter,
+    skipSampleLimit?: number,
   ): Promise<CollectionJob> {
     const factory = this.connectors.get(sourceId);
     if (!factory) {
@@ -96,6 +107,7 @@ export class Scheduler {
     }
 
     const report = throttledProgress(onProgress);
+    const sampleLimit = skipSampleLimit ?? collectLogSkipSampleLimit();
 
     const schedule = await ensureScheduleRow(sourceId);
     const collectQuery = (searchQuery || schedule.query || "").trim();
@@ -132,7 +144,40 @@ export class Scheduler {
         since,
         query: collectQuery || undefined,
         batchCount,
+        connectorId: sourceId,
       });
+
+      const stampJobId = (doc: RawDocument): RawDocument => ({
+        ...doc,
+        collectionJobId: job.id,
+      });
+
+      const recordBatch = (
+        batchIndex: number,
+        batchSize: number,
+        insertedInBatch: number,
+        skippedInBatch: number,
+        skippedSampleIds?: string[],
+      ): void => {
+        void insertCollectionJobEvent({
+          jobId: job.id,
+          eventType: "batch_dedup",
+          payload: {
+            batchIndex,
+            batchSize,
+            insertedInBatch,
+            skippedInBatch,
+          },
+        }).catch(() => {});
+
+        if (skippedSampleIds && skippedSampleIds.length > 0) {
+          void insertCollectionJobEvent({
+            jobId: job.id,
+            eventType: "skip_sample",
+            payload: { externalIds: skippedSampleIds },
+          }).catch(() => {});
+        }
+      };
 
       const emitProgress = () => {
         report?.({
@@ -151,14 +196,18 @@ export class Scheduler {
         since,
         query: collectQuery || undefined,
       })) {
-        buffer.push(doc);
+        buffer.push(stampJobId(doc));
         fetched++;
 
         if (buffer.length >= BUFFER_SIZE) {
-          const { newDocs, skippedCount } = await dedup(buffer);
+          const batchSize = buffer.length;
+          const { newDocs, skippedCount, skippedSampleIds } = await dedup(buffer, {
+            skipSampleLimit: sampleLimit,
+          });
           inserted += newDocs.length;
           skippedDuplicate += skippedCount;
           batchCount++;
+          recordBatch(batchCount, batchSize, newDocs.length, skippedCount, skippedSampleIds);
           buffer.length = 0;
           await updateCollectionJob(job.id, { itemsCollected: inserted });
           emitProgress();
@@ -166,36 +215,49 @@ export class Scheduler {
       }
 
       if (buffer.length > 0) {
-        const { newDocs, skippedCount } = await dedup(buffer);
+        const batchSize = buffer.length;
+        const { newDocs, skippedCount, skippedSampleIds } = await dedup(buffer, {
+          skipSampleLimit: sampleLimit,
+        });
         inserted += newDocs.length;
         skippedDuplicate += skippedCount;
         batchCount++;
+        recordBatch(batchCount, batchSize, newDocs.length, skippedCount, skippedSampleIds);
       }
 
-      await updateCollectionJob(job.id, { status: "success", itemsCollected: inserted });
+      const stats = buildStats();
+      await updateCollectionJob(job.id, {
+        status: "success",
+        itemsCollected: inserted,
+        stats,
+      });
       await markScheduleCollectionSuccess(sourceId);
       job.status = "success";
       job.itemsCollected = inserted;
+      job.stats = stats;
       emitProgress();
-      report?.({ type: "source_done", job, stats: buildStats() });
+      report?.({ type: "source_done", job, stats });
       return job;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      await updateCollectionJob(job.id, { status: "failed", errorMessage: msg });
+      const stats: CollectJobStats = {
+        fetched,
+        inserted,
+        skippedDuplicate,
+        since,
+        query: collectQuery || undefined,
+        batchCount,
+        connectorId: sourceId,
+      };
+      await updateCollectionJob(job.id, {
+        status: "failed",
+        errorMessage: msg,
+        stats,
+      });
       job.status = "failed";
       job.errorMessage = msg;
-      report?.({
-        type: "source_done",
-        job,
-        stats: {
-          fetched,
-          inserted,
-          skippedDuplicate,
-          since,
-          query: collectQuery || undefined,
-          batchCount,
-        },
-      });
+      job.stats = stats;
+      report?.({ type: "source_done", job, stats });
       return job;
     }
   }

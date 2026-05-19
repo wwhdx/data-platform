@@ -1,5 +1,7 @@
+import { logger } from "../lib/logger";
 import type { RawDocument } from "../types";
 import { insertRawDocuments, findExistingIds } from "../storage/models/rawDocument";
+import { insertCollectionJobEvent } from "../storage/models/collectionJobEvent";
 import { embedDocuments } from "../rag/vectorStore";
 import { mirrorInsertedDocuments } from "../export/mirror";
 
@@ -11,9 +13,11 @@ import { mirrorInsertedDocuments } from "../export/mirror";
  */
 export async function dedup(
   docs: RawDocument[],
+  opts?: { skipSampleLimit?: number },
 ): Promise<{
   newDocs: RawDocument[];
   skippedCount: number;
+  skippedSampleIds?: string[];
 }> {
   if (docs.length === 0) return { newDocs: [], skippedCount: 0 };
 
@@ -26,6 +30,8 @@ export async function dedup(
 
   let allNewDocs: RawDocument[] = [];
   let skippedCount = 0;
+  const skippedSampleIds: string[] = [];
+  const sampleLimit = opts?.skipSampleLimit ?? 0;
 
   for (const [sourceId, sourceDocs] of bySource) {
     const externalIds = sourceDocs.map(d => d.externalId);
@@ -35,6 +41,9 @@ export async function dedup(
     for (const d of sourceDocs) {
       if (existing.has(d.externalId)) {
         skippedCount++;
+        if (sampleLimit > 0 && skippedSampleIds.length < sampleLimit) {
+          skippedSampleIds.push(d.externalId);
+        }
       } else {
         fresh.push(d);
       }
@@ -43,18 +52,34 @@ export async function dedup(
     if (fresh.length > 0) {
       const inserted = await insertRawDocuments(fresh);
 
+      const jobId = fresh[0]?.collectionJobId;
       mirrorInsertedDocuments(inserted).catch(err => {
-        console.error(
-          "mirrorInsertedDocuments failed:",
-          err instanceof Error ? err.message : err,
-        );
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.warn({ jobId, sourceId, err: msg }, "mirrorInsertedDocuments failed");
+        if (jobId != null) {
+          void insertCollectionJobEvent({
+            jobId,
+            level: "warn",
+            eventType: "mirror_fail",
+            payload: { sourceId, message: msg },
+          }).catch(() => {});
+        }
       });
 
       // Stage 4: 对新文档生成 embedding
       const docsWithContent = inserted.filter(d => d.title);
       if (docsWithContent.length > 0) {
         embedDocuments(docsWithContent).catch(err => {
-          console.error("embedDocuments failed:", err instanceof Error ? err.message : err);
+          const msg = err instanceof Error ? err.message : String(err);
+          logger.warn({ jobId, sourceId, err: msg }, "embedDocuments failed");
+          if (jobId != null) {
+            void insertCollectionJobEvent({
+              jobId,
+              level: "error",
+              eventType: "embed_fail",
+              payload: { sourceId, message: msg },
+            }).catch(() => {});
+          }
         });
       }
 
@@ -62,5 +87,9 @@ export async function dedup(
     }
   }
 
-  return { newDocs: allNewDocs, skippedCount };
+  return {
+    newDocs: allNewDocs,
+    skippedCount,
+    skippedSampleIds: skippedSampleIds.length > 0 ? skippedSampleIds : undefined,
+  };
 }

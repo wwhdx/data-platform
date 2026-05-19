@@ -8,6 +8,9 @@ import { dedup } from "../../processors/dedup";
 vi.mock("../../storage/models/collectionSchedule");
 vi.mock("../../storage/models/collectionJob");
 vi.mock("../../processors/dedup");
+vi.mock("../../storage/models/collectionJobEvent", () => ({
+  insertCollectionJobEvent: vi.fn().mockResolvedValue(undefined),
+}));
 
 describe("Scheduler incremental collect (A5)", () => {
   beforeEach(() => {

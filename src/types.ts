@@ -45,6 +45,17 @@ export interface RawDocument {
 // ── 采集任务 ──
 export type CollectionJobStatus = "pending" | "running" | "success" | "failed";
 
+/** 单次采集汇总（L2 持久化至 collection_jobs.stats） */
+export interface CollectJobStats {
+  fetched: number;
+  inserted: number;
+  skippedDuplicate: number;
+  since: string;
+  query?: string;
+  batchCount?: number;
+  connectorId?: string;
+}
+
 export interface CollectionJob {
   id: number;
   sourceId: string;
@@ -54,6 +65,7 @@ export interface CollectionJob {
   errorMessage?: string;
   startedAt: Date;
   finishedAt?: Date;
+  stats?: CollectJobStats;
 }
 
 // ── 采集调度 ──

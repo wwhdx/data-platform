@@ -1,4 +1,4 @@
-import type { CollectionJob, CollectionJobStatus } from "../../types";
+import type { CollectJobStats, CollectionJob, CollectionJobStatus } from "../../types";
 import { query } from "../db";
 
 export async function createCollectionJob(params: {
@@ -18,7 +18,12 @@ export async function createCollectionJob(params: {
 
 export async function updateCollectionJob(
   id: number,
-  update: { status?: CollectionJobStatus; itemsCollected?: number; errorMessage?: string },
+  update: {
+    status?: CollectionJobStatus;
+    itemsCollected?: number;
+    errorMessage?: string;
+    stats?: CollectJobStats;
+  },
 ): Promise<void> {
   const sets: string[] = [];
   const params: unknown[] = [];
@@ -38,6 +43,10 @@ export async function updateCollectionJob(
   if (update.errorMessage !== undefined) {
     sets.push(`error_message = $${i++}`);
     params.push(update.errorMessage);
+  }
+  if (update.stats !== undefined) {
+    sets.push(`stats = $${i++}::jsonb`);
+    params.push(JSON.stringify(update.stats));
   }
 
   if (sets.length === 0) return;
@@ -69,6 +78,23 @@ export async function getLatestJobPerSource(): Promise<Map<string, CollectionJob
   return map;
 }
 
+function parseStats(raw: unknown): CollectJobStats | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const s = raw as Record<string, unknown>;
+  if (typeof s.fetched !== "number" || typeof s.inserted !== "number") {
+    return undefined;
+  }
+  return {
+    fetched: s.fetched,
+    inserted: s.inserted,
+    skippedDuplicate: Number(s.skippedDuplicate ?? 0),
+    since: String(s.since ?? ""),
+    query: s.query as string | undefined,
+    batchCount: s.batchCount as number | undefined,
+    connectorId: s.connectorId as string | undefined,
+  };
+}
+
 function rowToJob(row: Record<string, unknown>): CollectionJob {
   return {
     id: Number(row.id),
@@ -79,5 +105,6 @@ function rowToJob(row: Record<string, unknown>): CollectionJob {
     errorMessage: row.error_message as string | undefined,
     startedAt: new Date(String(row.started_at)),
     finishedAt: row.finished_at ? new Date(String(row.finished_at)) : undefined,
+    stats: parseStats(row.stats),
   };
 }
