@@ -1,8 +1,20 @@
 # 数据源配置 interface_profile 实施方案
 
-> **状态**：设计已定稿（文档 v1.0）· **代码**：未实施  
+> **状态**：设计已定稿 · **代码**：B9–B11 未实施 · **B12 文档** ✅  
 > **日期**：2026-05-19  
+> **进度真源**：[实施进度总览.md](./实施进度总览.md) §3 B 系列  
 > **关联**：[外部数据源配置热更新方案](./外部数据源配置热更新方案.md) · [免费数据源接口分类分析](../knowledge/免费数据源接口分类分析.md) · [下一阶段实施方案](./下一阶段实施方案.md)（任务 B9–B12）
+
+### 代码落地对照（2026-05-19）
+
+| 步骤 | 状态 | 路径 |
+|------|------|------|
+| B9 `expandProfiles` | □ | `src/config/expand.ts`（未建） |
+| B9 loader v1.1 | □ | `src/config/loader.ts` 仅 v1.0 |
+| B9 `sources.yml` v1.1 | □ | `config/sources.yml` 仍为 `version: "1.0"` |
+| B10 CLI | □ | 仅 `config list` |
+| B11 runtime options | □ | — |
+| B12 文档 | ✅ | 本文 + `docs/plans/` 目录 |
 
 ---
 
@@ -326,3 +338,4 @@ psql ... -c "SELECT id, base_url, auth_type, status FROM data_sources ORDER BY i
 |------|------|------|
 | v1.0 | 2026-05-19 | 初稿：Schema v1.1、profile 目录、B9–B12 分阶段、迁移与测试计划 |
 | v1.0.1 | 2026-05-19 | 文档迁至 `docs/plans/`；共识类保留 `docs/knowledge/` |
+| v1.0.2 | 2026-05-19 | 文首代码落地对照表；链至 [实施进度总览](./实施进度总览.md) |

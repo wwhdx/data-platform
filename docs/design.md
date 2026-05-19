@@ -808,23 +808,25 @@ ctx.state.dataPlatformResults = data.results.map(r => ({
 
 ## 十、分阶段实施计划
 
-### Phase 1：MVP 骨架（2-4 周）
+> **进度真源（2026-05-19）**：[plans/实施进度总览.md](plans/实施进度总览.md) · 任务 A/B/C 见 [plans/下一阶段实施方案.md](plans/下一阶段实施方案.md)
 
-**目标**：3 个 Connector + PostgreSQL + 简单搜索 API，跑通闭环
+### Phase 1：MVP 骨架（2-4 周）— ✅ 已完成（2026-05-19）
 
-- [ ] 项目初始化：tsconfig, package.json, ESLint, vitest
-- [ ] BaseConnector + RateLimiter + ExponentialBackoff
-- [ ] OpenAlexConnector + S2Connector + PatentsViewConnector
-- [ ] PostgreSQL 数据模型（DataSource, RawDocument, CollectionJob）
-- [ ] 去重处理器（Stage 1）
-- [ ] 关键词搜索 API（PostgreSQL `tsvector`, `/api/search`）
-- [ ] 简易调度器（node-cron，每日采集）
-- [ ] engine-core SearchProvider adapter
-- [ ] 数据许可台账（DataSourceAuth + DataProvenance 字段）
+**目标**：3 个 Connector + PostgreSQL + 搜索 API，跑通闭环
 
-**交付物**：可独立运行的 HTTP 服务，engine-core 可切换 SearchProvider 消费
+- [x] 项目初始化：tsconfig, package.json, vitest
+- [x] BaseConnector + RateLimiter + ExponentialBackoff + `paginateOffset`
+- [x] OpenAlexConnector + CrossRefConnector + WorldBankConnector（原草案 S2/PatentsView 未做，见 YAML 占位）
+- [x] PostgreSQL 数据模型 + 迁移 `001`–`006`
+- [x] 去重处理器（Stage 1）+ Scheduler 200 条批量
+- [x] 搜索 API（`/api/search`，混合检索非纯关键词）
+- [x] 调度器（node-cron）+ `config/sources.yml` 同步
+- [x] engine-core SearchProvider adapter（子包内 `adapters/engineCore.ts`）
+- [x] 数据许可字段（`data_sources.license` / `commercial_use`）
 
-### Phase 2：RAG 能力（✅ 实施中）
+**交付物**：可独立运行的 HTTP 服务；父仓 engine-core **注入**待 C2–C3
+
+### Phase 2：RAG 能力 — ✅ 已落地
 
 **目标**：Embedding + pgvector + 混合检索
 
@@ -880,13 +882,16 @@ ctx.state.dataPlatformResults = data.results.map(r => ({
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-05-19 | v0.2.2 | §十 Phase 1/2 勾选与代码对齐；链至 `docs/plans/实施进度总览.md` |
 | 2026-05-19 | v0.2.1 | **Agent 工作流**：新增 `.cursor/rules/*.mdc`、`opencode.json`、`AGENTS.md`、`docs/agent-workflow.md`；`CLAUDE.md` 改为 `@import` 规则；commit 须用户明确说明（与望野主仓对齐）。 |
 | 2025-05-15 | v0.1 | 初始草案 |
 | 2026-05-15 | v0.2 | 职责边界澄清：移除 `/api/context`（LLM 摘要生成 → engine-core）；§9.1 接入点从 3 个精简为 2 个；§1.2 边界表新增 LLM 摘要/实体抽取行；Phase 4 移除 `/api/context` |
 
-> **版本**: v0.2 | **状态**: 修订中 | **最后更新**: 2026-05-15
+> **版本**: v0.2.2 | **状态**: Phase 1/2 已落地 | **最后更新**: 2026-05-19
 >
 > 相关文档：
+> - 实施进度总览：`docs/plans/实施进度总览.md`
+> - 下一阶段排期：`docs/plans/下一阶段实施方案.md`
 > - Agent 工作流：`docs/agent-workflow.md`
 > - engine-core 接口协议：`../engine-core/ENGINE_CONTRACTS.md`
 > - 数据源清单：`docs/data-sources.md`

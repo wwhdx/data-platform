@@ -7,4 +7,4 @@
 | [数据平台API协议.md](./数据平台API协议.md) | HTTP 契约与检索字段（与父仓 `docs/knowledge/` 同步） |
 | [免费数据源接口分类分析.md](./免费数据源接口分类分析.md) | 按协议/认证类型归类的外部数据源速查 |
 
-**不放此处**：实施方案、热更新设计、接入排期等 → 见 [`../plans/`](../plans/README.md) 与 [`../design.md`](../design.md)。
+**不放此处**：实施方案、热更新设计、接入排期等 → 见 [`../plans/`](../plans/README.md)（含 [实施进度总览](../plans/实施进度总览.md)）与 [`../design.md`](../design.md)。

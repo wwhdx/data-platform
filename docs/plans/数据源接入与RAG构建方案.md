@@ -1,7 +1,8 @@
 # data-platform 数据源接入与 RAG 库构建方案
 
 > 设计分析 · 2026-05-15
-> 聚焦：Connector 开发框架 → 采集协议 → RAG 库构建流水线
+> 聚焦：Connector 开发框架 → 采集协议 → RAG 库构建流水线  
+> **代码进度真源**：[实施进度总览.md](./实施进度总览.md)（2026-05-19 同步）
 
 ---
 
@@ -12,13 +13,16 @@
 | 组件 | 状态 | 说明 |
 |------|------|------|
 | BaseConnector 抽象类 | ✅ 完善 | fetch/fetchPost/paginate + RateLimiter + ExponentialBackoff |
-| OpenAlexConnector | ✅ 唯一实现 | 搜索 + cursor 分页增量采集 + searchResult/rawDocument 映射 |
-| dedup 处理器 | ✅ 完善 | (sourceId, externalId) 唯一键，upsert 语义，自动触发 embedding |
-| RAG 混合检索 | ✅ 完善 | embedQuery + semanticSearch + keywordSearch → RRF 融合 |
-| 多后端 Embedding | ✅ 完善 | Ollama bge-m3 / OpenAI text-embedding-3-small / Voyage voyage-3-large |
-| 分块存储 | ⚠️ MVP | 每个文档 1 个 chunk（title + abstract），未做段落级分块 |
-| 富化流水线 | ❌ 空壳 | enrich.ts / chunk.ts 未实现 |
-| Connector 覆盖 | ❌ 1/17 | 仅 OpenAlex，Semantic Scholar 和 PatentsView 仅预留占位 |
+| OpenAlexConnector | ✅ | 搜索 + cursor 分页采集 |
+| CrossRefConnector | ✅ | Polite pool；单测 21 |
+| WorldBankConnector | ✅ | offset 分页；YAML 默认 disabled；单测 12 |
+| dedup 处理器 | ✅ | (sourceId, externalId) 唯一键，自动触发 embedding |
+| RAG 混合检索 | ✅ | semantic + tsvector → RRF |
+| 多后端 Embedding | ✅ | Ollama bge-m3 / OpenAI / Voyage |
+| Scheduler 批量 dedup | ✅ | 200 条缓冲 |
+| 分块存储 | ⚠️ MVP | 每文档 1 chunk（title + abstract） |
+| 富化流水线 | ❌ | enrich.ts / chunk.ts 未实现 |
+| Connector 覆盖 | 🟡 **3/11**（YAML 登记） | 运行时注册 openalex、crossref、worldbank；S2/PatentsView 仅 export 注释 |
 
 ### 1.2 当前采集流程（端到端）
 

@@ -7,10 +7,14 @@
 
 ## 零、当前状态（2026-05-19）
 
+> **与下一阶段规划对照**：[plans/实施进度总览.md](plans/实施进度总览.md) · [plans/下一阶段实施方案.md](plans/下一阶段实施方案.md)
+
 ```
 data-platform/
 ├── package.json              # pg + fastify + node-cron + js-yaml
-├── config/sources.yml        # 11+ 数据源 YAML（启动 syncToDb）
+├── config/sources.yml        # 11 源 YAML v1.0（启动 syncToDb）
+├── docs/plans/               # 项目设计 + 实施进度总览
+├── docs/knowledge/           # 共识知识（API 协议、接口分类）
 ├── docker-compose.yml        # db(:5433) + ollama + app
 ├── src/
 │   ├── index.ts              # DB 连接 + config sync + 3 Connector + scheduler + API
@@ -23,8 +27,8 @@ data-platform/
 │   ├── scheduler/index.ts    # cron + 200 条批量 dedup
 │   ├── storage/              # db + models + migrations 001–006
 │   ├── adapters/engineCore.ts
-│   └── cli/index.ts          # 8 命令 + config list
-└── src/__tests__/            # 57 tests (vitest)
+│   └── cli/index.ts          # 8 命令 + config list；health → GET /health
+└── src/__tests__/            # 57 tests (vitest, 2026-05-19)
 ```
 
 **可用基础设施**：
@@ -724,5 +728,6 @@ curl -X POST http://localhost:3400/api/search \
 |------|------|------|
 | v0.1 | 2025-05-15 | 初稿 |
 | v1.0 | 2026-05-19 | §零/§三/§四 与代码对齐；§六 E2E 实库验收通过；状态改为已完成 |
+| v1.1 | 2026-05-19 | 链至 `plans/实施进度总览.md`；§零 补 docs/plans·knowledge、health CLI |
 
-> **版本**: v1.0 | **状态**: 已完成（代码 + E2E） | **最后更新**: 2026-05-19
+> **版本**: v1.1 | **状态**: Phase 1 已完成；后续见 `plans/实施进度总览.md` | **最后更新**: 2026-05-19

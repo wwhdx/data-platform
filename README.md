@@ -202,6 +202,13 @@ src/
 └── adapters/engineCore.ts     engine-core SearchProvider 适配
 ```
 
+## 文档与进度
+
+| 文件 | 说明 |
+|------|------|
+| [`docs/plans/实施进度总览.md`](docs/plans/实施进度总览.md) | **代码真源 ↔ A/B/C 任务**（优先维护） |
+| [`docs/plans/下一阶段实施方案.md`](docs/plans/下一阶段实施方案.md) | 周计划与依赖 |
+
 ## 数据源配置（运维）
 
 | 文件 | 说明 |
