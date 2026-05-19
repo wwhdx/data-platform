@@ -117,6 +117,89 @@ async function cmdSearch(args: string[]) {
   }
 }
 
+type SourceRow = {
+  id: string;
+  name: string;
+  status: string;
+  base_url: string;
+  rate_limit: string;
+  license: string;
+  commercial_use: string;
+  total_docs: string;
+  last_collect: string;
+};
+
+function mapSourceToRow(s: Record<string, unknown>): SourceRow {
+  const lastFetch = s.last_fetch ?? s.lastFetch;
+  const date = lastFetch
+    ? new Date(String(lastFetch)).toISOString().slice(0, 16).replace("T", " ")
+    : "—";
+  return {
+    id: String(s.id ?? ""),
+    name: String(s.name ?? ""),
+    status: String(s.status ?? "unknown"),
+    base_url: String(s.base_url ?? ""),
+    rate_limit: String(s.rate_limit ?? ""),
+    license: String(s.license ?? ""),
+    commercial_use: s.commercial_use ? "是" : "否",
+    total_docs: String(s.total_docs ?? "0"),
+    last_collect: date,
+  };
+}
+
+function truncateField(value: string, max: number): string {
+  if (value.length <= max) return value;
+  return `${value.slice(0, max - 1)}…`;
+}
+
+function printSourcesTable(rows: SourceRow[]): void {
+  if (rows.length === 0) {
+    console.log("（无已注册数据源，请先执行 migrate 命令）");
+    return;
+  }
+
+  const cols = ["数据源", "名称", "状态", "文档数", "限速", "商用", "许可", "最近采集"];
+  const data = rows.map((row) => {
+    const icon =
+      row.status === "active" ? "🟢" : row.status === "disabled" ? "⚫" : "🟡";
+    return [
+      row.id,
+      truncateField(row.name, 18),
+      `${icon} ${row.status}`,
+      row.total_docs,
+      truncateField(row.rate_limit, 10),
+      row.commercial_use,
+      truncateField(row.license, 14),
+      row.last_collect,
+    ];
+  });
+
+  const widths = cols.map((col, index) =>
+    Math.max(col.length, ...data.map((fields) => fields[index]!.length)),
+  );
+  const pad = (value: string, width: number) =>
+    value + " ".repeat(Math.max(0, width - value.length));
+  const divider =
+    "─".repeat(widths.reduce((sum, width) => sum + width, 0) + widths.length * 3 + 1);
+
+  console.log("已注册数据源:\n");
+  console.log(divider);
+  console.log(`│ ${cols.map((col, index) => pad(col, widths[index]!)).join(" │ ")} │`);
+  console.log(divider);
+  for (const fields of data) {
+    console.log(
+      `│ ${fields.map((field, index) => pad(field, widths[index]!)).join(" │ ")} │`,
+    );
+  }
+  console.log(divider);
+  console.log(`${rows.length} 个数据源`);
+}
+
+async function fetchSourceRows(): Promise<SourceRow[]> {
+  const sources = await apiGet<Array<Record<string, unknown>>>("/api/sources");
+  return sources.map(mapSourceToRow);
+}
+
 async function cmdCollect(args: string[]) {
   const opts = parseArgs(args);
   const sourceId = opts.source ?? opts.all;
@@ -141,18 +224,17 @@ async function cmdCollect(args: string[]) {
   console.log(JSON.stringify(resp, null, 2));
 }
 
-async function cmdSources() {
-  const sources = await apiGet<Array<Record<string, unknown>>>("/api/sources");
-  console.log("已注册数据源:\n");
-  for (const s of sources) {
-    console.log(`  ${s.id}`);
-    console.log(`    名称: ${s.name}`);
-    console.log(`    许可: ${s.license}  (商用: ${s.commercial_use})`);
-    console.log(`    限速: ${s.rate_limit}`);
-    console.log(`    文档数: ${s.total_docs ?? 0}`);
-    console.log(`    状态: ${s.status}`);
-    console.log();
+async function cmdSources(args: string[]) {
+  const opts = parseArgs(args);
+  const jsonOutput = opts.json === "true";
+  const rows = await fetchSourceRows();
+
+  if (jsonOutput) {
+    console.log(JSON.stringify(rows, null, 2));
+    return;
   }
+
+  printSourcesTable(rows);
 }
 
 async function cmdJobs(args: string[]) {
@@ -589,63 +671,8 @@ async function cmdConfig(args: string[]) {
       await cmdConfigListByProfile(configPath);
       return;
     }
-    const sources = await apiGet<Array<Record<string, unknown>>>("/api/sources");
-    const rows = sources.map((s) => {
-      const lastFetch = s.last_fetch ?? s.lastFetch;
-      const date = lastFetch
-        ? new Date(String(lastFetch)).toISOString().slice(0, 16).replace("T", " ")
-        : "—";
-      return {
-        id: String(s.id ?? ""),
-        name: String(s.name ?? ""),
-        status: String(s.status ?? "unknown"),
-        base_url: String(s.base_url ?? ""),
-        rate_limit: String(s.rate_limit ?? ""),
-        license: String(s.license ?? ""),
-        commercial_use: s.commercial_use ? "是" : "否",
-        total_docs: String(s.total_docs ?? "0"),
-        last_collect: date,
-      };
-    });
-
-    // 彩色表格
-    if (rows.length === 0) {
-      console.log("（无已注册数据源，请先执行 migrate 命令）");
-      return;
-    }
-
-    const cols = ["数据源", "状态", "文档数", "商用", "许可", "最近采集"];
-    const widths = [
-      Math.max(...rows.map(r => r.id.length), 6),
-      8,
-      8,
-      4,
-      Math.max(...rows.map(r => r.license.length), 4),
-      16,
-    ];
-
-    const pad = (s: string, w: number) => s + " ".repeat(Math.max(0, w - s.length));
-    const divider = "─".repeat(widths.reduce((a, b) => a + b, 0) + widths.length * 3 + 1);
-
-    console.log(divider);
-    console.log(`│ ${cols.map((c, i) => pad(c, widths[i]!)).join(" │ ")} │`);
-    console.log(divider);
-
-    for (const r of rows) {
-      const icon =
-        r.status === "active" ? "🟢" : r.status === "disabled" ? "⚫" : "🟡";
-      const fields = [
-        r.id,
-        `${icon} ${r.status}`,
-        r.total_docs,
-        r.commercial_use,
-        r.license.length > 20 ? r.license.slice(0, 18) + "…" : r.license,
-        r.last_collect,
-      ];
-      console.log(`│ ${fields.map((f, i) => pad(f, widths[i]!)).join(" │ ")} │`);
-    }
-    console.log(divider);
-    console.log(`${rows.length} 个数据源`);
+    const rows = await fetchSourceRows();
+    printSourcesTable(rows);
     return;
   }
 
@@ -810,6 +837,9 @@ function printHelp() {
   health:
     --json                   JSON 格式输出
 
+  sources:
+    --json                   JSON 格式输出
+
   config:
     list --by-profile       按 interface_profile 分组（读 YAML）
 
@@ -850,7 +880,7 @@ async function main() {
       await cmdCollect(rest);
       break;
     case "sources":
-      await cmdSources();
+      await cmdSources(rest);
       break;
     case "jobs":
       await cmdJobs(rest);
