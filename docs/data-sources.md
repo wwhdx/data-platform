@@ -213,9 +213,9 @@ GET  /recommendations/v1/papers/{id}     # 推荐
   ✅ CrossRef       ← DOI 枢纽（摘要覆盖率低，主要元数据用途）
   ✅ World Bank     ← 经济指标（无摘要，不参与 RAG）
   ✅ PubMed         ← 生物医学（2026-05-19 补 efetch 摘要 A10）
+  ✅ Semantic Scholar ← abstract + tldr（A4；YAML 默认 disabled；`SEMANTIC_SCHOLAR_API_KEY`）
 
 RAG 质量优先（按摘要可用性排序）：
-  P1  Semantic Scholar  ← abstract 字符串 + tldr，最干净，任务 A4
   P2  arXiv OAI-PMH    ← 摘要 + 部分全文，AI/ML 覆盖最深，任务 A7
   P2  PatentsView       ← 专利摘要，技术趋势分析
 
@@ -235,3 +235,4 @@ RAG 质量优先（按摘要可用性排序）：
 
 > **维护频率**：速率限制与认证策略每季度核查一次。最新变化见各平台官方文档。
 > **内容层评估**：2026-05-19 增补，详析见 [数据源接入与RAG构建方案.md §7](./plans/数据源接入与RAG构建方案.md#7-内容层评估与-rag-可用性分析)。
+> **A4 Semantic Scholar**：2026-05-19 落地 `semanticscholar.ts`；`SEMANTIC_SCHOLAR_API_KEY`；YAML 默认 `enabled: false`。

@@ -54,7 +54,7 @@ data-platform/
 
 **超前实现（原属 Phase 2，已落地）**：Embedding、`document_chunks`、RRF 混合检索、Docker Ollama、配置热更新 P0（B1–B5）、World Bank Connector（A2–A3）。
 
-**未完成（转入「下一阶段」）**：Semantic Scholar（A4）、增量采集（A5）、主平台 `DataPlatformClient` + engine-core 注入（C2–C3）、**配置 v1.1 interface_profile 分层（B9–B11）**。
+**未完成（转入「下一阶段」）**：主平台 `DataPlatformClient` + engine-core 注入（C2–C3）。**已转出**：Semantic Scholar（A4 ✅）、增量采集（A5 ✅）、配置 v1.1（B9–B11 ✅）。
 
 **配置 v1.1（设计已定稿，代码未落地）**：
 
@@ -681,7 +681,7 @@ curl -X POST http://localhost:3400/api/search \
 
 | 不做 | 原因 | 何时做 | 备注 |
 |------|------|--------|------|
-| Semantic Scholar Connector | 商业授权 + 模板验证后再开 | Phase 1.5 | A4，YAML 占位 `enabled: false` |
+| ~~Semantic Scholar Connector~~ | — | — | **✅ A4 已落地**（`semanticscholar.ts`）；YAML 仍 `enabled: false`（非商用许可） |
 | PatentsView Connector | 同上 | Phase 1.5 | |
 | Qdrant 独立向量库 | pgvector 已满足 MVP | — | 已用 pgvector，不引入 Qdrant |
 | ~~Embedding 生成~~ | — | — | **已超前完成**（`rag/embed.ts`） |

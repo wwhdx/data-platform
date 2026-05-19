@@ -26,6 +26,7 @@ function guessApiKeyEnv(sourceId: string): string | undefined {
     openalex: "OPENALEX_API_KEY",
     pubmed: "NCBI_API_KEY",
     crossref: "CROSSREF_MAILTO",
+    semanticscholar: "SEMANTIC_SCHOLAR_API_KEY",
   };
   return map[sourceId];
 }

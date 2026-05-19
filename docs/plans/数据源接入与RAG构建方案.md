@@ -16,13 +16,15 @@
 | OpenAlexConnector | ✅ | 搜索 + cursor 分页采集 |
 | CrossRefConnector | ✅ | Polite pool；单测 21 |
 | WorldBankConnector | ✅ | offset 分页；YAML 默认 disabled；单测 12 |
+| PubMedConnector | ✅ | esearch + esummary + efetch 摘要（A10） |
+| SemanticScholarConnector | ✅ | Header `x-api-key`；abstract/tldr；单测 9（A4）；YAML 默认 disabled |
 | dedup 处理器 | ✅ | (sourceId, externalId) 唯一键，自动触发 embedding |
 | RAG 混合检索 | ✅ | semantic + tsvector → RRF |
 | 多后端 Embedding | ✅ | Ollama bge-m3 / OpenAI / Voyage |
 | Scheduler 批量 dedup | ✅ | 200 条缓冲 |
 | 分块存储 | ⚠️ MVP | 每文档 1 chunk（title + abstract） |
 | 富化流水线 | ❌ | enrich.ts / chunk.ts 未实现 |
-| Connector 覆盖 | 🟡 **3/12**（YAML 登记） | 运行时注册 openalex、crossref、worldbank；S2/PatentsView 仅 export 注释 |
+| Connector 覆盖 | 🟡 **5/12**（YAML 登记） | 运行时注册 openalex、crossref、worldbank、pubmed、**semanticscholar**（A4 ✅） |
 
 ### 1.2 当前采集流程（端到端）
 
@@ -201,7 +203,7 @@ class TokenManager {
 | 分页模式 | 代表来源 | BaseConnector 支持 | 建议 |
 |---------|---------|-------------------|------|
 | **Cursor** | OpenAlex, CrossRef | ✅ `paginate()` | 直接使用 |
-| **Offset** | World Bank, Semantic Scholar | ❌ | 新增 `paginateOffset()` |
+| **Offset** | World Bank, Semantic Scholar | ✅ | `paginateOffset()` + S2 `collect` offset 分页 |
 | **ResumptionToken** | arXiv OAI-PMH | ❌ | 新增 `paginateResumptionToken()` |
 | **WebEnv + query_key** | PubMed | ❌ | Connector 内部自行处理 |
 | **Link Header** | GitHub | ❌ | 新增 `paginateLinkHeader()` |
@@ -636,7 +638,7 @@ const results = await dataPlatform.search(query, {
 | 优先级 | 改动 | 文件 |
 |--------|------|------|
 | **P1** | 实现 World Bank Connector（零认证） | `connectors/worldbank.ts` |
-| **P1** | 实现 Semantic Scholar Connector（Header Key） | `connectors/semanticscholar.ts` |
+| ~~**P1**~~ | ~~实现 Semantic Scholar Connector（Header Key）~~ | ✅ `connectors/semanticscholar.ts`（2026-05-19） |
 | **P1** | 增量采集 `last_collected_at` 持久化 | 迁移 + `scheduler/index.ts` |
 | **P1** | 采集错误日志写入 collection_jobs.error_message | `scheduler/index.ts` |
 
@@ -688,7 +690,7 @@ const results = await dataPlatform.search(query, {
 | **OpenAlex** | ✅ 丰富 | ✅ `abstract_inverted_index`（需反转还原） | ❌ | ⭐⭐⭐⭐ | 🔴 A11（已有数据，修复零成本） |
 | **PubMed (esummary)** | ✅ 书目完整 | ❌ 不在此端点 | ❌ | ⭐（当前） | 🔴 A10（需新增 `efetch` 调用） |
 | **PubMed (efetch)** | ✅ | ✅ `<AbstractText>` XML | ❌（需 PMC） | ⭐⭐⭐⭐ | — |
-| **Semantic Scholar** | ✅ | ✅ `abstract`（直接字符串） + `tldr.text` | ❌ | ⭐⭐⭐⭐⭐ | A4（新 Connector） |
+| **Semantic Scholar** | ✅ | ✅ `abstract`（直接字符串） + `tldr.text` | ❌ | ⭐⭐⭐⭐⭐ | ✅ A4（`semanticscholar.ts`） |
 | **arXiv** | ✅ | ✅ `<summary>`（OAI-PMH） | ✅（HTML，部分） | ⭐⭐⭐⭐⭐ | A7 |
 | **CrossRef** | ✅ | 🟡 20% 有 | ❌ | ⭐⭐ | 不单独修复 |
 | **PatentsView** | ✅ | ✅ `patent_abstract` | ❌ | ⭐⭐⭐ | P2 |
@@ -776,7 +778,7 @@ rawJson = { ...esummaryRecord, abstract: "<AbstractText>" }
        ↳ 修改 pubmed.ts collect()；合并 abstract 字段进 rawJson
 
 新增 Connector（按 RAG 质量排序）：
-  A4   Semantic Scholar  ← abstract 字符串 + tldr，最干净，P1
+  ~~A4~~ Semantic Scholar  ← ✅ 2026-05-19（abstract + tldr；`SEMANTIC_SCHOLAR_API_KEY`）
   A7   arXiv OAI-PMH     ← 摘要 + 部分全文，P2
   PatentsView            ← 专利摘要，P2
 
@@ -792,3 +794,4 @@ rawJson = { ...esummaryRecord, abstract: "<AbstractText>" }
 |------|------|------|
 | v1.0 | 2026-05-15 | 初版：Connector 框架、采集协议、RAG 流水线 |
 | v1.1 | 2026-05-19 | §7 新增：内容层评估（PubMed esummary 无摘要、OpenAlex 倒排索引问题）、RSS vs API 分析、各信源 RAG 可用性表、A10/A11 修复方案 |
+| v1.2 | 2026-05-19 | A4：`SemanticScholarConnector`（search + offset 采集 + abstract/tldr）；bootstrap 注册；默认 YAML disabled |

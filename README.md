@@ -16,7 +16,8 @@
 │  去重 → 分块 → Embedding (OpenAI)           │
 ├─────────────────────────────────────────────┤
 │  采集层                                     │
-│  OpenAlex Connector (CC0, 2.4 亿论文)       │
+│  OpenAlex · CrossRef · World Bank · PubMed  │
+│  · Semantic Scholar（5 源运行时注册）         │
 │  BaseConnector · RateLimiter · Backoff      │
 ├─────────────────────────────────────────────┤
 │  PostgreSQL 16 + pgvector                   │
@@ -78,6 +79,7 @@ pnpm dev
 | `EMBED_BACKEND` | 否 | ollama（默认）/ voyage / openai |
 | `EMBED_API_URL` | 否 | Embedding 服务地址（默认 `http://localhost:11434`） |
 | `OPENALEX_API_KEY` | 否 | OpenAlex API Key（无 Key 可用但速率低） |
+| `SEMANTIC_SCHOLAR_API_KEY` | 否 | Semantic Scholar `x-api-key`（推荐；无 Key 易 402） |
 | `PORT` | 否 | 服务端口（默认 3400） |
 
 默认使用 **bge-m3**（Ollama 本地），无需任何外部 API Key。
@@ -92,9 +94,11 @@ pnpm cli <命令>
 pnpm cli search --query "transformer attention mechanism"
 pnpm cli search --query "machine learning" --json --max-results 5
 pnpm cli search --query "covid vaccine" --source openalex,crossref --commercial-only --date-from 2020-01-01
+pnpm cli search --query "deep learning" --source semanticscholar
 
 # 采集
 pnpm cli collect --source openalex
+pnpm cli collect --source semanticscholar --query "machine learning"
 pnpm cli collect --all
 
 # 信息查询
@@ -229,7 +233,11 @@ src/
 │   ├── base.ts                BaseConnector（速率 / 重试 / 分页）
 │   ├── rateLimiter.ts         令牌桶
 │   ├── backoff.ts             指数退避
-│   └── openalex.ts            OpenAlex Connector
+│   ├── openalex.ts            OpenAlex
+│   ├── crossref.ts            CrossRef
+│   ├── worldbank.ts           World Bank
+│   ├── pubmed.ts              PubMed (NCBI)
+│   └── semanticscholar.ts     Semantic Scholar (A4)
 ├── processors/
 │   └── dedup.ts               去重 → 入库 → 自动 Embedding
 ├── storage/                   持久化

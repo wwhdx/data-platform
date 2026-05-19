@@ -5,7 +5,13 @@ import {
 } from "../../scheduler/scheduleReport";
 import type { DataPlatformConfig, SourceConfig } from "../../config/types";
 
-const CONNECTORS = new Set(["openalex", "crossref", "worldbank", "pubmed"]);
+const CONNECTORS = new Set([
+  "openalex",
+  "crossref",
+  "worldbank",
+  "pubmed",
+  "semanticscholar",
+]);
 
 function stubSource(
   partial: Pick<SourceConfig, "id" | "enabled" | "schedule"> &
@@ -61,13 +67,13 @@ describe("resolveScheduleStatus", () => {
   it("skips sources without registered connector", () => {
     expect(
       resolveScheduleStatus(
-        { id: "semanticscholar", enabled: true, schedule: "0 9 * * *" },
+        { id: "arxiv", enabled: true, schedule: "0 11 * * *" },
         CONNECTORS,
       ),
     ).toEqual({
       status: "skipped",
       skipReason: "no_connector",
-      cronExpr: "0 9 * * *",
+      cronExpr: "0 11 * * *",
     });
   });
 
@@ -97,11 +103,12 @@ describe("buildScheduleReport", () => {
           enabled: true,
           schedule: "0 9 * * *",
         }),
+        stubSource({ id: "arxiv", enabled: true, schedule: "0 11 * * *" }),
       ]),
       CONNECTORS,
     );
 
-    expect(report).toHaveLength(4);
+    expect(report).toHaveLength(5);
     expect(report.find((r) => r.sourceId === "openalex")).toMatchObject({
       status: "active",
       hasConnector: true,
@@ -111,6 +118,10 @@ describe("buildScheduleReport", () => {
       skipReason: "disabled",
     });
     expect(report.find((r) => r.sourceId === "semanticscholar")).toMatchObject({
+      status: "active",
+      hasConnector: true,
+    });
+    expect(report.find((r) => r.sourceId === "arxiv")).toMatchObject({
       status: "skipped",
       skipReason: "no_connector",
     });

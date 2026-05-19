@@ -4,11 +4,21 @@ import { OpenAlexConnector } from "./openalex";
 import { CrossRefConnector } from "./crossref";
 import { WorldBankConnector } from "./worldbank";
 import { PubMedConnector, PUBMED_META } from "./pubmed";
+import {
+  SemanticScholarConnector,
+  SEMANTIC_SCHOLAR_META,
+} from "./semanticscholar";
 import { OPENALEX_META } from "./openalex";
 import { CROSSREF_META } from "./crossref";
 import { WORLD_BANK_META } from "./worldbank";
 
-export { OPENALEX_META, CROSSREF_META, WORLD_BANK_META, PUBMED_META };
+export {
+  OPENALEX_META,
+  CROSSREF_META,
+  WORLD_BANK_META,
+  PUBMED_META,
+  SEMANTIC_SCHOLAR_META,
+};
 
 /** 运行时已 registerConnector 的源 id（与 scheduleReport / B14 对齐） */
 export const REGISTERED_CONNECTOR_IDS = [
@@ -16,6 +26,7 @@ export const REGISTERED_CONNECTOR_IDS = [
   "crossref",
   "worldbank",
   "pubmed",
+  "semanticscholar",
 ] as const;
 
 export async function registerDefaultConnectors(
@@ -39,9 +50,18 @@ export async function registerDefaultConnectors(
       apiKey: process.env.NCBI_API_KEY,
     }),
   );
+  const semanticscholar = new SemanticScholarConnector(
+    await resolveConnectorConfig("semanticscholar", SEMANTIC_SCHOLAR_META, {
+      apiKey: process.env.SEMANTIC_SCHOLAR_API_KEY,
+    }),
+  );
 
   scheduler.registerConnector({ id: "openalex", create: () => openalex });
   scheduler.registerConnector({ id: "crossref", create: () => crossref });
   scheduler.registerConnector({ id: "worldbank", create: () => worldbank });
   scheduler.registerConnector({ id: "pubmed", create: () => pubmed });
+  scheduler.registerConnector({
+    id: "semanticscholar",
+    create: () => semanticscholar,
+  });
 }

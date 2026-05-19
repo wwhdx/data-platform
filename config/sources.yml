@@ -102,6 +102,8 @@ sources:
     commercial_use: false
     schedule: "0 9 * * *"
     description: "2亿+ 论文 + 引用图，商业需授权"
+    options:
+      default_collect_query: science
 
   - id: pubmed
     profile: ncbi_eutils
