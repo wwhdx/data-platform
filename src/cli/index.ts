@@ -186,6 +186,72 @@ async function cmdHealth(args: string[]) {
   }
 }
 
+async function cmdConfig(args: string[]) {
+  const sub = args[0];
+
+  if (sub === "list") {
+    const sources = await apiGet<Array<Record<string, unknown>>>("/api/sources");
+    const rows = sources.map(s => {
+      const date = s.lastCollectionAt
+        ? new Date(String(s.lastCollectionAt)).toISOString().slice(0, 16).replace("T", " ")
+        : "—";
+      return {
+        id: String(s.id ?? ""),
+        name: String(s.name ?? ""),
+        status: String(s.status ?? "unknown"),
+        base_url: String(s.base_url ?? ""),
+        rate_limit: String(s.rateLimit ?? ""),
+        license: String(s.license ?? ""),
+        commercial_use: s.commercialUse ? "是" : "否",
+        total_docs: String(s.totalDocuments ?? "0"),
+        last_collect: date,
+      };
+    });
+
+    // 彩色表格
+    if (rows.length === 0) {
+      console.log("（无已注册数据源，请先执行 migrate 命令）");
+      return;
+    }
+
+    const cols = ["数据源", "状态", "文档数", "商用", "许可", "最近采集"];
+    const widths = [
+      Math.max(...rows.map(r => r.id.length), 6),
+      8,
+      8,
+      4,
+      Math.max(...rows.map(r => r.license.length), 4),
+      16,
+    ];
+
+    const pad = (s: string, w: number) => s + " ".repeat(Math.max(0, w - s.length));
+    const divider = "─".repeat(widths.reduce((a, b) => a + b, 0) + widths.length * 3 + 1);
+
+    console.log(divider);
+    console.log(`│ ${cols.map((c, i) => pad(c, widths[i]!)).join(" │ ")} │`);
+    console.log(divider);
+
+    for (const r of rows) {
+      const icon = r.status === "healthy" ? "🟢" : r.status === "disabled" ? "⚫" : "🟡";
+      const fields = [
+        r.id,
+        `${icon} ${r.status}`,
+        r.total_docs,
+        r.commercial_use,
+        r.license.length > 20 ? r.license.slice(0, 18) + "…" : r.license,
+        r.last_collect,
+      ];
+      console.log(`│ ${fields.map((f, i) => pad(f, widths[i]!)).join(" │ ")} │`);
+    }
+    console.log(divider);
+    console.log(`${rows.length} 个数据源`);
+    return;
+  }
+
+  console.error("用法: data-platform-cli config <list>");
+  process.exit(1);
+}
+
 async function cmdMigrate() {
   const dbUrl = process.env.DATA_PLATFORM_DATABASE_URL;
   if (!dbUrl) {
@@ -251,6 +317,7 @@ async function cmdServe(args: string[]) {
   const { Scheduler } = await import("../scheduler");
   const { OpenAlexConnector } = await import("../connectors/openalex");
   const { CrossRefConnector } = await import("../connectors/crossref");
+  const { WorldBankConnector } = await import("../connectors/worldbank");
 
   const scheduler = new Scheduler();
   scheduler.registerConnector({
@@ -260,6 +327,10 @@ async function cmdServe(args: string[]) {
   scheduler.registerConnector({
     id: "crossref",
     create: () => new CrossRefConnector({ apiKey: process.env.CROSSREF_MAILTO }),
+  });
+  scheduler.registerConnector({
+    id: "worldbank",
+    create: () => new WorldBankConnector(),
   });
   scheduler.start();
 
@@ -282,6 +353,7 @@ function printHelp() {
   jobs      查看采集任务
   stats     统计信息
   health    健康检查
+  config    查看/管理数据源配置
   migrate   执行数据库迁移
   serve     启动 API 服务
 
@@ -351,6 +423,9 @@ async function main() {
       break;
     case "health":
       await cmdHealth(rest);
+      break;
+    case "config":
+      await cmdConfig(rest);
       break;
     case "migrate":
       await cmdMigrate();

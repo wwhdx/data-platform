@@ -48,6 +48,61 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(jobs);
   });
 
+  // 配置更新
+  app.put("/sources/:id", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const body = req.body as Record<string, unknown> | null;
+    if (!body || Object.keys(body).length === 0) {
+      return reply.status(400).send({ error: "no fields to update" });
+    }
+
+    const allowed: Record<string, string> = {
+      base_url: "base_url",
+      auth_type: "auth_type",
+      rate_limit: "rate_limit",
+      license: "license",
+      commercial_use: "commercial_use",
+      status: "status",
+    };
+
+    const sets: string[] = [];
+    const params: unknown[] = [id];
+
+    for (const [key, col] of Object.entries(allowed)) {
+      if (body[key] !== undefined) {
+        const old = await query(
+          `SELECT ${col} FROM data_sources WHERE id = $1`, [id],
+        ).then(r => r.rows[0]?.[col] as string | null);
+
+        sets.push(`${col} = $${params.length + 1}`);
+        params.push(body[key]);
+
+        await query(
+          `INSERT INTO config_audit_log (source_id, field_name, old_value, new_value)
+           VALUES ($1, $2, $3, $4)`,
+          [id, col, String(old ?? ""), String(body[key])],
+        );
+      }
+    }
+
+    if (sets.length === 0) {
+      return reply.status(400).send({ error: "no allowed fields to update" });
+    }
+
+    sets.push(`updated_at = now()`);
+
+    const result = await query(
+      `UPDATE data_sources SET ${sets.join(", ")} WHERE id = $1 RETURNING *`,
+      params,
+    );
+
+    if (result.rows.length === 0) {
+      return reply.status(404).send({ error: "source not found" });
+    }
+
+    return reply.send({ ok: true, source: result.rows[0] });
+  });
+
   // 统计
   app.get("/stats", async (_req, reply) => {
     const { query } = await import("../../storage/db");

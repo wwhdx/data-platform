@@ -1,5 +1,5 @@
 import cron from "node-cron";
-import type { CollectionJob } from "../types";
+import type { CollectionJob, RawDocument } from "../types";
 import { createCollectionJob, updateCollectionJob } from "../storage/models/collectionJob";
 import { dedup } from "../processors/dedup";
 import { query } from "../storage/db";
@@ -54,14 +54,24 @@ export class Scheduler {
     try {
       const connector = factory.create();
       let total = 0;
+      const BUFFER_SIZE = 200;
+      const buffer: RawDocument[] = [];
 
       for await (const doc of connector.collect({})) {
-        const { newDocs } = await dedup([doc]);
-        total += newDocs.length;
+        buffer.push(doc);
 
-        if (total % 50 === 0) {
+        if (buffer.length >= BUFFER_SIZE) {
+          const { newDocs } = await dedup(buffer);
+          total += newDocs.length;
+          buffer.length = 0;
           await updateCollectionJob(job.id, { itemsCollected: total });
         }
+      }
+
+      // 处理尾部剩余
+      if (buffer.length > 0) {
+        const { newDocs } = await dedup(buffer);
+        total += newDocs.length;
       }
 
       await updateCollectionJob(job.id, { status: "success", itemsCollected: total });

@@ -90,4 +90,29 @@ export abstract class BaseConnector implements Connector {
       cursor = result.nextCursor;
     }
   }
+
+  /**
+   * 通用 offset 分页游走。
+   * fetchPage 返回当前页数据，数组长度 < perPage 时停止。
+   */
+  protected async *paginateOffset<T>(
+    fetchPage: (page: number, perPage: number) => Promise<T[]>,
+    opts?: { maxPages?: number; perPage?: number },
+  ): AsyncGenerator<T> {
+    const perPage = opts?.perPage ?? 100;
+    const maxPages = opts?.maxPages ?? Infinity;
+
+    for (let page = 1; page <= maxPages; page++) {
+      await this.rateLimiter.sleepMinInterval();
+
+      const items = await fetchPage(page, perPage);
+      if (items.length === 0) break;
+
+      for (const item of items) {
+        yield item;
+      }
+
+      if (items.length < perPage) break;
+    }
+  }
 }

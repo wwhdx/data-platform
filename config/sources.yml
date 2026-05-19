@@ -1,0 +1,159 @@
+# ═══════════════════════════════════════════════════════════════
+# data-platform 数据源配置文件
+# ═══════════════════════════════════════════════════════════════
+# 用途：
+#   1. 统一视图 —— 一个文件看全所有数据源的配置和状态
+#   2. 批量管理 —— git diff 即可对比配置变更
+#   3. 一键同步 —— 启动时自动同步到数据库，或 CLI 手动同步
+#   4. 灾备恢复 —— 数据库损坏时，从此文件重建 data_sources 表
+#
+# 优先级：环境变量 > 数据库 > 此文件 > Connector META 默认值
+# 修改此文件后：
+#   - docker compose restart app  → 自动同步
+#   - pnpm cli config sync        → 手动同步（无需重启）
+# ═══════════════════════════════════════════════════════════════
+
+version: "1.0"
+
+defaults:
+  user_agent: "WangyeDataPlatform/0.1 (mailto:dev@wangye.app)"
+  request_timeout_ms: 30000
+  max_retries: 5
+
+sources:
+  # ── 学术论文 ──────────────────────────────────────────────────
+  - id: openalex
+    name: OpenAlex
+    enabled: true
+    base_url: https://api.openalex.org
+    auth_type: query_param_key
+    rate_limit: "100000/day"
+    license: CC0
+    commercial_use: true
+    schedule: "0 7 * * *"
+    description: "2.4亿+ 学术作品元数据，CC0 完全开放，含作者/机构/引用/主题"
+
+  - id: crossref
+    name: CrossRef
+    enabled: true
+    base_url: https://api.crossref.org/v1
+    auth_type: polite_id
+    rate_limit: "5 RPS (polite pool)"
+    license: "varies (per-work)"
+    commercial_use: true
+    schedule: "0 8 * * *"
+    description: "1.8亿+ DOI 元数据记录，覆盖学术出版物/会议/书籍"
+
+  - id: semanticscholar
+    name: Semantic Scholar
+    enabled: false
+    base_url: https://api.semanticscholar.org/graph/v1
+    auth_type: header_custom
+    rate_limit: "10 RPS (authenticated)"
+    license: "non-commercial free"
+    commercial_use: false
+    schedule: "0 9 * * *"
+    description: "2亿+ 论文 + 引用图，商业需授权"
+
+  - id: pubmed
+    name: "PubMed / NCBI E-utilities"
+    enabled: false
+    base_url: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/
+    auth_type: query_param_key
+    rate_limit: "10/sec (authenticated)"
+    license: "public domain (US gov)"
+    commercial_use: true
+    schedule: "0 10 * * *"
+    description: "生物医学权威数据库，38 个子库"
+
+  - id: arxiv
+    name: arXiv
+    enabled: false
+    base_url: https://export.arxiv.org/api/query
+    auth_type: none
+    rate_limit: ">=3s interval"
+    license: "metadata free"
+    commercial_use: true
+    schedule: "0 11 * * *"
+    description: "物理/数学/CS 预印本，OAI-PMH 批量采集"
+
+  # ── 专利 ─────────────────────────────────────────────────────
+  - id: patentsview
+    name: "PatentsView (USPTO)"
+    enabled: false
+    base_url: https://search.patentsview.org/api/v1
+    auth_type: header_custom
+    rate_limit: "45/min"
+    license: "public domain (US gov)"
+    commercial_use: true
+    schedule: "0 3 * * 0"
+    description: "USPTO 清洗专利数据，研究级质量，含发明人/专利权人标准化"
+
+  # ── 财经 ─────────────────────────────────────────────────────
+  - id: sec_edgar
+    name: SEC EDGAR
+    enabled: false
+    base_url: https://data.sec.gov/
+    auth_type: polite_id
+    rate_limit: "10/sec"
+    license: "public domain (US gov)"
+    commercial_use: true
+    schedule: "0 6 * * *"
+    description: "SEC 上市公司申报文件 (10-K, 10-Q, 8-K)，完全免费"
+
+  - id: fred
+    name: "FRED (Federal Reserve)"
+    enabled: false
+    base_url: https://api.stlouisfed.org/fred/
+    auth_type: query_param_key
+    rate_limit: "not specified"
+    license: "free (verify commercial)"
+    commercial_use: false
+    schedule: "0 5 * * *"
+    description: "80万+ 经济时间序列"
+
+  # ── 政府/国际组织 ────────────────────────────────────────────
+  - id: worldbank
+    name: World Bank Indicators
+    enabled: false
+    base_url: https://api.worldbank.org/v2/
+    auth_type: none
+    rate_limit: "unlimited"
+    license: "CC BY"
+    commercial_use: true
+    schedule: "0 4 * * 0"
+    description: "16,000+ 时间序列，覆盖 200+ 国家"
+
+  - id: clinicaltrials
+    name: ClinicalTrials.gov
+    enabled: false
+    base_url: https://clinicaltrials.gov/api/v2/
+    auth_type: none
+    rate_limit: "<=10/sec"
+    license: "public domain (US gov)"
+    commercial_use: true
+    schedule: "0 12 * * *"
+    description: "全球临床试验注册数据"
+
+  # ── 技术社区 ─────────────────────────────────────────────────
+  - id: github
+    name: GitHub
+    enabled: false
+    base_url: https://api.github.com/
+    auth_type: header_bearer
+    rate_limit: "5000/hour (authenticated)"
+    license: "varies (per-repo)"
+    commercial_use: true
+    schedule: "0 2 * * *"
+    description: "开源仓库元数据 + 技术趋势 (stars/forks/commits)"
+
+  - id: hackernews
+    name: Hacker News
+    enabled: false
+    base_url: https://hacker-news.firebaseio.com/v0/
+    auth_type: none
+    rate_limit: "unlimited"
+    license: "free"
+    commercial_use: true
+    schedule: "0 */6 * * *"
+    description: "技术社区热点，Firebase 实时数据库"
