@@ -162,7 +162,7 @@ async function cmdHealth(args: string[]) {
   const jsonOutput = opts.json === "true";
 
   try {
-    const resp = await apiGet<Record<string, unknown>>("/api/health");
+    const resp = await apiGet<Record<string, unknown>>("/health");
     if (jsonOutput) {
       console.log(JSON.stringify(resp, null, 2));
     } else {
