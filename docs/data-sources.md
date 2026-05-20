@@ -219,7 +219,22 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 | **摘要可用性** | ✅ 完整财报全文（10-K/10-Q HTML） |
 | **RAG 适用性** | ⭐⭐⭐⭐（需段落分块策略 A8） |
 
-### 3.2 FRED
+### 3.2 Yahoo Finance（非官方）
+
+| 字段 | 值 |
+|------|-----|
+| SDK | [yahoo-finance2](https://www.npmjs.com/package/yahoo-finance2) v3（无官方 REST API） |
+| 认证 | 无需 Key |
+| 速率 | 建议 ≥1s/请求（Connector 内置 1 RPS） |
+| 代码 | `src/connectors/yahooFinance.ts` · `yahooFinanceHelpers.ts` |
+| **RAG 适用性** | ⭐（行情摘要；非学术/宏观主源，与 FRED/SEC 互补） |
+| Connector | **✅**（YAML 默认 `enabled: false`） |
+
+**能力**：`search` / `quote`；`collect` 支持 ticker 直查或关键词 `search` → `quote`。
+
+**options**（`sources.yml`）：`default_collect_query`（默认 `SPY`）、`quotes_count`、`quote_type_filter`（`EQUITY`/`ETF`/`any`）。
+
+### 3.3 FRED
 
 | 字段 | 值 |
 |------|-----|
@@ -299,6 +314,7 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
   ✅ GitHub           ← github.ts（GITHUB_TOKEN 可选）
   ✅ Hacker News      ← hackernews.ts
   ✅ FRED             ← fred.ts（FRED_API_KEY 必填）
+  ✅ Yahoo Finance    ← yahooFinance.ts（yahoo-finance2；默认 disabled）
   ✅ EPO OPS          ← epoOps.ts（EPO_OPS_CONSUMER_KEY/SECRET；YAML 默认 disabled）
 
 RAG 质量优先（遗留增强）：
@@ -309,7 +325,6 @@ RAG 质量优先（遗留增强）：
 远期（未入 YAML）：
   Google Patents ← 全球 SQL 分析
   YouTube Data v3 / Reddit ← 舆情（配额/合规限制）
-  Yahoo Finance ← 非官方 SDK，P4 暂缓
   SEC EDGAR Phase B        ← 申报 HTML 全文 + fulltext 分块
 
 详排期与分源接入清单 → [plans/剩余数据源接入实施方案.md](./plans/剩余数据源接入实施方案.md)

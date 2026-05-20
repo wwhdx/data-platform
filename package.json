@@ -38,7 +38,8 @@
     "js-yaml": "^4.1.1",
     "node-cron": "^3.0.3",
     "pg": "^8.13.0",
-    "pino": "^9.6.0"
+    "pino": "^9.6.0",
+    "yahoo-finance2": "^3.14.1"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

@@ -23,6 +23,10 @@ import {
   GooglePatentsConnector,
   GOOGLE_PATENTS_META,
 } from "./googlePatents";
+import {
+  YahooFinanceConnector,
+  YAHOO_FINANCE_META,
+} from "./yahooFinance";
 import { OPENALEX_META } from "./openalex";
 import { CROSSREF_META } from "./crossref";
 import { WORLD_BANK_META } from "./worldbank";
@@ -42,6 +46,7 @@ export {
   FRED_META,
   EPO_OPS_META,
   GOOGLE_PATENTS_META,
+  YAHOO_FINANCE_META,
 };
 
 /** 运行时已 registerConnector 的源 id（与 scheduleReport / B14 对齐） */
@@ -60,6 +65,7 @@ export const REGISTERED_CONNECTOR_IDS = [
   "fred",
   "epo_ops",
   "google_patents",
+  "yahoo_finance",
 ] as const;
 
 export async function registerDefaultConnectors(
@@ -126,6 +132,9 @@ export async function registerDefaultConnectors(
   const googlePatents = new GooglePatentsConnector(
     await resolveConnectorConfig("google_patents", GOOGLE_PATENTS_META),
   );
+  const yahooFinance = new YahooFinanceConnector(
+    await resolveConnectorConfig("yahoo_finance", YAHOO_FINANCE_META),
+  );
 
   scheduler.registerConnector({ id: "openalex", create: () => openalex });
   scheduler.registerConnector({ id: "crossref", create: () => crossref });
@@ -149,5 +158,9 @@ export async function registerDefaultConnectors(
   scheduler.registerConnector({
     id: "google_patents",
     create: () => googlePatents,
+  });
+  scheduler.registerConnector({
+    id: "yahoo_finance",
+    create: () => yahooFinance,
   });
 }

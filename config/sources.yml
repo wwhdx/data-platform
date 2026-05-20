@@ -197,6 +197,21 @@ sources:
     schedule: "0 3 * * *"
     description: "SEC 上市公司申报文件 (10-K, 10-Q, 8-K)，完全免费"
 
+  - id: yahoo_finance
+    profile: rest_none
+    name: Yahoo Finance (unofficial)
+    enabled: false
+    base_url: https://finance.yahoo.com
+    rate_limit: ">=1s interval"
+    license: unofficial (yahoo-finance2)
+    commercial_use: false
+    schedule: "0 3 * * 0"
+    description: "行情/搜索（npm yahoo-finance2；非官方 API，无 Key）"
+    options:
+      default_collect_query: SPY
+      quotes_count: 10
+      quote_type_filter: EQUITY
+
   - id: fred
     profile: rest_query_param_key
     name: "FRED (Federal Reserve)"
