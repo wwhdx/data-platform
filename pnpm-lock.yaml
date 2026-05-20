@@ -17,6 +17,9 @@ importers:
       fastify:
         specifier: ^4.28.0
         version: 4.29.1
+      google-auth-library:
+        specifier: ^10.6.2
+        version: 10.6.2
       js-yaml:
         specifier: ^4.1.1
         version: 4.1.1

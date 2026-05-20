@@ -85,6 +85,8 @@ services:
       - ./config:/app/config:ro
       - ./data/raw:/data/raw
       - ./data/logs/collect:/data/logs/collect
+      # GCP ADC 凭证（google_patents BigQuery 需要）；secrets/ 已加入 .gitignore
+      - ./secrets/gcp-adc.json:/gcp/adc.json:ro
     depends_on:
       db:
         condition: service_healthy

@@ -159,7 +159,7 @@ sources:
   - id: epo_ops
     profile: oauth2_rest
     name: EPO Open Patent Services (OPS)
-    enabled: false
+    enabled: true
     rate_limit: "4 GB/week free"
     license: "EPO terms (free tier)"
     commercial_use: false
@@ -171,7 +171,7 @@ sources:
   - id: google_patents
     profile: bigquery_sql
     name: Google Patents Public Data
-    enabled: false
+    enabled: true
     base_url: https://console.cloud.google.com/marketplace/details/google_patents_public_datasets/google-patents-public-data
     rate_limit: "1 TB/month free query"
     license: CC BY 4.0
@@ -181,7 +181,10 @@ sources:
     options:
       table: patents-public-data.patents.publications
       default_country_code: US
-      maximum_bytes_billed: "1073741824"
+      # 表无分区（3TB，170M 行），列裁剪后实际扫描约 230GB（~$1.15/次）
+      # 须 >= 230805209088；当前留 300GB 余量
+      # 建议在 GCP Console → Billing → Budgets & alerts 设置 $10/月 预算告警
+      maximum_bytes_billed: "300000000000"
 
   - id: sec_edgar
     profile: rest_polite

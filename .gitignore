@@ -5,3 +5,4 @@ dist/
 data/export/
 data/raw/
 data/logs/
+secrets/

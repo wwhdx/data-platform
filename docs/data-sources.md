@@ -110,12 +110,38 @@ GET  /recommendations/v1/papers/{id}     # 推荐
 |------|-----|
 | 主表 | `` `patents-public-data.patents.publications` `` |
 | 扩展表 | `` `patents-public-data.google_patents_research.publications` ``（top_terms、embedding 等） |
-| 认证 | GCP `GCP_PROJECT_ID` + ADC / `GOOGLE_APPLICATION_CREDENTIALS` |
-| 免费额度 | BigQuery 1 TB/月 |
+| 认证 | `GCP_PROJECT_ID` + `GOOGLE_APPLICATION_CREDENTIALS`（容器）或 gcloud ADC（本地） |
+| 实现 | **BigQuery REST API**（`google-auth-library` 直接调用）；不使用 `@google-cloud/bigquery` SDK |
+| 中间数据集 | `patent_results`（项目内自动创建，仅 `projectOwners` 访问权限） |
+| 表大小 | 3 TB / 1.7 亿行，无分区；列裁剪后实际扫描 ~230 GB（~$1.15/次） |
+| 字节上限 | `maximum_bytes_billed: "300000000000"`（300 GB，见 `config/sources.yml`） |
+| 免费额度 | BigQuery 1 TB/月（每月约可跑 4 次全量查询） |
 | 许可 | CC BY 4.0 |
 | 代码 | `src/connectors/googlePatents.ts`、`googlePatentsHelpers.ts` |
 | Connector | **✅** `GooglePatentsConnector`（YAML 默认 `enabled: false`） |
 | **RAG 适用性** | ⭐⭐⭐（`abstract_localized` 英文摘要） |
+
+**凭证配置（Docker 部署）**
+
+1. 将 GCP ADC 文件复制到项目 `secrets/` 目录（已加入 `.gitignore`）：
+   ```bash
+   mkdir -p secrets
+   cp ~/.config/gcloud/application_default_credentials.json secrets/gcp-adc.json
+   chmod 600 secrets/gcp-adc.json
+   # 仅赋予 Docker appuser（uid=1001）读权限
+   setfacl -m u:1001:r secrets/gcp-adc.json
+   ```
+2. `docker-compose.yml` 已配置 volume 挂载（`./secrets/gcp-adc.json:/gcp/adc.json:ro`）。
+3. `.env` 中设置 `GOOGLE_APPLICATION_CREDENTIALS=/gcp/adc.json`（容器内路径）。
+
+**本地开发（非 Docker）**：留空 `GOOGLE_APPLICATION_CREDENTIALS`，`gcloud auth application-default login` 后自动发现 ADC。
+
+> ⚠️ **凭证刷新**：`gcloud auth application-default login` 后须手动同步副本：  
+> `cp ~/.config/gcloud/application_default_credentials.json secrets/gcp-adc.json`
+
+**组织策略说明**：若 GCP 项目启用了 `constraints/iam.allowedPolicyMemberDomains`，`@google-cloud/bigquery` SDK 在创建临时数据集时调用 `setIamPolicy` 会被拦截。本实现改用 BigQuery REST API 并指定 `destinationTable`（`patent_results` 数据集）绕过此限制。
+
+**成本控制**：建议在 GCP Console → Billing → [Budgets & alerts](https://console.cloud.google.com/billing) 创建 $10/月 预算告警。
 
 ### 2.2 EPO OPS
 

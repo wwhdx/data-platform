@@ -71,6 +71,8 @@ services:
     volumes:
       - ./src:/app/src
       - ./data/raw:/data/raw
+      # GCP ADC 凭证（google_patents BigQuery 需要）；secrets/ 已加入 .gitignore
+      - ./secrets/gcp-adc.json:/gcp/adc.json:ro
     env_file:
       - .env
     environment:
