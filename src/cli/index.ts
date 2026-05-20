@@ -500,6 +500,16 @@ function parseMaxItems(opts: Record<string, string>): number | undefined {
   return n;
 }
 
+function parseSinceOpt(opts: Record<string, string>): string | undefined {
+  const raw = opts.since;
+  if (!raw) return undefined;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    console.error("❌ --since 须为 YYYY-MM-DD 格式");
+    throw new CliExit(1);
+  }
+  return raw;
+}
+
 function buildCollectBody(
   base: Record<string, unknown>,
   opts: Record<string, string>,
@@ -508,6 +518,8 @@ function buildCollectBody(
   let body = withCollectVerbose(base, verbose);
   const maxItems = parseMaxItems(opts);
   if (maxItems != null) body = { ...body, maxItems };
+  const since = parseSinceOpt(opts);
+  if (since != null) body = { ...body, since };
   return body;
 }
 
@@ -1409,6 +1421,7 @@ function printHelp() {
     --all                    采集所有 active 数据源
     --query <文本>           搜索查询（可选）
     --max-items <n>          本次最多采集条数（传给 Connector）
+    --since <YYYY-MM-DD>     覆盖 since 水位（默认：DB 上次水位或昨天）
     --json                   JSON 行流式输出（NDJSON，含 progress 事件）
     --no-stream              关闭实时进度，等待结束后一次性 JSON
     --progress               终端显示逐批进度（默认仅结果；详情写入日志目录）

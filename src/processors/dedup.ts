@@ -42,13 +42,15 @@ export async function dedup(
     const existing = await findExistingIds(sourceId, externalIds);
 
     const fresh: RawDocument[] = [];
+    const seenInBatch = new Set<string>();
     for (const d of sourceDocs) {
-      if (existing.has(d.externalId)) {
+      if (existing.has(d.externalId) || seenInBatch.has(d.externalId)) {
         skippedCount++;
         if (sampleLimit > 0 && skippedSampleIds.length < sampleLimit) {
           skippedSampleIds.push(d.externalId);
         }
       } else {
+        seenInBatch.add(d.externalId);
         fresh.push(d);
       }
     }

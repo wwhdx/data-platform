@@ -21,6 +21,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       stream?: boolean;
       verbose?: boolean;
       maxItems?: number;
+      since?: string;
     } | null;
     const scheduler = app.scheduler;
 
@@ -35,11 +36,16 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       body?.maxItems != null && Number.isFinite(body.maxItems)
         ? Math.max(1, Math.floor(body.maxItems))
         : undefined;
+    const sinceOverride =
+      typeof body?.since === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.since)
+        ? body.since
+        : undefined;
     const runOpts: CollectRunOptions | undefined =
-      body?.verbose || maxItems != null
+      body?.verbose || maxItems != null || sinceOverride != null
         ? {
             ...(body?.verbose ? { skipSampleLimit: 5 } : {}),
             ...(maxItems != null ? { maxItems } : {}),
+            ...(sinceOverride != null ? { since: sinceOverride } : {}),
           }
         : undefined;
 

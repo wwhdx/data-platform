@@ -33,6 +33,8 @@ export interface TriggerOptions {
   skipSampleLimit?: number;
   /** 本次采集最多入库条数（传给 Connector.collect maxItems） */
   maxItems?: number;
+  /** 覆盖 since 水位（YYYY-MM-DD）；未设则用 DB 水位或默认 1 天 */
+  since?: string;
 }
 
 export class Scheduler {
@@ -84,6 +86,7 @@ export class Scheduler {
       options?.onProgress,
       options?.skipSampleLimit,
       options?.maxItems,
+      options?.since,
     );
   }
 
@@ -105,6 +108,7 @@ export class Scheduler {
     onProgress?: CollectProgressReporter,
     skipSampleLimit?: number,
     maxItems?: number,
+    sinceOverride?: string,
   ): Promise<CollectionJob> {
     const factory = this.connectors.get(sourceId);
     if (!factory) {
@@ -116,7 +120,7 @@ export class Scheduler {
 
     const schedule = await ensureScheduleRow(sourceId);
     const collectQuery = (searchQuery || schedule.query || "").trim();
-    const since = toCollectSinceDate(schedule.lastCollectedAt);
+    const since = sinceOverride ?? toCollectSinceDate(schedule.lastCollectedAt);
 
     const job = await createCollectionJob({
       sourceId,

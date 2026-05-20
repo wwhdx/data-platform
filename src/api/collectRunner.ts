@@ -28,6 +28,8 @@ function emit(
 export interface CollectRunOptions {
   skipSampleLimit?: number;
   maxItems?: number;
+  /** 覆盖 since 水位（YYYY-MM-DD）；未设则用 DB 水位或默认 1 天 */
+  since?: string;
 }
 
 export async function runCollectOne(
@@ -48,6 +50,7 @@ export async function runCollectOne(
     onProgress: report,
     skipSampleLimit: runOpts?.skipSampleLimit,
     maxItems: runOpts?.maxItems,
+    since: runOpts?.since,
   });
 
   const summary: CollectAllResult = {
@@ -104,6 +107,7 @@ export async function runCollectAll(
         onProgress: report,
         skipSampleLimit: runOpts?.skipSampleLimit,
         maxItems: runOpts?.maxItems,
+        since: runOpts?.since,
       });
       jobs.push(job);
       if (job.status === "failed" && job.errorMessage) {
