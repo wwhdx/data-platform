@@ -64,5 +64,5 @@ INSERT INTO data_sources (id, name, base_url, auth_type, rate_limit, license, co
 VALUES
     ('openalex', 'OpenAlex', 'https://api.openalex.org', 'query_param_key', '100000/day', 'CC0', true),
     ('semanticscholar', 'Semantic Scholar', 'https://api.semanticscholar.org/graph/v1', 'header_custom', '10 RPS', 'non-commercial free', false),
-    ('patentsview', 'PatentsView (USPTO)', 'https://search.patentsview.org/api/v1', 'header_custom', '45/min', 'public domain', true)
+    ('patentsview', 'USPTO ODP Patents', 'https://api.uspto.gov', 'header_custom', 'not specified', 'public domain', true)
 ON CONFLICT (id) DO NOTHING;
