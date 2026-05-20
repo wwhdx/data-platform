@@ -275,7 +275,7 @@ sources:
   - id: youtube
     profile: youtube_api
     name: YouTube Data API v3
-    enabled: false
+    enabled: true
     base_url: https://www.googleapis.com/youtube/v3/
     rate_limit: "10000 units/day (search=100 units/call)"
     license: "YouTube API Terms of Service"

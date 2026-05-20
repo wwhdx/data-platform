@@ -337,12 +337,17 @@ RAG 质量优先（遗留增强）：
   P0  DataPlatformClient（父仓）+ engine-core SearchProvider → C2/C3
 
 远期（未入 YAML）：
-  Google Patents ← 全球 SQL 分析
+  Google Patents ← ✅ `googlePatents.ts`
   ✅ Reddit           ← reddit.ts（REDDIT_*；默认 disabled）
-  ~~YouTube Data v3~~ ← ✅ `youtube.ts`（YAML 默认 disabled；须 `YOUTUBE_API_KEY`）
+  ✅ YouTube Data v3  ← youtube.ts（须 YOUTUBE_API_KEY）
   SEC EDGAR Phase B        ← 申报 HTML 全文 + fulltext 分块
 
-详排期与分源接入清单 → [plans/剩余数据源接入实施方案.md](./plans/剩余数据源接入实施方案.md)
+**待接入（波次 5–8，未入 YAML）** → [plans/待接入数据源清单与波次方案.md](./plans/待接入数据源清单与波次方案.md)  
+  P0：bioRxiv/medRxiv · ChEMBL · CORE  
+  P1：PubChem · Stack Overflow · Materials Project · EIA · Eurostat/OECD  
+  P2：GDELT · WIPO · …（暂缓源见专题方案 §3.4）
+
+详排期与分源接入清单 → [plans/剩余数据源接入实施方案.md](./plans/剩余数据源接入实施方案.md) · [plans/待接入数据源清单与波次方案.md](./plans/待接入数据源清单与波次方案.md)
 
 默认定时采集（`sources.yml` enabled: true，2026-05-19）：
   openalex · crossref · arxiv_oai · worldbank
