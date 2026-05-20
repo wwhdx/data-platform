@@ -19,6 +19,7 @@ export const SOURCE_CREDENTIAL_SPECS: Record<string, SourceCredentialSpec> = {
     secretEnvVar: "EPO_OPS_CONSUMER_SECRET",
     required: true,
   },
+  google_patents: { envVar: "GCP_PROJECT_ID", required: true },
   sec_edgar: { envVar: "SEC_EDGAR_USER_AGENT", required: true },
   fred: { envVar: "FRED_API_KEY", required: true },
   github: { envVar: "GITHUB_TOKEN", required: false },

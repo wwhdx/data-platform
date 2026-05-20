@@ -168,6 +168,21 @@ sources:
     options:
       token_url: https://ops.epo.org/3.2/auth/accesstoken
 
+  - id: google_patents
+    profile: bigquery_sql
+    name: Google Patents Public Data
+    enabled: false
+    base_url: https://console.cloud.google.com/marketplace/details/google_patents_public_datasets/google-patents-public-data
+    rate_limit: "1 TB/month free query"
+    license: CC BY 4.0
+    commercial_use: true
+    schedule: "0 3 * * 0"
+    description: "BigQuery patents-public-data.patents.publications；须 GCP_PROJECT_ID + ADC/服务账号"
+    options:
+      table: patents-public-data.patents.publications
+      default_country_code: US
+      maximum_bytes_billed: "1073741824"
+
   - id: sec_edgar
     profile: rest_polite
     name: SEC EDGAR

@@ -115,6 +115,8 @@ export const IMPLEMENTED_CONNECTOR_IDS = [
   "github",
   "hackernews",
   "fred",
+  "epo_ops",
+  "google_patents",
 ] as const;
 
 export interface ValidationIssue {

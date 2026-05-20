@@ -194,6 +194,9 @@ export function shouldSkipExternalProbe(
   ) {
     return "fixture 为集成测试本地源 (fixture://)，跳过外网探活";
   }
+  if (sourceId === "google_patents") {
+    return "BigQuery 源无 HTTP 探活；配置 GCP_PROJECT_ID 后可用 collect --max-items 1 验证";
+  }
   return null;
 }
 

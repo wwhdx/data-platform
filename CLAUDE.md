@@ -160,6 +160,8 @@ psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.
 | `USPTO_ODP_API_KEY` | 是（patentsview） | ODP `X-API-KEY` → `api.uspto.gov`；[getting-started](https://data.uspto.gov/apis/getting-started) |
 | `EPO_OPS_CONSUMER_KEY` | 是（epo_ops） | EPO OPS OAuth Consumer Key；[developers.epo.org](https://developers.epo.org) |
 | `EPO_OPS_CONSUMER_SECRET` | 是（epo_ops） | EPO OPS OAuth Consumer Secret |
+| `GCP_PROJECT_ID` | 是（google_patents） | BigQuery 项目 ID；配合 `GOOGLE_APPLICATION_CREDENTIALS` 或 ADC |
+| `GOOGLE_APPLICATION_CREDENTIALS` | 否（google_patents） | GCP 服务账号 JSON 路径（未设则用 ADC） |
 | `SEC_EDGAR_USER_AGENT` | 是（sec_edgar 采集） | `CompanyName email@domain.com` |
 | `GITHUB_TOKEN` | 否 | GitHub REST Bearer |
 | `FRED_API_KEY` | 是（fred 采集） | FRED `api_key` 查询参数 |

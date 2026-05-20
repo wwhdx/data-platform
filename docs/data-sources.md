@@ -110,10 +110,12 @@ GET  /recommendations/v1/papers/{id}     # 推荐
 |------|-----|
 | 主表 | `` `patents-public-data.patents.publications` `` |
 | 扩展表 | `` `patents-public-data.google_patents_research.publications` ``（top_terms、embedding 等） |
-| 认证 | GCP ADC / 服务账号（`GOOGLE_APPLICATION_CREDENTIALS`） |
+| 认证 | GCP `GCP_PROJECT_ID` + ADC / `GOOGLE_APPLICATION_CREDENTIALS` |
 | 免费额度 | BigQuery 1 TB/月 |
 | 许可 | CC BY 4.0 |
-| Connector | **❌ 未实现**（离线 SQL 批采集；见 [剩余数据源接入实施方案 §10](./plans/剩余数据源接入实施方案.md#10-附录未入-yaml-的远期源)） |
+| 代码 | `src/connectors/googlePatents.ts`、`googlePatentsHelpers.ts` |
+| Connector | **✅** `GooglePatentsConnector`（YAML 默认 `enabled: false`） |
+| **RAG 适用性** | ⭐⭐⭐（`abstract_localized` 英文摘要） |
 
 ### 2.2 EPO OPS
 

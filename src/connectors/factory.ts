@@ -34,6 +34,7 @@ function guessApiKeyEnv(sourceId: string): string | undefined {
     semanticscholar: "SEMANTIC_SCHOLAR_API_KEY",
     patentsview: "USPTO_ODP_API_KEY",
     epo_ops: "EPO_OPS_CONSUMER_KEY",
+    google_patents: "GCP_PROJECT_ID",
     fred: "FRED_API_KEY",
     github: "GITHUB_TOKEN",
   };

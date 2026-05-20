@@ -19,6 +19,10 @@ import { GitHubConnector, GITHUB_META } from "./github";
 import { HackerNewsConnector, HACKERNEWS_META } from "./hackernews";
 import { FredConnector, FRED_META } from "./fred";
 import { EpoOpsConnector, EPO_OPS_META } from "./epoOps";
+import {
+  GooglePatentsConnector,
+  GOOGLE_PATENTS_META,
+} from "./googlePatents";
 import { OPENALEX_META } from "./openalex";
 import { CROSSREF_META } from "./crossref";
 import { WORLD_BANK_META } from "./worldbank";
@@ -37,6 +41,7 @@ export {
   HACKERNEWS_META,
   FRED_META,
   EPO_OPS_META,
+  GOOGLE_PATENTS_META,
 };
 
 /** 运行时已 registerConnector 的源 id（与 scheduleReport / B14 对齐） */
@@ -54,6 +59,7 @@ export const REGISTERED_CONNECTOR_IDS = [
   "hackernews",
   "fred",
   "epo_ops",
+  "google_patents",
 ] as const;
 
 export async function registerDefaultConnectors(
@@ -117,6 +123,9 @@ export async function registerDefaultConnectors(
       apiSecret: process.env.EPO_OPS_CONSUMER_SECRET,
     }),
   );
+  const googlePatents = new GooglePatentsConnector(
+    await resolveConnectorConfig("google_patents", GOOGLE_PATENTS_META),
+  );
 
   scheduler.registerConnector({ id: "openalex", create: () => openalex });
   scheduler.registerConnector({ id: "crossref", create: () => crossref });
@@ -137,4 +146,8 @@ export async function registerDefaultConnectors(
   scheduler.registerConnector({ id: "hackernews", create: () => hackernews });
   scheduler.registerConnector({ id: "fred", create: () => fred });
   scheduler.registerConnector({ id: "epo_ops", create: () => epoOps });
+  scheduler.registerConnector({
+    id: "google_patents",
+    create: () => googlePatents,
+  });
 }

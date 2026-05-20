@@ -20,5 +20,6 @@ export { GitHubConnector, GITHUB_META } from "./github";
 export { HackerNewsConnector, HACKERNEWS_META } from "./hackernews";
 export { FredConnector, FRED_META } from "./fred";
 export { EpoOpsConnector, EPO_OPS_META } from "./epoOps";
+export { GooglePatentsConnector, GOOGLE_PATENTS_META } from "./googlePatents";
 export { resolveConnectorConfig } from "./factory";
 export { registerDefaultConnectors } from "./bootstrap";
