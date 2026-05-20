@@ -60,6 +60,7 @@ interface_profiles:
   oauth2_rest:
     protocol: rest
     auth_type: oauth2
+    base_url: https://ops.epo.org/rest-services/
 
   bigquery_sql:
     protocol: bigquery_sql
@@ -154,6 +155,18 @@ sources:
     schedule: "0 3 * * 0"
     # 须 USPTO_ODP_API_KEY（Header X-API-KEY）；申请 https://data.uspto.gov/apis/getting-started
     description: "ODP PFW POST /api/v1/patent/applications/search"
+
+  - id: epo_ops
+    profile: oauth2_rest
+    name: EPO Open Patent Services (OPS)
+    enabled: false
+    rate_limit: "4 GB/week free"
+    license: "EPO terms (free tier)"
+    commercial_use: false
+    schedule: "0 3 * * 0"
+    description: "OPS published-data CQL 检索（biblio+abstract）；须 EPO_OPS_CONSUMER_KEY/SECRET"
+    options:
+      token_url: https://ops.epo.org/3.2/auth/accesstoken
 
   - id: sec_edgar
     profile: rest_polite

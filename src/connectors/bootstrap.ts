@@ -18,6 +18,7 @@ import { SecEdgarConnector, SEC_EDGAR_META } from "./secEdgar";
 import { GitHubConnector, GITHUB_META } from "./github";
 import { HackerNewsConnector, HACKERNEWS_META } from "./hackernews";
 import { FredConnector, FRED_META } from "./fred";
+import { EpoOpsConnector, EPO_OPS_META } from "./epoOps";
 import { OPENALEX_META } from "./openalex";
 import { CROSSREF_META } from "./crossref";
 import { WORLD_BANK_META } from "./worldbank";
@@ -35,6 +36,7 @@ export {
   GITHUB_META,
   HACKERNEWS_META,
   FRED_META,
+  EPO_OPS_META,
 };
 
 /** 运行时已 registerConnector 的源 id（与 scheduleReport / B14 对齐） */
@@ -51,6 +53,7 @@ export const REGISTERED_CONNECTOR_IDS = [
   "github",
   "hackernews",
   "fred",
+  "epo_ops",
 ] as const;
 
 export async function registerDefaultConnectors(
@@ -108,6 +111,12 @@ export async function registerDefaultConnectors(
       apiKey: process.env.FRED_API_KEY,
     }),
   );
+  const epoOps = new EpoOpsConnector(
+    await resolveConnectorConfig("epo_ops", EPO_OPS_META, {
+      apiKey: process.env.EPO_OPS_CONSUMER_KEY,
+      apiSecret: process.env.EPO_OPS_CONSUMER_SECRET,
+    }),
+  );
 
   scheduler.registerConnector({ id: "openalex", create: () => openalex });
   scheduler.registerConnector({ id: "crossref", create: () => crossref });
@@ -127,4 +136,5 @@ export async function registerDefaultConnectors(
   scheduler.registerConnector({ id: "github", create: () => github });
   scheduler.registerConnector({ id: "hackernews", create: () => hackernews });
   scheduler.registerConnector({ id: "fred", create: () => fred });
+  scheduler.registerConnector({ id: "epo_ops", create: () => epoOps });
 }

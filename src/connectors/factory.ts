@@ -9,15 +9,20 @@ export async function resolveConnectorConfig(
 ): Promise<ConnectorConfig> {
   const rt = await resolveRuntimeConfig(sourceId, meta);
   const envKey = rt.apiKeyEnv ?? guessApiKeyEnv(sourceId);
+  const secretEnv = guessApiSecretEnv(sourceId);
   const apiKey =
     overrides.apiKey ??
     (envKey ? process.env[envKey] : undefined);
+  const apiSecret =
+    overrides.apiSecret ??
+    (secretEnv ? process.env[secretEnv] : undefined);
 
   return {
     ...overrides,
     baseUrl: rt.baseUrl,
     sourceOptions: rt.options,
     apiKey,
+    apiSecret,
   };
 }
 
@@ -28,8 +33,14 @@ function guessApiKeyEnv(sourceId: string): string | undefined {
     crossref: "CROSSREF_MAILTO",
     semanticscholar: "SEMANTIC_SCHOLAR_API_KEY",
     patentsview: "USPTO_ODP_API_KEY",
+    epo_ops: "EPO_OPS_CONSUMER_KEY",
     fred: "FRED_API_KEY",
     github: "GITHUB_TOKEN",
   };
   return map[sourceId];
+}
+
+function guessApiSecretEnv(sourceId: string): string | undefined {
+  if (sourceId === "epo_ops") return "EPO_OPS_CONSUMER_SECRET";
+  return undefined;
 }

@@ -4,6 +4,11 @@ import {
   SOURCE_CREDENTIAL_SPECS,
   validateCredentialsForCollect,
 } from "../connectors/credentials";
+import {
+  buildEpoSearchPath,
+  EPO_OPS_TOKEN_URL,
+} from "../connectors/epoOpsHelpers";
+import { OAuth2ClientCredentials } from "./oauth2ClientCredentials";
 import type { SourceProbeDetail, SourceStatus } from "../types";
 
 export const PROBE_TIMEOUT_MS = 5000;
@@ -106,6 +111,13 @@ function listCredentialChecks(sourceId: string): SourceProbeDetail["credentialCh
       required: spec.required,
       set: Boolean(resolveApiKeyForSource(sourceId)),
     });
+    if (spec.secretEnvVar) {
+      checks.push({
+        envVar: spec.secretEnvVar,
+        required: true,
+        set: Boolean(process.env[spec.secretEnvVar]?.trim()),
+      });
+    }
   }
   for (const envVar of EXTRA_ENV_BY_SOURCE[sourceId] ?? []) {
     if (spec?.envVar === envVar) continue;
@@ -141,6 +153,8 @@ function formatHeaderLog(
     lines.push("Authorization: Bearer *** (已设置)");
   } else if (sourceId === "github") {
     lines.push("Authorization: (未发送，匿名 60 req/h)");
+  } else if (sourceId === "epo_ops") {
+    lines.push("Authorization: (未发送，须 OAuth Bearer)");
   }
 
   if (headers["Content-Type"]) {
@@ -181,6 +195,38 @@ export function shouldSkipExternalProbe(
     return "fixture 为集成测试本地源 (fixture://)，跳过外网探活";
   }
   return null;
+}
+
+async function probeEpoOps(baseUrl: string): Promise<{
+  url: string;
+  res: Response;
+  requestHeaders: string[];
+}> {
+  const oauth = new OAuth2ClientCredentials({
+    tokenUrl: EPO_OPS_TOKEN_URL,
+    clientId: process.env.EPO_OPS_CONSUMER_KEY!.trim(),
+    clientSecret: process.env.EPO_OPS_CONSUMER_SECRET!.trim(),
+  });
+  const token = await oauth.getAccessToken();
+  const root = baseUrl.replace(/\/$/, "");
+  const path = buildEpoSearchPath("pn=EP");
+  const url = `${root}${path}`;
+  const headers: Record<string, string> = {
+    "User-Agent": USER_AGENT,
+    Accept: "application/json",
+    Authorization: `Bearer ${token}`,
+    "X-OPS-Range": "1-1",
+  };
+  const res = await fetch(url, {
+    method: "GET",
+    headers,
+    signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+  });
+  return {
+    url,
+    res,
+    requestHeaders: formatHeaderLog("epo_ops", headers),
+  };
 }
 
 export function buildDisabledProbeDetail(
@@ -265,6 +311,26 @@ export async function probeExternalSourceDetailed(
 
   const started = Date.now();
   try {
+    if (sourceId === "epo_ops") {
+      const { url: epoUrl, res, requestHeaders: epoHeaders } =
+        await probeEpoOps(baseUrl);
+      const latencyMs = Date.now() - started;
+      const status = mapHttpToProbeStatus(res.status);
+      return {
+        sourceId,
+        method: "GET",
+        url: epoUrl,
+        status,
+        httpStatus: res.status,
+        latencyMs,
+        timeoutMs: PROBE_TIMEOUT_MS,
+        credentialChecks,
+        requestHeaders: epoHeaders,
+        requestBodySummary: "GET published-data/search/biblio,abstract Range 1-1",
+        verdict: buildProbeVerdict(status, { httpStatus: res.status }),
+      };
+    }
+
     const res = await fetch(url, {
       method,
       headers,

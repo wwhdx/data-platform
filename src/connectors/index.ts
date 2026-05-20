@@ -19,5 +19,6 @@ export { SecEdgarConnector, SEC_EDGAR_META } from "./secEdgar";
 export { GitHubConnector, GITHUB_META } from "./github";
 export { HackerNewsConnector, HACKERNEWS_META } from "./hackernews";
 export { FredConnector, FRED_META } from "./fred";
+export { EpoOpsConnector, EPO_OPS_META } from "./epoOps";
 export { resolveConnectorConfig } from "./factory";
 export { registerDefaultConnectors } from "./bootstrap";

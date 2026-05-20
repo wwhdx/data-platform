@@ -121,11 +121,13 @@ GET  /recommendations/v1/papers/{id}     # 推荐
 |------|-----|
 | REST Base | `https://ops.epo.org/rest-services/` |
 | Token URL | `https://ops.epo.org/3.2/auth/accesstoken` |
-| 认证 | OAuth 2.0 Client Credentials（`EPO_OPS_CONSUMER_KEY` / `SECRET`） |
-| 速率 | **4 GB/周**免费（[Fair use charter](https://www.epo.org/en/service-support/ordering/fair-use)）；`X-Throttling-Control` 自限速 |
-| 响应 | 默认 XML；JSON 用 `.json` 或 `Accept: application/json` |
-| 检索 | `GET …/published-data/search?q={CQL}`；分页 `Range` 头 |
-| Connector | **❌ 未实现** |
+| 认证 | OAuth 2.0 Client Credentials（`EPO_OPS_CONSUMER_KEY` / `EPO_OPS_CONSUMER_SECRET`） |
+| 速率 | **4 GB/周**免费（[Fair use charter](https://www.epo.org/en/service-support/ordering/fair-use)）；`X-OPS-Range` 分页（默认 1–25，最大 100/页，总计 2000） |
+| 响应 | JSON（`Accept: application/json`） |
+| 检索 | `GET …/published-data/search/biblio,abstract?q={CQL}` |
+| 代码 | `src/connectors/epoOps.ts`、`epoOpsHelpers.ts`；`src/lib/oauth2ClientCredentials.ts` |
+| Connector | **✅ 已实现**（YAML 默认 `enabled: false`） |
+| **RAG 适用性** | ⭐⭐⭐（biblio 标题 + abstract  constituents） |
 
 ### 2.3 USPTO ODP 专利（`patentsview` 源）
 
@@ -269,6 +271,7 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
   ✅ GitHub           ← github.ts（GITHUB_TOKEN 可选）
   ✅ Hacker News      ← hackernews.ts
   ✅ FRED             ← fred.ts（FRED_API_KEY 必填）
+  ✅ EPO OPS          ← epoOps.ts（EPO_OPS_CONSUMER_KEY/SECRET；YAML 默认 disabled）
 
 RAG 质量优先（遗留增强）：
 
@@ -276,7 +279,7 @@ RAG 质量优先（遗留增强）：
   P0  DataPlatformClient（父仓）+ engine-core SearchProvider → C2/C3
 
 远期（未入 YAML）：
-  EPO OPS / Google Patents ← 欧洲/全球专利（官方 API 事实见 knowledge/数据平台API协议.md §2.1–2.2）
+  Google Patents ← 全球 SQL 分析
   YouTube Data v3 / Reddit ← 舆情（配额/合规限制）
   Yahoo Finance ← 非官方 SDK，P4 暂缓
   SEC EDGAR Phase B        ← 申报 HTML 全文 + fulltext 分块

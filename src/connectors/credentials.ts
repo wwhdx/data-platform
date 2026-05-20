@@ -7,11 +7,18 @@ export interface SourceCredentialSpec {
   envVar: string;
   /** 未配置时是否直接失败（不调用外网） */
   required: boolean;
+  /** OAuth client secret 等第二必填 env */
+  secretEnvVar?: string;
 }
 
 /** 需要 Key 的源；未列出者视为无强制 Key */
 export const SOURCE_CREDENTIAL_SPECS: Record<string, SourceCredentialSpec> = {
   patentsview: { envVar: "USPTO_ODP_API_KEY", required: true },
+  epo_ops: {
+    envVar: "EPO_OPS_CONSUMER_KEY",
+    secretEnvVar: "EPO_OPS_CONSUMER_SECRET",
+    required: true,
+  },
   sec_edgar: { envVar: "SEC_EDGAR_USER_AGENT", required: true },
   fred: { envVar: "FRED_API_KEY", required: true },
   github: { envVar: "GITHUB_TOKEN", required: false },
@@ -37,6 +44,7 @@ export function resolveApiKeyForSource(
 export function validateCredentialsForCollect(
   sourceId: string,
   injectedKey?: string,
+  injectedSecret?: string,
 ): string | null {
   const spec = SOURCE_CREDENTIAL_SPECS[sourceId];
   if (!spec?.required) return null;
@@ -45,14 +53,22 @@ export function validateCredentialsForCollect(
     const ua =
       injectedKey?.trim() || process.env.SEC_EDGAR_USER_AGENT?.trim();
     if (ua) return null;
+  } else if (spec.secretEnvVar) {
+    const key = resolveApiKeyForSource(sourceId, injectedKey);
+    const secret =
+      injectedSecret?.trim() || process.env[spec.secretEnvVar]?.trim();
+    if (key && secret) return null;
   } else {
     const key = resolveApiKeyForSource(sourceId, injectedKey);
     if (key) return null;
   }
 
+  const secretHint = spec.secretEnvVar
+    ? ` 与 ${spec.secretEnvVar}`
+    : "";
   return (
-    `${spec.envVar} 未配置：数据源「${sourceId}」在 sources.yml 中可为 enabled: true，` +
-    `本次采集不调用外网并已记录失败；配置 Key 后重试。`
+    `${spec.envVar}${secretHint} 未配置：数据源「${sourceId}」在 sources.yml 中可为 enabled: true，` +
+    `本次采集不调用外网并已记录失败；配置凭证后重试。`
   );
 }
 

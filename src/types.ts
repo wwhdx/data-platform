@@ -21,6 +21,8 @@ export interface ConnectorMeta {
 
 export interface ConnectorConfig {
   apiKey?: string;
+  /** OAuth client secret（EPO OPS 等） */
+  apiSecret?: string;
   /** resolveRuntimeConfig / YAML 展开后的 base_url */
   baseUrl?: string;
   /** sources.yml options（如 entrez_db） */
