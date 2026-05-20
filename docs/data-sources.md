@@ -108,19 +108,24 @@ GET  /recommendations/v1/papers/{id}     # 推荐
 
 | 字段 | 值 |
 |------|-----|
-| 数据集 | `bigquery-public-data.patents.publications` |
-| 认证 | Google Cloud OAuth 2.0 |
-| 免费额度 | 1 TB/月 |
+| 主表 | `` `patents-public-data.patents.publications` `` |
+| 扩展表 | `` `patents-public-data.google_patents_research.publications` ``（top_terms、embedding 等） |
+| 认证 | GCP ADC / 服务账号（`GOOGLE_APPLICATION_CREDENTIALS`） |
+| 免费额度 | BigQuery 1 TB/月 |
 | 许可 | CC BY 4.0 |
+| Connector | **❌ 未实现**（离线 SQL 批采集；见 [剩余数据源接入实施方案 §10](./plans/剩余数据源接入实施方案.md#10-附录未入-yaml-的远期源)） |
 
 ### 2.2 EPO OPS
 
 | 字段 | 值 |
 |------|-----|
-| Base URL | `https://ops.epo.org/3.2/rest-services/` |
-| 认证 | OAuth 2.0（Consumer Key + Secret） |
-| 速率 | 2.5 GB/周 |
-| 响应 | XML / JSON |
+| REST Base | `https://ops.epo.org/rest-services/` |
+| Token URL | `https://ops.epo.org/3.2/auth/accesstoken` |
+| 认证 | OAuth 2.0 Client Credentials（`EPO_OPS_CONSUMER_KEY` / `SECRET`） |
+| 速率 | **4 GB/周**免费（[Fair use charter](https://www.epo.org/en/service-support/ordering/fair-use)）；`X-Throttling-Control` 自限速 |
+| 响应 | 默认 XML；JSON 用 `.json` 或 `Accept: application/json` |
+| 检索 | `GET …/published-data/search?q={CQL}`；分页 `Range` 头 |
+| Connector | **❌ 未实现** |
 
 ### 2.3 USPTO ODP 专利（`patentsview` 源）
 
@@ -238,9 +243,12 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 
 | 字段 | 值 |
 |------|-----|
-| Base URL | `https://oauth.reddit.com/` |
-| 认证 | OAuth 2.0 |
-| 速率 | 60 次/分钟 |
+| Token URL | `https://www.reddit.com/api/v1/access_token` |
+| API Base | `https://oauth.reddit.com/` |
+| 认证 | OAuth 2.0（须 OAuth；无凭证请求会被阻断） |
+| 速率 | **100 QPM** / client id（[Data API Wiki](https://support.reddithelp.com/hc/en-us/articles/16160319875092)） |
+| User-Agent | 必填（格式见协议文档 §5.1） |
+| Connector | **❌ 未实现** |
 
 ---
 
@@ -268,8 +276,9 @@ RAG 质量优先（遗留增强）：
   P0  DataPlatformClient（父仓）+ engine-core SearchProvider → C2/C3
 
 远期（未入 YAML）：
-  EPO OPS / Google Patents ← 欧洲/全球专利
-  Reddit                   ← 舆情
+  EPO OPS / Google Patents ← 欧洲/全球专利（官方 API 事实见 knowledge/数据平台API协议.md §2.1–2.2）
+  YouTube Data v3 / Reddit ← 舆情（配额/合规限制）
+  Yahoo Finance ← 非官方 SDK，P4 暂缓
   SEC EDGAR Phase B        ← 申报 HTML 全文 + fulltext 分块
 
 详排期与分源接入清单 → [plans/剩余数据源接入实施方案.md](./plans/剩余数据源接入实施方案.md)
@@ -284,4 +293,5 @@ RAG 质量优先（遗留增强）：
 > **维护频率**：速率限制与认证策略每季度核查一次。最新变化见各平台官方文档。
 > **内容层评估**：2026-05-19 增补，详析见 [数据源接入与RAG构建方案.md §7](./plans/数据源接入与RAG构建方案.md#7-内容层评估与-rag-可用性分析)。
 > **A4 Semantic Scholar**：2026-05-19 落地 `semanticscholar.ts`；`SEMANTIC_SCHOLAR_API_KEY`；YAML 默认 `enabled: false`。  
+> **勘误（2026-05-20）**：§2.1–2.2 Google Patents / EPO OPS 对齐官方路径与限额；§5.3 Reddit 100 QPM。  
 > **12 Connector 全景（2026-05-19）**：见 [实施进度总览 §2.1](./plans/实施进度总览.md#21-connector-运行时)。

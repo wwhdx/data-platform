@@ -254,11 +254,11 @@ for record in records:
 | 项目                 | 详情                                          |
 | -------------------- | --------------------------------------------- |
 | **协议类型**   | SQL on BigQuery（Google Cloud）               |
-| **数据集路径** | `bigquery-public-data.patents.publications` |
-| **认证方式**   | Google Cloud 账号 + OAuth 2.0                 |
+| **数据集路径** | `` `patents-public-data.patents.publications` ``（主表）；扩展 `` `patents-public-data.google_patents_research.publications` `` |
+| **认证方式**   | GCP 项目 + Application Default Credentials / 服务账号 JSON |
 | **免费额度**   | BigQuery 每月 1 TB 查询免费                   |
-| **数据规模**   | 1.2 亿+ 全球专利，许可 CC BY 4.0              |
-| **更新频率**   | 定期更新                                      |
+| **数据规模**   | ~9800 万+ 书目行（官方 schema 文档）；CC BY 4.0 |
+| **更新频率**   | 批量表更新较慢；以 [Marketplace](https://console.cloud.google.com/marketplace/details/google_patents_public_datasets/google-patents-public-data) 为准 |
 
 **核心表结构（部分字段）：**
 
@@ -275,7 +275,7 @@ SELECT
   citation,              -- 引用信息
   assignee,              -- 专利权人
   inventor               -- 发明人
-FROM `bigquery-public-data.patents.publications`
+FROM `patents-public-data.patents.publications`
 WHERE country_code = 'US'
   AND filing_date BETWEEN 20200101 AND 20241231
   AND EXISTS (
@@ -290,31 +290,34 @@ LIMIT 1000;
 
 | 项目               | 详情                                               |
 | ------------------ | -------------------------------------------------- |
-| **协议类型** | REST / SOAP                                        |
-| **Base URL** | `https://ops.epo.org/3.2/rest-services/`         |
-| **认证方式** | OAuth 2.0（Consumer Key + Secret → Access Token） |
-| **速率限制** | 公平使用：2.5 GB 数据流量 / 周；峰值 30 次 / 秒    |
-| **响应格式** | XML / JSON                                         |
+| **协议类型** | REST                                               |
+| **REST Base** | `https://ops.epo.org/rest-services/`（业务请求） |
+| **Token URL** | `https://ops.epo.org/3.2/auth/accesstoken`       |
+| **认证方式** | OAuth 2.0 Client Credentials（Consumer Key + Secret → Bearer，约 20 分钟有效） |
+| **速率限制** | [Fair use charter](https://www.epo.org/en/service-support/ordering/fair-use)：OPS **4 GB/周**免费（日历周 GMT）；~450 MB/小时（1 Mbps）；响应头 `X-Throttling-Control` / `X-RegisteredQuotaPerWeek-Used` |
+| **响应格式** | 默认 XML（`Accept: application/exchange+xml`）；JSON 可用 `.json` 后缀或 `Accept: application/json` |
 
-**OAuth 获取 Token：**
+**OAuth 获取 Token（OPS Reference Guide v1.3.20）：**
 
 ```bash
-curl -X POST https://ops.epo.org/3.2/auth/accesstoken \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=client_credentials" \
-  -u "YOUR_CONSUMER_KEY:YOUR_CONSUMER_SECRET"
+curl -X POST 'https://ops.epo.org/3.2/auth/accesstoken' \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -H 'Authorization: Basic BASE64(consumer_key:consumer_secret)' \
+  -d 'grant_type=client_credentials'
 ```
 
-**核心端点（部分）：**
+**核心端点（相对 REST Base，部分）：**
 
 ```
-/published-data/publication/{format}/{number}/biblio   # 书目数据
-/published-data/publication/{format}/{number}/abstract # 摘要
-/published-data/publication/{format}/{number}/claims   # 权利要求
-/published-data/publication/{format}/{number}/fulltext # 全文
-/family/publication/{format}/{number}                  # 专利家族
-/search/published-data?q=...                           # CQL 检索
+/published-data/publication/{format}/{number}/biblio    # 书目
+/published-data/publication/{format}/{number}/abstract  # 摘要
+/published-data/publication/{format}/{number}/claims    # 权利要求
+/published-data/publication/{format}/{number}/fulltext  # 全文（视局别）
+/published-data/search?q=...                            # CQL 检索（Range 头分页）
+/family/publication/{format}/{number}                   # 专利家族
 ```
+
+注册与测试：[developers.epo.org](https://developers.epo.org)。
 
 **CQL 检索示例：**
 
@@ -432,10 +435,11 @@ GET https://api.stlouisfed.org/fred/series/search?search_text=mortgage+rate&api_
 
 | 项目               | 详情                               |
 | ------------------ | ---------------------------------- |
-| **协议类型** | REST（非官方，yfinance 库封装）    |
-| **认证方式** | 无需 Key（通过 crumb/cookie 机制） |
-| **速率限制** | 无明确限制，但高频请求会被限流     |
+| **协议类型** | 无官方公开 REST API；社区 [yahoo-finance2](https://www.npmjs.com/package/yahoo-finance2)（Node）/ yfinance（Python）封装非官方端点 |
+| **认证方式** | 无需 Key（crumb/cookie；无 SLA）   |
+| **速率限制** | 无官方文档；高频易限流               |
 | **响应格式** | JSON                               |
+| **Connector** | 本包 **未实现**；宏观/财报优先用 FRED + SEC EDGAR |
 
 ```python
 import yfinance as yf
@@ -561,21 +565,25 @@ query {
 | 项目               | 详情                                               |
 | ------------------ | -------------------------------------------------- |
 | **协议类型** | REST / OAuth 2.0                                   |
-| **Base URL** | `https://oauth.reddit.com/`                      |
-| **认证方式** | OAuth2（Client Credentials 或 Authorization Code） |
-| **速率限制** | 60 次 / 分钟（认证后）                             |
+| **Token URL** | `https://www.reddit.com/api/v1/access_token`     |
+| **API Base** | `https://oauth.reddit.com/`（**非** www.reddit.com） |
+| **认证方式** | OAuth2（Web app：`client_credentials`；或 Script / Authorization Code） |
+| **速率限制** | [Data API Wiki](https://support.reddithelp.com/hc/en-us/articles/16160319875092)：**100 QPM** / OAuth client id（10 分钟滑动平均）；头 `X-Ratelimit-*` |
+| **User-Agent** | **必填**：`<platform>:<appId>:<version> (by /u/<username>)` |
 | **响应格式** | JSON                                               |
-| **注意**     | 2023 年后数据政策收紧，大规模历史数据需商业协议    |
+| **注意**     | 无 OAuth 请求会被阻断；删帖/删号后 48h 内须清除本地副本；商业用途见 Data API Terms |
 
 ```bash
-# 获取 Bearer Token
-POST https://www.reddit.com/api/v1/access_token \
-  -u "APP_ID:APP_SECRET" \
-  -d "grant_type=client_credentials"
+# Application-only Token（Web app + secret）
+curl -X POST 'https://www.reddit.com/api/v1/access_token' \
+  -u 'APP_ID:APP_SECRET' \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -d 'grant_type=client_credentials'
 
 # 获取某 subreddit 热帖
-GET https://oauth.reddit.com/r/MachineLearning/hot?limit=25
-  -H "Authorization: Bearer YOUR_TOKEN"
+curl 'https://oauth.reddit.com/r/MachineLearning/hot?limit=25' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'User-Agent: web:wangye-data-platform:0.1 (by /u/yourname)'
 ```
 
 ---
@@ -636,15 +644,15 @@ GET https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=VI
 | **CrossRef**                | REST             | Polite mailto / Plus Key | 动态 Header     | JSON     | ✅           | Polite 免费 |
 | **arXiv API**               | REST（Atom）     | 无需                     | ≥3s 间隔       | Atom XML | ✅           | 元数据可用  |
 | **arXiv OAI-PMH**           | OAI-PMH v2       | 无需                     | ResumptionToken | XML      | ✅           | 元数据可用  |
-| **Google Patents BigQuery** | SQL              | OAuth 2.0                | 1TB/月（免费）  | 表格     | ✅（额度内） | CC BY 4.0   |
-| **EPO OPS**                 | REST/SOAP        | OAuth 2.0 Token          | 2.5GB/周        | XML/JSON | ✅           | 需确认      |
-| **PatentsView (USPTO)**     | REST             | Header `X-Api-Key`     | 45 次/分钟      | JSON     | ✅           | ✅          |
+| **Google Patents BigQuery** | SQL              | GCP ADC / 服务账号       | 1TB/月（免费）  | 表格     | ✅（额度内） | CC BY 4.0   |
+| **EPO OPS**                 | REST             | OAuth 2.0 Token          | 4GB/周（免费）  | XML/JSON | ✅           | 需确认      |
+| **PatentsView (USPTO ODP)** | REST             | Header `X-API-KEY`       | 未明确          | JSON     | ✅           | ✅          |
 | **SEC EDGAR**               | REST             | User-Agent Header        | 10 次/秒        | JSON     | ✅           | ✅          |
 | **FRED**                    | REST             | Query `api_key`        | 未明确          | JSON/XML | ✅           | 需确认版权  |
 | **World Bank**              | REST v2          | 无需                     | 无明确限制      | JSON/XML | ✅           | ✅（CC BY） |
 | **ClinicalTrials.gov**      | REST v2          | 无需                     | ≤10 次/秒      | JSON     | ✅           | ✅          |
 | **GitHub**                  | REST / GraphQL   | Bearer Token             | 5000 次/小时    | JSON     | ✅（有限）   | 需确认 ToS  |
-| **Reddit**                  | REST             | OAuth 2.0                | 60 次/分钟      | JSON     | ✅（有限）   | 商业需授权  |
+| **Reddit**                  | REST             | OAuth 2.0                | 100 QPM         | JSON     | ✅（有限）   | 商业需授权  |
 | **Hacker News**             | REST（Firebase） | 无需                     | 无明确限制      | JSON     | ✅           | ✅          |
 | **YouTube Data v3**         | REST             | API Key / OAuth          | 10K 单位/天     | JSON     | ✅（有限）   | 需确认 ToS  |
 
@@ -787,5 +795,6 @@ def fetch_edgar(url: str) -> requests.Response:
 
 ---
 
-> **文档维护建议：** 速率限制与认证策略是变化最频繁的部分，建议每季度重新核查各平台官方文档（尤其是 CrossRef、Reddit、X API）。本文研究截止于  **2025 年 5 月** 。
+> **文档维护建议：** 速率限制与认证策略是变化最频繁的部分，建议每季度重新核查各平台官方文档（尤其是 CrossRef、Reddit、EPO Fair use、YouTube 配额）。  
+> **勘误（2026-05-20）**：Google Patents 数据集路径改为 `patents-public-data.*`；EPO REST Base 与 Token URL 分离、免费阈值 4 GB/周；Reddit 100 QPM；USPTO 速查表对齐 ODP `X-API-KEY`。初稿研究截止 2025-05。
 >
