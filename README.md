@@ -30,6 +30,9 @@
 ### Docker（推荐）
 
 ```bash
+# 先配置凭证（FRED_API_KEY、USPTO_ODP_API_KEY 等）；app 服务通过 env_file 加载 .env
+cp .env.example .env
+
 # 生产模式（bge-m3 本地 Embedding，零外部 API 依赖）
 docker compose up -d --build
 
@@ -72,6 +75,8 @@ pnpm dev
 ## 环境变量
 
 `pnpm cli` 与 `pnpm dev` 会在启动时读取**项目根目录**下的 `.env`（不加载 `.env.local` 等其它文件）；文件中定义的键会写入 `process.env` 并覆盖同名 shell 变量。无 `.env` 时行为与改前相同，仍可使用 shell `export`。
+
+`docker compose` 的 `app` 服务同样通过 `env_file: .env` 注入凭证；`environment` 段中的 `DATA_PLATFORM_DATABASE_URL`、`EMBED_API_URL` 等会覆盖 `.env` 里面向宿主机的连接串（容器内须用 `db` / `ollama` 服务名）。
 
 | 变量 | 必填 | 说明 |
 |------|------|------|
