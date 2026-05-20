@@ -8,6 +8,7 @@ const PAPER_SOURCES = new Set([
   "semanticscholar",
   "arxiv",
   "arxiv_oai",
+  "biorxiv_oai",
 ]);
 
 const INDICATOR_SOURCES = new Set(["worldbank", "fred"]);

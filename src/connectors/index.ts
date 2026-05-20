@@ -10,6 +10,7 @@ export {
   SEMANTIC_SCHOLAR_META,
 } from "./semanticscholar";
 export { ArxivOaiConnector, ARXIV_OAI_META } from "./arxivOai";
+export { BiorxivOaiConnector, BIORXIV_OAI_META } from "./biorxivOai";
 export { PatentsViewConnector, PATENTSVIEW_META } from "./patentsview";
 export {
   ClinicalTrialsConnector,

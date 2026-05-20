@@ -109,6 +109,7 @@ export const IMPLEMENTED_CONNECTOR_IDS = [
   "pubmed",
   "semanticscholar",
   "arxiv_oai",
+  "biorxiv_oai",
   "patentsview",
   "clinicaltrials",
   "sec_edgar",

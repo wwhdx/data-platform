@@ -100,6 +100,20 @@ GET  /recommendations/v1/papers/{id}     # 推荐
 | **RAG 适用性** | ⭐⭐⭐⭐⭐（有 HTML 版时更高） |
 | 代码 | `src/connectors/arxivOai.ts` · `arxivOaiHelpers.ts` · `src/processors/arxivFulltext.ts` |
 
+### 1.6 bioRxiv（W5a ✅）
+
+| 字段 | 值 |
+|------|-----|
+| API（OAI 兼容） | `https://api.biorxiv.org/details/biorxiv/{from}/{to}/{cursor}/json`（**非** `www.biorxiv.org/oai`，该域有 Cloudflare） |
+| 运行时 `id` | `biorxiv_oai` |
+| 认证 | 无需 |
+| 速率 | ≥2 秒间隔（`RateLimiter` 1 rps / 2s） |
+| 许可 | 逐篇 `license` 字段（常见 CC-BY-NC）；Connector `commercial_use: false` |
+| **摘要** | ✅ API `abstract` |
+| **RAG** | ⭐⭐⭐⭐ |
+| YAML | `enabled: false`（L2 冒烟后开启） |
+| 代码 | `src/connectors/biorxivOai.ts` · `biorxivOaiHelpers.ts` · D5 `provenance/biorxivOai.ts` |
+
 ---
 
 ## 二、专利
@@ -321,6 +335,7 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
   ✅ PubMed         ← 生物医学（2026-05-19 补 efetch 摘要 A10）
   ✅ Semantic Scholar ← abstract + tldr（A4；YAML 默认 disabled；`SEMANTIC_SCHOLAR_API_KEY`）
   ✅ arXiv OAI-PMH    ← `arxiv_oai` 采集 + Legacy Atom 搜索（A7；YAML enabled；可选 `ARXIV_FULLTEXT_*`）
+  ✅ bioRxiv OAI API  ← `biorxiv_oai`（api.biorxiv.org/details；YAML 默认 disabled）
 
   ✅ PatentsView       ← patentsview.ts（需 USPTO_ODP_API_KEY）
   ✅ ClinicalTrials   ← clinicaltrials.ts（无 Key）
@@ -342,8 +357,8 @@ RAG 质量优先（遗留增强）：
   ✅ YouTube Data v3  ← youtube.ts（须 YOUTUBE_API_KEY）
   SEC EDGAR Phase B        ← 申报 HTML 全文 + fulltext 分块
 
-**待接入（波次 5–8，未入 YAML）** → [plans/待接入数据源清单与波次方案.md](./plans/待接入数据源清单与波次方案.md)  
-  P0：bioRxiv/medRxiv · ChEMBL · CORE  
+**待接入（波次 5–8）** → [plans/待接入数据源清单与波次方案.md](./plans/待接入数据源清单与波次方案.md)  
+  P0：`medrxiv_oai` · ChEMBL · CORE（`biorxiv_oai` ✅）  
   P1：PubChem · Stack Overflow · Materials Project · EIA · Eurostat/OECD  
   P2：GDELT · WIPO · …（暂缓源见专题方案 §3.4）
 

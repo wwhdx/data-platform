@@ -9,6 +9,7 @@ import {
   SEMANTIC_SCHOLAR_META,
 } from "./semanticscholar";
 import { ArxivOaiConnector, ARXIV_OAI_META } from "./arxivOai";
+import { BiorxivOaiConnector, BIORXIV_OAI_META } from "./biorxivOai";
 import { PatentsViewConnector, PATENTSVIEW_META } from "./patentsview";
 import {
   ClinicalTrialsConnector,
@@ -40,6 +41,7 @@ export {
   PUBMED_META,
   SEMANTIC_SCHOLAR_META,
   ARXIV_OAI_META,
+  BIORXIV_OAI_META,
   PATENTSVIEW_META,
   CLINICALTRIALS_META,
   SEC_EDGAR_META,
@@ -61,6 +63,7 @@ export const REGISTERED_CONNECTOR_IDS = [
   "pubmed",
   "semanticscholar",
   "arxiv_oai",
+  "biorxiv_oai",
   "patentsview",
   "clinicaltrials",
   "sec_edgar",
@@ -102,6 +105,9 @@ export async function registerDefaultConnectors(
   );
   const arxivOai = new ArxivOaiConnector(
     await resolveConnectorConfig("arxiv_oai", ARXIV_OAI_META),
+  );
+  const biorxivOai = new BiorxivOaiConnector(
+    await resolveConnectorConfig("biorxiv_oai", BIORXIV_OAI_META),
   );
   const patentsview = new PatentsViewConnector(
     await resolveConnectorConfig("patentsview", PATENTSVIEW_META, {
@@ -163,6 +169,7 @@ export async function registerDefaultConnectors(
     create: () => semanticscholar,
   });
   scheduler.registerConnector({ id: "arxiv_oai", create: () => arxivOai });
+  scheduler.registerConnector({ id: "biorxiv_oai", create: () => biorxivOai });
   scheduler.registerConnector({ id: "patentsview", create: () => patentsview });
   scheduler.registerConnector({
     id: "clinicaltrials",

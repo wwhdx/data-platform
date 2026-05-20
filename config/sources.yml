@@ -150,6 +150,19 @@ sources:
     options:
       search_base_url: https://export.arxiv.org/api/query
 
+  - id: biorxiv_oai
+    profile: oai_pmh
+    name: bioRxiv (OAI-PMH API)
+    enabled: false
+    base_url: https://api.biorxiv.org
+    rate_limit: ">=2s interval"
+    license: "varies (per preprint; often CC-BY-NC)"
+    commercial_use: false
+    schedule: "0 3 * * *"
+    description: "bioRxiv 预印本；采集 api.biorxiv.org/details JSON；L2 冒烟后 enabled"
+    options:
+      server: biorxiv
+
   - id: patentsview
     profile: rest_header_custom
     name: "USPTO ODP Patents"
