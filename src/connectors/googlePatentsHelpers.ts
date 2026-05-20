@@ -131,8 +131,10 @@ export function mapGpRowToRawJson(row: GpPublicationRow): {
   const abstract = row.abstract_en?.trim() ?? "";
   const grantIso = grantDateToIso(row.grant_date);
   const filingIso = grantDateToIso(row.filing_date);
-  const url = pubNo
-    ? `https://patents.google.com/patent/${encodeURIComponent(pubNo)}`
+  // Google Patents URL 要求无连字符：US-12539044-B2 → US12539044B2
+  const urlPubNo = pubNo.replace(/-/g, "");
+  const url = urlPubNo
+    ? `https://patents.google.com/patent/${urlPubNo}`
     : undefined;
 
   return {
