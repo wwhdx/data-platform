@@ -18,6 +18,12 @@ interface_profiles:
     protocol: rest
     auth_type: query_param_key
 
+  youtube_api:
+    extends: rest_query_param_key
+    base_url: https://www.googleapis.com/youtube/v3/
+    env_key: YOUTUBE_API_KEY
+    rate_limit: "10000 units/day (search=100 units)"
+
   ncbi_eutils:
     extends: rest_query_param_key
     base_url: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/
@@ -265,6 +271,23 @@ sources:
     commercial_use: true
     schedule: "0 */1 * * *"
     description: "技术社区热点，Firebase 实时数据库（每 1 小时采集）"
+
+  - id: youtube
+    profile: youtube_api
+    name: YouTube Data API v3
+    enabled: false
+    base_url: https://www.googleapis.com/youtube/v3/
+    rate_limit: "10000 units/day (search=100 units/call)"
+    license: "YouTube API Terms of Service"
+    commercial_use: false
+    schedule: "0 3 * * 0"
+    description: "视频搜索元数据；须 YOUTUBE_API_KEY；默认关 cron 省配额"
+    options:
+      default_collect_query: machine learning
+      max_results_per_page: 25
+      max_search_pages: 1
+      enrich_statistics: false
+      relevance_language: en
 
   - id: reddit
     profile: oauth2_rest

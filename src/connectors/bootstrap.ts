@@ -28,6 +28,7 @@ import {
   YAHOO_FINANCE_META,
 } from "./yahooFinance";
 import { RedditConnector, REDDIT_META } from "./reddit";
+import { YouTubeConnector, YOUTUBE_META } from "./youtube";
 import { OPENALEX_META } from "./openalex";
 import { CROSSREF_META } from "./crossref";
 import { WORLD_BANK_META } from "./worldbank";
@@ -49,6 +50,7 @@ export {
   GOOGLE_PATENTS_META,
   YAHOO_FINANCE_META,
   REDDIT_META,
+  YOUTUBE_META,
 };
 
 /** 运行时已 registerConnector 的源 id（与 scheduleReport / B14 对齐） */
@@ -69,6 +71,7 @@ export const REGISTERED_CONNECTOR_IDS = [
   "google_patents",
   "yahoo_finance",
   "reddit",
+  "youtube",
 ] as const;
 
 export async function registerDefaultConnectors(
@@ -145,6 +148,11 @@ export async function registerDefaultConnectors(
       userAgent: process.env.REDDIT_USER_AGENT,
     }),
   );
+  const youtube = new YouTubeConnector(
+    await resolveConnectorConfig("youtube", YOUTUBE_META, {
+      apiKey: process.env.YOUTUBE_API_KEY,
+    }),
+  );
 
   scheduler.registerConnector({ id: "openalex", create: () => openalex });
   scheduler.registerConnector({ id: "crossref", create: () => crossref });
@@ -174,4 +182,5 @@ export async function registerDefaultConnectors(
     create: () => yahooFinance,
   });
   scheduler.registerConnector({ id: "reddit", create: () => reddit });
+  scheduler.registerConnector({ id: "youtube", create: () => youtube });
 }

@@ -25,6 +25,7 @@ export const SOURCE_CREDENTIAL_SPECS: Record<string, SourceCredentialSpec> = {
     secretEnvVar: "REDDIT_CLIENT_SECRET",
     required: true,
   },
+  youtube: { envVar: "YOUTUBE_API_KEY", required: true },
   sec_edgar: { envVar: "SEC_EDGAR_USER_AGENT", required: true },
   fred: { envVar: "FRED_API_KEY", required: true },
   github: { envVar: "GITHUB_TOKEN", required: false },

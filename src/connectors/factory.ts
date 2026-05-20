@@ -38,6 +38,7 @@ function guessApiKeyEnv(sourceId: string): string | undefined {
     google_patents: "GCP_PROJECT_ID",
     fred: "FRED_API_KEY",
     github: "GITHUB_TOKEN",
+    youtube: "YOUTUBE_API_KEY",
   };
   return map[sourceId];
 }

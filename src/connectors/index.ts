@@ -26,5 +26,6 @@ export {
   YAHOO_FINANCE_META,
 } from "./yahooFinance";
 export { RedditConnector, REDDIT_META } from "./reddit";
+export { YouTubeConnector, YOUTUBE_META } from "./youtube";
 export { resolveConnectorConfig } from "./factory";
 export { registerDefaultConnectors } from "./bootstrap";

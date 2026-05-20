@@ -284,7 +284,19 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 | Base URL | `https://hacker-news.firebaseio.com/v0/` |
 | 认证 | 无需 |
 
-### 5.3 Reddit
+### 5.3 YouTube Data API v3
+
+| 字段 | 值 |
+|------|-----|
+| Base URL | `https://www.googleapis.com/youtube/v3/` |
+| 认证 | Query `key=`（`YOUTUBE_API_KEY`） |
+| 配额 | 默认 10,000 units/天；`search.list` = 100 units |
+| 端点 | `GET /search`（`part=snippet&type=video`）；可选 `GET /videos`（`part=snippet,statistics`） |
+| 代码 | `src/connectors/youtube.ts`、`youtubeHelpers.ts` |
+| YAML | `enabled: false`（省配额）；`max_search_pages: 1` |
+| **RAG 适用性** | ⭐⭐⭐（`snippet.description` 作 abstract） |
+
+### 5.4 Reddit
 
 | 字段 | 值 |
 |------|-----|
@@ -327,7 +339,7 @@ RAG 质量优先（遗留增强）：
 远期（未入 YAML）：
   Google Patents ← 全球 SQL 分析
   ✅ Reddit           ← reddit.ts（REDDIT_*；默认 disabled）
-  YouTube Data v3 ← 舆情（配额/合规限制）
+  ~~YouTube Data v3~~ ← ✅ `youtube.ts`（YAML 默认 disabled；须 `YOUTUBE_API_KEY`）
   SEC EDGAR Phase B        ← 申报 HTML 全文 + fulltext 分块
 
 详排期与分源接入清单 → [plans/剩余数据源接入实施方案.md](./plans/剩余数据源接入实施方案.md)
