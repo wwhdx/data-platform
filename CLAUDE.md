@@ -166,6 +166,9 @@ psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.
 | `GITHUB_TOKEN` | 否 | GitHub REST Bearer |
 | `FRED_API_KEY` | 是（fred 采集） | FRED `api_key` 查询参数 |
 | （无） | — | `yahoo_finance` 使用 npm `yahoo-finance2`，无需 env；非官方 API |
+| `REDDIT_CLIENT_ID` | 是（reddit） | [reddit.com/prefs/apps](https://www.reddit.com/prefs/apps) Web app |
+| `REDDIT_CLIENT_SECRET` | 是（reddit） | 与 Client ID 配对 |
+| `REDDIT_USER_AGENT` | 是（reddit） | 格式 `platform:app:version (by /u/username)`；采集与探活均必填 |
 | `PORT` | 否 | 服务端口（默认 3400） |
 | `ARXIV_FULLTEXT_ENABLED` | 否 | `1`/`true` 时 `arxiv_oai` 采集后同步拉 HTML 写入 `raw_json.fulltext`（`processors/arxivFulltext.ts`） |
 | `ARXIV_FULLTEXT_MAX_PER_JOB` | 否 | 每批 dedup 最多补全文篇数（默认 50） |

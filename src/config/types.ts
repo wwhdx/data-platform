@@ -118,6 +118,7 @@ export const IMPLEMENTED_CONNECTOR_IDS = [
   "epo_ops",
   "google_patents",
   "yahoo_finance",
+  "reddit",
 ] as const;
 
 export interface ValidationIssue {

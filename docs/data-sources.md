@@ -290,10 +290,12 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 |------|-----|
 | Token URL | `https://www.reddit.com/api/v1/access_token` |
 | API Base | `https://oauth.reddit.com/` |
-| 认证 | OAuth 2.0（须 OAuth；无凭证请求会被阻断） |
+| 认证 | OAuth 2.0 `client_credentials`（Web app + secret） |
+| ENV | `REDDIT_CLIENT_ID`、`REDDIT_CLIENT_SECRET`、`REDDIT_USER_AGENT` |
 | 速率 | **100 QPM** / client id（[Data API Wiki](https://support.reddithelp.com/hc/en-us/articles/16160319875092)） |
-| User-Agent | 必填（格式见协议文档 §5.1） |
-| Connector | **❌ 未实现** |
+| 采集 | 无 `query`：`options.subreddits` + `listing: hot\|new`；有 `query`：`/search` |
+| 代码 | `src/connectors/reddit.ts` · `redditHelpers.ts` |
+| Connector | **✅ 已实现**（YAML 默认 `enabled: false`；商业用途须合规评审） |
 
 ---
 
@@ -324,7 +326,8 @@ RAG 质量优先（遗留增强）：
 
 远期（未入 YAML）：
   Google Patents ← 全球 SQL 分析
-  YouTube Data v3 / Reddit ← 舆情（配额/合规限制）
+  ✅ Reddit           ← reddit.ts（REDDIT_*；默认 disabled）
+  YouTube Data v3 ← 舆情（配额/合规限制）
   SEC EDGAR Phase B        ← 申报 HTML 全文 + fulltext 分块
 
 详排期与分源接入清单 → [plans/剩余数据源接入实施方案.md](./plans/剩余数据源接入实施方案.md)

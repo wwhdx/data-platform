@@ -34,6 +34,7 @@ function guessApiKeyEnv(sourceId: string): string | undefined {
     semanticscholar: "SEMANTIC_SCHOLAR_API_KEY",
     patentsview: "USPTO_ODP_API_KEY",
     epo_ops: "EPO_OPS_CONSUMER_KEY",
+    reddit: "REDDIT_CLIENT_ID",
     google_patents: "GCP_PROJECT_ID",
     fred: "FRED_API_KEY",
     github: "GITHUB_TOKEN",
@@ -43,5 +44,6 @@ function guessApiKeyEnv(sourceId: string): string | undefined {
 
 function guessApiSecretEnv(sourceId: string): string | undefined {
   if (sourceId === "epo_ops") return "EPO_OPS_CONSUMER_SECRET";
+  if (sourceId === "reddit") return "REDDIT_CLIENT_SECRET";
   return undefined;
 }

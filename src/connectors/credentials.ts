@@ -20,6 +20,11 @@ export const SOURCE_CREDENTIAL_SPECS: Record<string, SourceCredentialSpec> = {
     required: true,
   },
   google_patents: { envVar: "GCP_PROJECT_ID", required: true },
+  reddit: {
+    envVar: "REDDIT_CLIENT_ID",
+    secretEnvVar: "REDDIT_CLIENT_SECRET",
+    required: true,
+  },
   sec_edgar: { envVar: "SEC_EDGAR_USER_AGENT", required: true },
   fred: { envVar: "FRED_API_KEY", required: true },
   github: { envVar: "GITHUB_TOKEN", required: false },
@@ -54,6 +59,12 @@ export function validateCredentialsForCollect(
     const ua =
       injectedKey?.trim() || process.env.SEC_EDGAR_USER_AGENT?.trim();
     if (ua) return null;
+  } else if (sourceId === "reddit") {
+    const key = resolveApiKeyForSource(sourceId, injectedKey);
+    const secret =
+      injectedSecret?.trim() || process.env.REDDIT_CLIENT_SECRET?.trim();
+    const ua = process.env.REDDIT_USER_AGENT?.trim();
+    if (key && secret && ua) return null;
   } else if (spec.secretEnvVar) {
     const key = resolveApiKeyForSource(sourceId, injectedKey);
     const secret =
@@ -67,8 +78,9 @@ export function validateCredentialsForCollect(
   const secretHint = spec.secretEnvVar
     ? ` 与 ${spec.secretEnvVar}`
     : "";
+  const uaHint = sourceId === "reddit" ? " 与 REDDIT_USER_AGENT" : "";
   return (
-    `${spec.envVar}${secretHint} 未配置：数据源「${sourceId}」在 sources.yml 中可为 enabled: true，` +
+    `${spec.envVar}${secretHint}${uaHint} 未配置：数据源「${sourceId}」在 sources.yml 中可为 enabled: true，` +
     `本次采集不调用外网并已记录失败；配置凭证后重试。`
   );
 }

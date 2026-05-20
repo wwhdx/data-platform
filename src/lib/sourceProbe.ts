@@ -8,6 +8,7 @@ import {
   buildEpoSearchPath,
   EPO_OPS_TOKEN_URL,
 } from "../connectors/epoOpsHelpers";
+import { REDDIT_TOKEN_URL } from "../connectors/redditHelpers";
 import { OAuth2ClientCredentials } from "./oauth2ClientCredentials";
 import type { SourceProbeDetail, SourceStatus } from "../types";
 
@@ -51,6 +52,12 @@ function probeUserAgent(sourceId: string): string {
     return (
       process.env.SEC_EDGAR_USER_AGENT?.trim() ??
       "WangyeDataPlatform/0.1 (mailto:dev@wangye.app)"
+    );
+  }
+  if (sourceId === "reddit") {
+    return (
+      process.env.REDDIT_USER_AGENT?.trim() ??
+      "web:wangye-data-platform:0.1 (health-probe)"
     );
   }
   return USER_AGENT;
@@ -119,6 +126,13 @@ function listCredentialChecks(sourceId: string): SourceProbeDetail["credentialCh
       });
     }
   }
+  if (sourceId === "reddit") {
+    checks.push({
+      envVar: "REDDIT_USER_AGENT",
+      required: true,
+      set: Boolean(process.env.REDDIT_USER_AGENT?.trim()),
+    });
+  }
   for (const envVar of EXTRA_ENV_BY_SOURCE[sourceId] ?? []) {
     if (spec?.envVar === envVar) continue;
     checks.push({
@@ -153,7 +167,7 @@ function formatHeaderLog(
     lines.push("Authorization: Bearer *** (已设置)");
   } else if (sourceId === "github") {
     lines.push("Authorization: (未发送，匿名 60 req/h)");
-  } else if (sourceId === "epo_ops") {
+  } else if (sourceId === "epo_ops" || sourceId === "reddit") {
     lines.push("Authorization: (未发送，须 OAuth Bearer)");
   }
 
@@ -198,6 +212,38 @@ export function shouldSkipExternalProbe(
     return "BigQuery 源无 HTTP 探活；配置 GCP_PROJECT_ID 后可用 collect --max-items 1 验证";
   }
   return null;
+}
+
+async function probeReddit(baseUrl: string): Promise<{
+  url: string;
+  res: Response;
+  requestHeaders: string[];
+}> {
+  const ua = probeUserAgent("reddit");
+  const oauth = new OAuth2ClientCredentials({
+    tokenUrl: REDDIT_TOKEN_URL,
+    clientId: process.env.REDDIT_CLIENT_ID!.trim(),
+    clientSecret: process.env.REDDIT_CLIENT_SECRET!.trim(),
+    tokenHeaders: { "User-Agent": ua },
+  });
+  const token = await oauth.getAccessToken();
+  const root = baseUrl.replace(/\/$/, "");
+  const url = `${root}/r/test/about`;
+  const headers: Record<string, string> = {
+    "User-Agent": ua,
+    Accept: "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+  const res = await fetch(url, {
+    method: "GET",
+    headers,
+    signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+  });
+  return {
+    url,
+    res,
+    requestHeaders: formatHeaderLog("reddit", headers),
+  };
 }
 
 async function probeEpoOps(baseUrl: string): Promise<{
@@ -330,6 +376,26 @@ export async function probeExternalSourceDetailed(
         credentialChecks,
         requestHeaders: epoHeaders,
         requestBodySummary: "GET published-data/search/biblio,abstract Range 1-1",
+        verdict: buildProbeVerdict(status, { httpStatus: res.status }),
+      };
+    }
+
+    if (sourceId === "reddit") {
+      const { url: redditUrl, res, requestHeaders: redditHeaders } =
+        await probeReddit(baseUrl);
+      const latencyMs = Date.now() - started;
+      const status = mapHttpToProbeStatus(res.status);
+      return {
+        sourceId,
+        method: "GET",
+        url: redditUrl,
+        status,
+        httpStatus: res.status,
+        latencyMs,
+        timeoutMs: PROBE_TIMEOUT_MS,
+        credentialChecks,
+        requestHeaders: redditHeaders,
+        requestBodySummary: "GET /r/test/about (OAuth)",
         verdict: buildProbeVerdict(status, { httpStatus: res.status }),
       };
     }

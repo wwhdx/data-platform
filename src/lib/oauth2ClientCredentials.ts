@@ -2,6 +2,8 @@ export interface OAuth2ClientCredentialsConfig {
   tokenUrl: string;
   clientId: string;
   clientSecret: string;
+  /** Token 请求附加头（Reddit 要求 User-Agent） */
+  tokenHeaders?: Record<string, string>;
 }
 
 interface TokenResponse {
@@ -28,7 +30,7 @@ export class OAuth2ClientCredentials {
       return this.accessToken;
     }
 
-    const { tokenUrl, clientId, clientSecret } = this.config;
+    const { tokenUrl, clientId, clientSecret, tokenHeaders } = this.config;
     if (!clientId.trim() || !clientSecret.trim()) {
       throw new Error("OAuth client_id / client_secret 未配置");
     }
@@ -39,6 +41,7 @@ export class OAuth2ClientCredentials {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
         Authorization: `Basic ${basic}`,
+        ...(tokenHeaders ?? {}),
       },
       body: "grant_type=client_credentials",
       signal: AbortSignal.timeout(30_000),

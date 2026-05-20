@@ -200,7 +200,7 @@ sources:
   - id: yahoo_finance
     profile: rest_none
     name: Yahoo Finance (unofficial)
-    enabled: false
+    enabled: true
     base_url: https://finance.yahoo.com
     rate_limit: ">=1s interval"
     license: unofficial (yahoo-finance2)
@@ -265,3 +265,18 @@ sources:
     commercial_use: true
     schedule: "0 */1 * * *"
     description: "技术社区热点，Firebase 实时数据库（每 1 小时采集）"
+
+  - id: reddit
+    profile: oauth2_rest
+    name: Reddit
+    enabled: false
+    base_url: https://oauth.reddit.com/
+    rate_limit: "100 QPM"
+    license: "Reddit Data API Terms"
+    commercial_use: false
+    schedule: "0 */2 * * *"
+    description: "公开 subreddit 热帖/搜索；须 REDDIT_CLIENT_ID/SECRET + REDDIT_USER_AGENT"
+    options:
+      token_url: https://www.reddit.com/api/v1/access_token
+      subreddits: [MachineLearning, technology, science]
+      listing: hot
