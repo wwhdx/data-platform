@@ -102,6 +102,12 @@ function probeUserAgent(sourceId: string): string {
   return USER_AGENT;
 }
 
+/** 外网探活默认 JSON Accept（与 BaseConnector.fetch 对齐；arxiv_oai Identify 为 XML 除外） */
+export function probeAcceptHeader(sourceId: string): Record<string, string> {
+  if (sourceId === "arxiv_oai") return {};
+  return { Accept: "application/json" };
+}
+
 export function buildProbeUrl(sourceId: string, baseUrl: string): string {
   const target = PROBE_TARGETS[sourceId];
   if (!target) {
@@ -364,6 +370,7 @@ export async function probeExternalSourceDetailed(
   const method = sourceId === "patentsview" ? "POST" : "GET";
   const headers: Record<string, string> = {
     "User-Agent": probeUserAgent(sourceId),
+    ...probeAcceptHeader(sourceId),
     ...probeAuthHeaders(sourceId),
     ...(sourceId === "patentsview"
       ? { "Content-Type": "application/json" }

@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { OecdConnector } from "../../connectors/oecd";
+import { hasNonemptyApiErrorPayload } from "../../lib/jsonApiErrors";
 import {
   mapSdmxJsonToDocuments,
   type SdmxJsonResponse,
 } from "../../connectors/oecdHelpers";
 
 const SAMPLE_RESPONSE: SdmxJsonResponse = {
+  errors: [],
   data: {
     structures: [
       {
@@ -73,11 +75,15 @@ describe("OecdConnector", () => {
     vi.restoreAllMocks();
   });
 
-  it("collect 解析 GDP 序列", async () => {
-    vi.mocked(global.fetch).mockResolvedValueOnce({
-      ok: true,
-      json: async () => SAMPLE_RESPONSE,
-    } as Response);
+  it("collect 解析 GDP 序列（含 errors: []）", async () => {
+    vi.mocked(global.fetch).mockImplementation(async (_url, init) => {
+      const headers = init?.headers as Record<string, string>;
+      expect(headers.Accept).toBe("application/json");
+      return {
+        ok: true,
+        json: async () => SAMPLE_RESPONSE,
+      } as Response;
+    });
 
     const c = new OecdConnector({});
     const docs = [];

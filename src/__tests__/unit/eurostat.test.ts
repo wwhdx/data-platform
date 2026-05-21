@@ -66,6 +66,20 @@ describe("EurostatConnector", () => {
     vi.restoreAllMocks();
   });
 
+  it("collect 在 error: [] 时仍解析（非空数组才算失败）", async () => {
+    vi.mocked(global.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ error: [], ...SAMPLE_DATASET }),
+    } as Response);
+
+    const c = new EurostatConnector({});
+    const docs = [];
+    for await (const d of c.collect({ maxItems: 1, query: "gdp" })) {
+      docs.push(d);
+    }
+    expect(docs).toHaveLength(1);
+  });
+
   it("collect 解析 GDP 序列", async () => {
     vi.mocked(global.fetch).mockResolvedValueOnce({
       ok: true,

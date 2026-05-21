@@ -6,6 +6,7 @@ import type {
   CollectParams,
   SearchOptions,
 } from "../types";
+import { hasNonemptyApiErrorPayload } from "../lib/jsonApiErrors";
 import { BaseConnector } from "./base";
 import { RateLimiter } from "./rateLimiter";
 import {
@@ -63,7 +64,7 @@ export class EurostatConnector extends BaseConnector {
     const body = (await res.json()) as JsonStatDataset & {
       error?: unknown;
     };
-    if (body.error || !body.label) return null;
+    if (hasNonemptyApiErrorPayload(body.error) || !body.label) return null;
     return body;
   }
 

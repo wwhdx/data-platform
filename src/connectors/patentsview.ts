@@ -50,7 +50,9 @@ export class PatentsViewConnector extends BaseConnector {
   }
 
   private authHeaders(): Record<string, string> {
-    return this.apiKey ? { "X-API-KEY": this.apiKey } : {};
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (this.apiKey) headers["X-API-KEY"] = this.apiKey;
+    return headers;
   }
 
   private searchUrl(): string {

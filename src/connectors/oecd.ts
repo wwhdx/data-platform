@@ -14,6 +14,7 @@ import {
   buildOecdCanonicalUrl,
   buildOecdDataParams,
   buildOecdDataPath,
+  hasSdmxJsonErrors,
   mapSdmxJsonToDocuments,
   oecdQueryMatchesText,
   type OecdQuery,
@@ -76,7 +77,9 @@ export class OecdConnector extends BaseConnector {
     const res = await this.fetch(this.dataUrl(query, opts));
     if (!res.ok) return null;
     const body = (await res.json()) as SdmxJsonResponse;
-    if (body.errors || !body.data?.dataSets?.length) return null;
+    if (hasSdmxJsonErrors(body.errors) || !body.data?.dataSets?.length) {
+      return null;
+    }
     return body;
   }
 

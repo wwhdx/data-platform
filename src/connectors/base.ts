@@ -58,6 +58,7 @@ export abstract class BaseConnector implements Connector {
     const method = (init?.method ?? "GET").toUpperCase();
     const mergedHeaders = {
       "User-Agent": this.userAgent,
+      Accept: "application/json",
       ...(init?.headers as Record<string, string> ?? {}),
     };
     this.lastHttpCapture = captureFromRequest(url, {
@@ -95,6 +96,7 @@ export abstract class BaseConnector implements Connector {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Accept: "application/json",
         ...(extraHeaders ?? {}),
       },
       body: JSON.stringify(body),

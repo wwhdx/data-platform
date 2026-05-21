@@ -32,6 +32,8 @@ export interface SdmxJsonResponse {
   errors?: unknown;
 }
 
+export { hasNonemptyApiErrorPayload as hasSdmxJsonErrors } from "../lib/jsonApiErrors";
+
 export interface OecdQuery {
   agency: string;
   flowId: string;

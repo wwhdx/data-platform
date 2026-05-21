@@ -3,6 +3,7 @@ import {
   buildProbeUrl,
   buildProbeVerdict,
   mapHttpToProbeStatus,
+  probeAcceptHeader,
   shouldSkipExternalProbe,
 } from "../../lib/sourceProbe";
 
@@ -11,6 +12,16 @@ describe("sourceProbe", () => {
     expect(buildProbeUrl("openalex", "https://api.openalex.org")).toBe(
       "https://api.openalex.org/works?per_page=1",
     );
+  });
+
+  it("probeAcceptHeader：oecd/eurostat 带 JSON Accept，arxiv_oai 除外", () => {
+    expect(probeAcceptHeader("oecd")).toEqual({
+      Accept: "application/json",
+    });
+    expect(probeAcceptHeader("eurostat")).toEqual({
+      Accept: "application/json",
+    });
+    expect(probeAcceptHeader("arxiv_oai")).toEqual({});
   });
 
   it("builds arxiv_oai Identify probe URL", () => {
