@@ -159,6 +159,10 @@ export class BiorxivOaiConnector extends BaseConnector {
       messages?: Array<Record<string, unknown>>;
     };
     const status = String(body.messages?.[0]?.status ?? "");
+    // API returns "no posts found" for empty date ranges — not an error.
+    if (status === "no posts found") {
+      return { papers: [], cursor: 0, total: 0 };
+    }
     if (status && status !== "ok") {
       throw new Error(`bioRxiv API: ${status}`);
     }

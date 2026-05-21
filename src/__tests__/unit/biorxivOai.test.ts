@@ -67,6 +67,26 @@ describe("BiorxivOaiConnector", () => {
     );
   });
 
+  it("collect treats no posts found as empty result", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        messages: [{ status: "no posts found" }],
+        collection: [],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const c = new BiorxivOaiConnector();
+    const docs = [];
+    for await (const doc of c.collect({ since: "2026-05-21", maxItems: 5 })) {
+      docs.push(doc);
+    }
+
+    expect(docs).toHaveLength(0);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("collect yields abstract and provenance", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
