@@ -52,6 +52,7 @@ const PROBE_TARGETS: Record<string, string | ((baseUrl: string) => string)> = {
     return `${root}/details/medrxiv/${from}/${to}/0/json`;
   },
   core: "/search/outputs?q=title:test&limit=1",
+  opencitations: "/reference-count/doi:10.1038/nature12373",
   arxiv: "https://export.arxiv.org/api/query?search_query=all:test&max_results=1",
 };
 

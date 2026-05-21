@@ -4,6 +4,15 @@
 # 优先级：环境变量 > 数据库 > 此文件（展开后）> Connector META
 # 修改后：pnpm cli config validate → pnpm cli config sync（或 restart app 自动 sync）
 # 设计：docs/plans/数据源配置-interface-profile实施方案.md
+#
+# ── 数据源角色（真源 vs 中间商）────────────────────────────────
+# 详述：docs/plans/待接入数据源清单与波次方案.md §7
+# role:     primary=内容真源 | registry=DOI/NCT 登记 | aggregator=聚合商
+#           graph=引文边 | mirror=官方镜像 | secondary=二手/非官方
+# collect:  main=主路径 | supplement=补字段，勿与同簇 main 并行 cron
+#           fallback=主源缺全文再开 | analysis=离线 SQL/分析
+# cluster:  重叠簇名（见 §7.3 互斥规则）
+# 去重：dedup 仅 (source_id, external_id)；跨源 DOI 合并尚未实现
 # ═══════════════════════════════════════════════════════════════
 
 version: "1.1"
@@ -77,10 +86,12 @@ interface_profiles:
     auth_type: header_bearer
 
 # schedule（cron「分 时 日 月 周」，服务器本地时区）：
-#   批处理：每日 03:00 → `0 3 * * *`（12 源同时触发，由 Scheduler 串行/并行执行各 job）
-#   慢变数据：每周日 03:00 → `0 3 * * 0`（worldbank、patentsview）
-#   实时热点：hackernews 每 2 小时 → `0 */2 * * *`
+#   批处理：每日 03:00 → `0 3 * * *`
+#   慢变数据：每周日 03:00 → `0 3 * * 0`
+#   实时热点：hackernews 每 1 小时 → `0 */1 * * *`
 sources:
+  # role: aggregator | collect: supplement | cluster: academic_metadata
+  # 与 semanticscholar 勿同 query 并行 cron（二选一作主图谱）
   - id: openalex
     profile: rest_query_param_key
     name: OpenAlex
@@ -92,6 +103,8 @@ sources:
     schedule: "0 3 * * *"
     description: "2.4亿+ 学术作品元数据，CC0 完全开放，含作者/机构/引用/主题"
 
+  # role: registry | collect: supplement | cluster: academic_metadata
+  # DOI 元数据权威；正文在出版商，摘要覆盖率低
   - id: crossref
     profile: rest_polite
     name: CrossRef
@@ -103,6 +116,8 @@ sources:
     schedule: "0 3 * * *"
     description: "1.8亿+ DOI 元数据记录，覆盖学术出版物/会议/书籍"
 
+  # role: aggregator | collect: supplement | cluster: academic_metadata
+  # 与 openalex 互斥：建议只启用其一的全量 cron
   - id: semanticscholar
     profile: rest_header_custom
     name: Semantic Scholar
@@ -116,6 +131,8 @@ sources:
     options:
       default_collect_query: science
 
+  # role: primary | collect: main | cluster: academic_metadata
+  # 生物医学已发表文献索引真源（NLM）
   - id: pubmed
     profile: ncbi_eutils
     name: "PubMed / NCBI E-utilities"
@@ -128,6 +145,7 @@ sources:
     options:
       entrez_db: pubmed
 
+  # Legacy 占位；采集请用 arxiv_oai
   - id: arxiv
     profile: arxiv_legacy_rest
     name: arXiv
@@ -138,6 +156,7 @@ sources:
     schedule: "0 3 * * *"
     description: "Legacy 占位，无 Connector；采集请用 arxiv_oai（enabled: true）"
 
+  # role: primary | collect: main | cluster: academic_preprint
   - id: arxiv_oai
     profile: oai_pmh
     name: arXiv (OAI-PMH)
@@ -150,6 +169,7 @@ sources:
     options:
       search_base_url: https://export.arxiv.org/api/query
 
+  # role: primary | collect: main | cluster: academic_preprint
   - id: biorxiv_oai
     profile: oai_pmh
     name: bioRxiv (OAI-PMH API)
@@ -163,6 +183,7 @@ sources:
     options:
       server: biorxiv
 
+  # role: primary | collect: main | cluster: academic_preprint
   - id: medrxiv_oai
     profile: oai_pmh
     name: medRxiv (OAI-PMH API)
@@ -176,6 +197,8 @@ sources:
     options:
       server: medrxiv
 
+  # role: aggregator | collect: fallback | cluster: academic_fulltext
+  # 默认关：全文索引与 arXiv/PMC 重叠；主源无全文时再开
   - id: core
     profile: rest_bearer
     name: CORE
@@ -189,6 +212,24 @@ sources:
     options:
       default_collect_query: machine learning
 
+  # role: graph | collect: supplement | cluster: citation_graph
+  # 引文边 COCI；不 embed，collect 须种子 DOI
+  - id: opencitations
+    profile: rest_none
+    name: OpenCitations
+    enabled: false
+    base_url: https://api.opencitations.net/index/v2
+    rate_limit: "180 req/min per IP"
+    license: "CC0 (OpenCitations Index)"
+    commercial_use: true
+    schedule: "0 3 * * *"
+    description: "COCI 引文边 REST；collect 须种子 DOI；可选 OPENCITATIONS_ACCESS_TOKEN"
+    options:
+      default_collect_query: 10.1038/nature12373
+      citation_mode: references
+
+  # role: primary | collect: main | cluster: patent_us
+  # 美国专利 USPTO 官方真源
   - id: patentsview
     profile: rest_header_custom
     name: "USPTO ODP Patents"
@@ -201,6 +242,7 @@ sources:
     # 须 USPTO_ODP_API_KEY（Header X-API-KEY）；申请 https://data.uspto.gov/apis/getting-started
     description: "ODP PFW POST /api/v1/patent/applications/search"
 
+  # role: primary | collect: main | cluster: patent_ep
   - id: epo_ops
     profile: oauth2_rest
     name: EPO Open Patent Services (OPS)
@@ -213,6 +255,8 @@ sources:
     options:
       token_url: https://ops.epo.org/3.2/auth/accesstoken
 
+  # role: mirror | collect: analysis | cluster: patent_global
+  # USPTO+EPO+WIPO 合并镜像；日常 RAG 用 patentsview/epo_ops，本源仅 BigQuery 分析
   - id: google_patents
     profile: bigquery_sql
     name: Google Patents Public Data
@@ -227,10 +271,9 @@ sources:
       table: patents-public-data.patents.publications
       default_country_code: US
       # 表无分区（3TB，170M 行），列裁剪后实际扫描约 230GB（~$1.15/次）
-      # 须 >= 230805209088；当前留 300GB 余量
-      # 建议在 GCP Console → Billing → Budgets & alerts 设置 $10/月 预算告警
       maximum_bytes_billed: "300000000000"
 
+  # role: primary | collect: main | cluster: finance_filing
   - id: sec_edgar
     profile: rest_polite
     name: SEC EDGAR
@@ -242,6 +285,8 @@ sources:
     schedule: "0 3 * * *"
     description: "SEC 上市公司申报文件 (10-K, 10-Q, 8-K)，完全免费"
 
+  # role: secondary | collect: supplement | cluster: finance_market
+  # 非官方 API；行情辅助，基本面以 sec_edgar 为准
   - id: yahoo_finance
     profile: rest_none
     name: Yahoo Finance (unofficial)
@@ -257,6 +302,7 @@ sources:
       quotes_count: 10
       quote_type_filter: EQUITY
 
+  # role: primary | collect: main | cluster: macro_indicator
   - id: fred
     profile: rest_query_param_key
     name: "FRED (Federal Reserve)"
@@ -268,6 +314,8 @@ sources:
     schedule: "0 3 * * *"
     description: "80万+ 经济时间序列"
 
+  # role: primary | collect: main | cluster: macro_indicator
+  # 与 fred 部分指标概念重叠，按 series id 选型勿重复采
   - id: worldbank
     profile: rest_none
     name: World Bank Indicators
@@ -279,6 +327,7 @@ sources:
     schedule: "0 3 * * 0"
     description: "16,000+ 时间序列，覆盖 200+ 国家"
 
+  # role: registry | collect: main | cluster: clinical（NCT 注册真源，低重叠）
   - id: clinicaltrials
     profile: rest_none
     name: ClinicalTrials.gov
@@ -290,6 +339,7 @@ sources:
     schedule: "0 3 * * *"
     description: "全球临床试验注册数据"
 
+  # role: primary | collect: main | cluster: code（平台独占）
   - id: github
     profile: rest_bearer
     name: GitHub
@@ -301,6 +351,7 @@ sources:
     schedule: "0 3 * * *"
     description: "开源仓库元数据 + 技术趋势 (stars/forks/commits)"
 
+  # role: primary | collect: main | cluster: community_tech
   - id: hackernews
     profile: firebase_rest
     name: Hacker News
@@ -311,6 +362,7 @@ sources:
     schedule: "0 */1 * * *"
     description: "技术社区热点，Firebase 实时数据库（每 1 小时采集）"
 
+  # role: primary | collect: main | cluster: video
   - id: youtube
     profile: youtube_api
     name: YouTube Data API v3
@@ -320,7 +372,7 @@ sources:
     license: "YouTube API Terms of Service"
     commercial_use: false
     schedule: "0 3 * * 0"
-    description: "视频搜索元数据；须 YOUTUBE_API_KEY；默认关 cron 省配额"
+    description: "视频搜索元数据；须 YOUTUBE_API_KEY"
     options:
       default_collect_query: machine learning
       max_results_per_page: 25
@@ -328,6 +380,8 @@ sources:
       enrich_statistics: false
       relevance_language: en
 
+  # role: primary | collect: main | cluster: community_social
+  # 默认关：商业用途须合规评审后再 enabled
   - id: reddit
     profile: oauth2_rest
     name: Reddit

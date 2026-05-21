@@ -12,3 +12,12 @@ export {
   extractTextFromArxivHtml,
   normalizeArxivIdForHtml,
 } from "./arxivFulltext";
+export {
+  enrichUnpaywallInsertedRows,
+  isUnpaywallEnrichEnabled,
+  isUnpaywallEligibleSource,
+  getUnpaywallEnrichConfig,
+  extractDoiFromRow,
+  mapUnpaywallToPatch,
+  fetchUnpaywallByDoi,
+} from "./unpaywallEnrich";

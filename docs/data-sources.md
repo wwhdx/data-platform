@@ -142,6 +142,31 @@ GET  /recommendations/v1/papers/{id}     # 推荐
 | YAML | `enabled: false`（L2 冒烟 + Key 就绪后开启） |
 | 代码 | `src/connectors/core.ts` · `coreHelpers.ts` · D5 `provenance/core.ts` |
 
+### 1.9 OpenCitations（W5b ✅）
+
+| 字段 | 值 |
+|------|-----|
+| API | `https://api.opencitations.net/index/v2` · `GET /references/{pid}` · `GET /citations/{pid}` |
+| 运行时 `id` | `opencitations` |
+| 认证 | 无（可选 `OPENCITATIONS_ACCESS_TOKEN` → `authorization` 头） |
+| 速率 | 180 req/min/IP |
+| 许可 | CC0（OpenCitations Index） |
+| **数据形态** | `graph_edge`；每条引文边 → 独立 `raw_documents`（`citing_doi` / `cited_doi` / `oci`） |
+| **RAG** | 一期 **不 embed**（`dedup` 跳过 `opencitations`） |
+| YAML | `enabled: false`；`options.citation_mode`: `references`（默认）或 `citations` |
+| 代码 | `src/connectors/opencitations.ts` · `opencitationsHelpers.ts` · D5 `provenance/opencitations.ts` |
+
+### 1.10 Unpaywall 富化（W5b ✅，非 Connector）
+
+| 字段 | 值 |
+|------|-----|
+| API | `https://api.unpaywall.org/v2/{doi}?email={UNPAYWALL_EMAIL}` |
+| 触发 | `dedup` 后批处理（`UNPAYWALL_ENRICH_ENABLED=1`） |
+| 输入源 | `crossref` · `openalex` · `pubmed` · `core` · `semanticscholar`（含非空 DOI） |
+| 输出字段 | `raw_json.oa_url` · `oa_status` · `is_oa` · `unpaywall_enriched_at` |
+| ENV | `UNPAYWALL_EMAIL`（必填）；`UNPAYWALL_ENRICH_ENABLED` · `UNPAYWALL_MAX_PER_JOB` · `UNPAYWALL_MIN_INTERVAL_MS` |
+| 代码 | `src/processors/unpaywallEnrich.ts`（挂接 `processors/dedup.ts`） |
+
 ---
 
 ## 二、专利

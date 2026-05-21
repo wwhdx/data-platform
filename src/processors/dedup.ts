@@ -8,6 +8,14 @@ import {
   enrichArxivInsertedRows,
   isArxivFulltextEnabled,
 } from "./arxivFulltext";
+import {
+  enrichUnpaywallInsertedRows,
+  isUnpaywallEligibleSource,
+  isUnpaywallEnrichEnabled,
+} from "./unpaywallEnrich";
+
+/** 一期引文边图谱源：不写 document_chunks */
+const SKIP_EMBED_SOURCES = new Set(["opencitations"]);
 
 /**
  * 去重处理（Stage 1）。
@@ -96,8 +104,31 @@ export async function dedup(
         }
       }
 
-      // Stage 4: 对新文档生成 embedding
-      if (docsWithContent.length > 0) {
+      if (
+        isUnpaywallEnrichEnabled() &&
+        isUnpaywallEligibleSource(sourceId) &&
+        docsWithContent.length > 0
+      ) {
+        try {
+          docsWithContent = await enrichUnpaywallInsertedRows(docsWithContent, {
+            jobId,
+          });
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          logger.warn({ jobId, sourceId, err: msg }, "enrichUnpaywallInsertedRows failed");
+          if (jobId != null) {
+            void insertCollectionJobEvent({
+              jobId,
+              level: "warn",
+              eventType: "unpaywall_enrich_fail",
+              payload: { sourceId, message: msg },
+            }).catch(() => {});
+          }
+        }
+      }
+
+      // Stage 4: 对新文档生成 embedding（opencitations 引文边一期跳过）
+      if (docsWithContent.length > 0 && !SKIP_EMBED_SOURCES.has(sourceId)) {
         const embedInput = docsWithContent.map((d) => ({
           id: d.id,
           title: d.title,

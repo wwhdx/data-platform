@@ -111,6 +111,10 @@ export function probeAuthHeaders(
       return { Authorization: `Bearer ${key}` };
     case "core":
       return { Authorization: `bearer ${key}` };
+    case "opencitations": {
+      const token = process.env.OPENCITATIONS_ACCESS_TOKEN?.trim();
+      return token ? { authorization: token } : {};
+    }
     case "openalex":
       return {};
     case "pubmed":
