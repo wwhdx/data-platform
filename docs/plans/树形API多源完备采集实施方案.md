@@ -1,7 +1,7 @@
 # 树形 API 多源完备采集实施方案
 
 > **状态**：设计草案（待实施）  
-> **版本**：v1.0（2026-05-21）  
+> **版本**：v1.1（2026-05-21）  
 > **进度真源**：[实施进度总览.md](./实施进度总览.md) §4.11（轨 T）  
 > **方法论**：[树形API数据源完备采集方法论.md](../knowledge/树形API数据源完备采集方法论.md)  
 > **样板**：[EIA完备采集方案.md](./EIA完备采集方案.md)（✅ H0–H2 MVP）  
@@ -93,9 +93,9 @@ flowchart TB
 
 | 步 | 动作 | 验收 |
 |----|------|------|
-| H3-1 | 跑通 `pnpm cli eia catalog sync`（`EIA_CATALOG_SKIP_PROBE=1` 可接受） | `eia_catalog_routes` 叶子数 ≈ 200+；`topLevelsSeen` 含 14 顶层 |
-| H3-2 | 对照 L0 与 [API Browser](https://www.eia.gov/opendata/browser/)，扩充 `config/eia-routes.yml` Tier A（目标 **12–20** 叶子） | `node scripts/verify-eia-routes.mjs` **全绿** |
-| H3-3 | 能源子方向代表 route：至少覆盖 `petroleum`、`electricity`、`natural-gas`、`coal` 各 1 条；`electricity` 再增 1 条非 retail-sales | `collect --source eia` 导出 `raw_json.route` 与 YAML 一致 |
+| H3-1 | 跑通 `pnpm cli eia catalog sync`（`EIA_CATALOG_SKIP_PROBE=1` 可接受） | ✅ 232 叶子 · 14 顶层（`data/catalog/eia-routes-2026-05-21.json`） |
+| H3-2 | 对照 L0 扩充 `config/eia-routes.yml`（目标 **12–20** 叶子） | ✅ **16** 条 · `verify-eia-routes.mjs` **16/16 OK**（2026-05-21） |
+| H3-3 | 能源子方向代表 route：至少覆盖 `petroleum`、`electricity`、`natural-gas`、`coal` 各 1 条 | ✅ 已覆盖；`electricity/operating-generator-capacity` 替代易 503 的 `facility-fuel` |
 | H3-4 | 高 facet route 补 YAML 白名单（参考 L0 `needs_facet_plan`） | 无无参 `/data` 超时；`eia_max_facet_combos_per_route` 未顶满即停 |
 | H3-5 | Scheduler：`eia-catalog-weekly`（L0）+ 现有 `eia` snapshot cron | `pnpm cli schedules` 可见两条 |
 | H3-6 | （可选）`EIA_COLLECT_MODE=backfill` 对 1 条 Tier A 冒烟 | `collection_job_events` 含 `route` |
@@ -270,4 +270,5 @@ flowchart TB
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| v1.1 | 2026-05-21 | H3-2 落地：`eia-routes.yml` 16 条 · verify 16/16 · 实施进度 §4.11 更新 |
 | v1.0 | 2026-05-21 | 初稿：H3 EIA 收尾 + T1–T4 分源步骤；现状差距表；模块模板与验证清单；链方法论与 EIA 方案 |

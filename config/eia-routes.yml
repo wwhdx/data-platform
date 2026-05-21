@@ -1,6 +1,8 @@
 # EIA Tier A/B 采集清单（Git 真源）
 # 路径须与 L0 目录同步结果一致；运行 pnpm cli eia catalog sync 校验
+# 轨 T · H3：覆盖 petroleum / electricity / natural-gas / coal / crude / steo / total-energy 等顶层
 routes:
+  # ── petroleum ──
   - path: petroleum/pri/spt/data
     tier: A
     collect_enabled: true
@@ -8,6 +10,14 @@ routes:
     observations: 30
     data: [value]
 
+  - path: petroleum/stoc/wstk/data
+    tier: A
+    collect_enabled: true
+    frequency: weekly
+    observations: 12
+    data: [value]
+
+  # ── electricity ──
   - path: electricity/retail-sales/data
     tier: A
     collect_enabled: true
@@ -25,16 +35,91 @@ routes:
     observations: 12
     data: [generation]
 
+  # facility-fuel 易 503；改 operable 机组容量（EIA-860）
+  - path: electricity/operating-generator-capacity/data
+    tier: A
+    collect_enabled: true
+    frequency: monthly
+    observations: 12
+    data: [nameplate-capacity-mw]
+
+  - path: electricity/rto/daily-region-data/data
+    tier: B
+    collect_enabled: true
+    frequency: daily
+    observations: 14
+    data: [value]
+
+  # ── natural-gas ──
   - path: natural-gas/pri/sum/data
+    tier: A
+    collect_enabled: true
+    frequency: monthly
+    observations: 12
+    data: [value]
+
+  - path: natural-gas/sum/snd/data
     tier: B
     collect_enabled: true
     frequency: monthly
     observations: 12
     data: [value]
 
+  # ── coal ──
   - path: coal/market-sales-price/data
     tier: B
     collect_enabled: true
     frequency: annual
     observations: 12
     data: [sales]
+
+  - path: coal/aggregate-production/data
+    tier: A
+    collect_enabled: true
+    frequency: annual
+    observations: 12
+    data: [production]
+
+  # ── crude / 宏观汇总 ──
+  - path: crude-oil-imports/data
+    tier: A
+    collect_enabled: true
+    frequency: monthly
+    observations: 12
+    data: [quantity]
+
+  - path: steo/data
+    tier: A
+    collect_enabled: true
+    frequency: monthly
+    observations: 12
+    data: [value]
+
+  - path: total-energy/data
+    tier: A
+    collect_enabled: true
+    frequency: monthly
+    observations: 12
+    data: [value]
+
+  # ── 其它顶层代表 ──
+  - path: international/data
+    tier: B
+    collect_enabled: true
+    frequency: monthly
+    observations: 12
+    data: [value]
+
+  - path: densified-biomass/production-by-region/data
+    tier: B
+    collect_enabled: true
+    frequency: monthly
+    observations: 12
+    data: [production]
+
+  - path: nuclear-outages/us-nuclear-outages/data
+    tier: B
+    collect_enabled: true
+    frequency: daily
+    observations: 14
+    data: [percentOutage]
