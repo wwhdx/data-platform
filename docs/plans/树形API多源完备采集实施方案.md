@@ -1,7 +1,7 @@
 # 树形 API 多源完备采集实施方案
 
 > **状态**：设计草案（待实施）  
-> **版本**：v1.1（2026-05-21）  
+> **版本**：v1.2（2026-05-21）  
 > **进度真源**：[实施进度总览.md](./实施进度总览.md) §4.11（轨 T）  
 > **方法论**：[树形API数据源完备采集方法论.md](../knowledge/树形API数据源完备采集方法论.md)  
 > **样板**：[EIA完备采集方案.md](./EIA完备采集方案.md)（✅ H0–H2 MVP）  
@@ -26,7 +26,7 @@
 
 | 源 | 官方目录形态 | 当前缺口 | 本方案 Phase |
 |----|--------------|----------|--------------|
-| **EIA** | `/v2` 树 + `/data` facet | L0 ✅；L1 仅 5 route | **H3**（收尾扩 Tier） |
+| **EIA** | `/v2` 树 + `/data` facet | L0 ✅；L1 **16** route + 周 cron | **H3** ✅ |
 | **Eurostat** | Catalogue TOC ~5.5k dataset | 无 L0；L1 硬编码 3 dataset | **T1** |
 | **FRED** | Category 树 + 80 万 series | 无 L0；L1 仅 `series/search` | **T2** |
 | **OECD** | SDMX `dataflow` | 无 L0；L1 仅 4 series / 1 flow | **T3** |
@@ -75,7 +75,7 @@ flowchart TB
 
 | Phase | 工期（估） | 依赖 | 产出物摘要 |
 |-------|-----------|------|------------|
-| **H3** | 2–3d | EIA H0–H2 ✅、`EIA_API_KEY` | Tier A 扩至 12–20 route；周级 `catalog sync`；`verify-eia-routes` CI |
+| **H3** | 2–3d | EIA H0–H2 ✅ | ✅ 16 route · verify 16/16 · `eia-catalog-sync` · collect 500 冒烟 |
 | **T1** | 3–4d | H3 模块模板可抄 | `eurostat_catalog` + `config/eurostat-datasets.yml` + CLI |
 | **T2** | 3–4d | T1 验收通过 | `fred_series_catalog` + category BFS + YAML |
 | **T3** | 2–3d | SDMX 经验来自 T1 | `oecd_dataflows` + 扩 KEI/增 1 flow |
@@ -96,9 +96,9 @@ flowchart TB
 | H3-1 | 跑通 `pnpm cli eia catalog sync`（`EIA_CATALOG_SKIP_PROBE=1` 可接受） | ✅ 232 叶子 · 14 顶层（`data/catalog/eia-routes-2026-05-21.json`） |
 | H3-2 | 对照 L0 扩充 `config/eia-routes.yml`（目标 **12–20** 叶子） | ✅ **16** 条 · `verify-eia-routes.mjs` **16/16 OK**（2026-05-21） |
 | H3-3 | 能源子方向代表 route：至少覆盖 `petroleum`、`electricity`、`natural-gas`、`coal` 各 1 条 | ✅ 已覆盖；`electricity/operating-generator-capacity` 替代易 503 的 `facility-fuel` |
-| H3-4 | 高 facet route 补 YAML 白名单（参考 L0 `needs_facet_plan`） | 无无参 `/data` 超时；`eia_max_facet_combos_per_route` 未顶满即停 |
-| H3-5 | Scheduler：`eia-catalog-weekly`（L0）+ 现有 `eia` snapshot cron | `pnpm cli schedules` 可见两条 |
-| H3-6 | （可选）`EIA_COLLECT_MODE=backfill` 对 1 条 Tier A 冒烟 | `collection_job_events` 含 `route` |
+| H3-4 | 高 facet route 补 YAML 白名单（参考 L0 `needs_facet_plan`） | ✅ `retail-sales` sector×state；`eia_max_facet_combos_per_route: 64` |
+| H3-5 | Scheduler：`eia-catalog-sync`（L0）+ `eia` snapshot cron | ✅ `registerEiaCatalogSchedule` · `0 4 * * 0` · `GET /admin/schedules` → `maintenance` |
+| H3-6 | （可选）`EIA_COLLECT_MODE=backfill` 对 1 条 Tier A 冒烟 | □ 非 H3 必验收；留 L2 |
 
 ### 4.2 不改代码时的运维动作
 
@@ -270,5 +270,6 @@ flowchart TB
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| v1.2 | 2026-05-21 | H3 收尾：`eia-catalog-sync` 周 cron · `scheduleMaintenance` · sources.yml options |
 | v1.1 | 2026-05-21 | H3-2 落地：`eia-routes.yml` 16 条 · verify 16/16 · 实施进度 §4.11 更新 |
 | v1.0 | 2026-05-21 | 初稿：H3 EIA 收尾 + T1–T4 分源步骤；现状差距表；模块模板与验证清单；链方法论与 EIA 方案 |

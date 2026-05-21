@@ -444,12 +444,13 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 |------|-----|
 | Base URL | `https://api.eia.gov/v2` |
 | 认证 | Query `api_key=`（`EIA_API_KEY`） |
-| 端点（当前） | `GET /petroleum/pri/spt/data/?data[0]=value&length=&offset=`（单路由 PoC） |
-| 完备采集设计 | [EIA完备采集方案.md](./plans/EIA完备采集方案.md) · 方法论 [树形API数据源完备采集方法论.md](./knowledge/树形API数据源完备采集方法论.md) |
-| 验证脚本 | `scripts/verify-eia-routes.mjs` · `pnpm cli eia catalog sync\|list` |
-| 代码 | `src/connectors/eia.ts` · `eiaHelpers.ts` |
+| 端点 | 多 route：`GET /v2/{route}?frequency&data[]&facets`（见 `config/eia-routes.yml`） |
+| 完备采集 | [EIA完备采集方案.md](./plans/EIA完备采集方案.md) · [树形API多源完备采集实施方案.md](./plans/树形API多源完备采集实施方案.md)（轨 T H3 ✅） |
+| CLI | `pnpm cli eia catalog sync\|list` · `scripts/verify-eia-routes.mjs` |
+| 调度 | collect `0 3 * * 0`；目录 `eia-catalog-sync` `0 4 * * 0`（`eia_catalog_sync_enabled`） |
+| 代码 | `src/connectors/eia/` · `src/scheduler/eiaCatalogSchedule.ts` |
 | RAG | `indicator`（`indicatorChunks`） |
-| YAML | `enabled: true`；`collect_max_items: 5`（待 H 轨改造） |
+| YAML | `enabled: true`；**16** 条 Tier A/B；`collect_max_items: 500` |
 
 ### 6.5 Eurostat
 

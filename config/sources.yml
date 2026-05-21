@@ -500,6 +500,9 @@ sources:
       eia_default_frequency: monthly
       eia_observations_per_series: 12
       eia_max_facet_combos_per_route: 64
+      # H3-5：L0 目录周同步（ENV EIA_CATALOG_SYNC_ENABLED=0 可关）
+      eia_catalog_sync_enabled: true
+      eia_catalog_cron: "0 4 * * 0"
       collect_max_items: 500
 
   # role: primary | collect: main | cluster: macro_indicator

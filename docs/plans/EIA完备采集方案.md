@@ -1,6 +1,6 @@
 # EIA 完备采集方案
 
-> **状态**：部分落地（H0–H2 MVP）  
+> **状态**：部分落地（H0–H3 ✅；H4–H5 待实施）  
 > **版本**：v1.2（2026-05-21）  
 > **进度真源**：[实施进度总览.md](./实施进度总览.md)（落地后 §3 增 **轨 H：EIA 全量采集**）  
 > **方法论（跨源参考）**：[树形API数据源完备采集方法论.md](../knowledge/树形API数据源完备采集方法论.md)  
@@ -38,17 +38,18 @@
 
 ## 2. 现状与差距
 
-### 2.1 代码真源（2026-05-21）
+### 2.1 代码真源（2026-05-21，H3 收尾后）
 
 | 项 | 现状 |
 |----|------|
-| Connector | `src/connectors/eia.ts` · `eiaHelpers.ts` |
-| 固定路由 | 仅 `petroleum/pri/spt/data`（[`EIA_DEFAULT_ROUTE`](../../src/connectors/eiaHelpers.ts)） |
-| 子方向 | **未**遍历 `electricity` / `natural-gas` / `coal` / `renewables` 等顶层树 |
-| 行内维度 | `product-name` / `area-name` / `process-name` 写入 `raw_json`，无 `energy_subsector` |
-| YAML | `collect_max_items: 5`（[`config/sources.yml`](../../config/sources.yml)） |
-| RAG | `indicator` → `indicatorChunks`（短文本一块） |
-| DB 视图 | `019_eia.sql` → `economic_indicators` 含 `fred`/`worldbank`/`eia` |
+| Connector | `src/connectors/eia/` · `eia.ts` · `eiaHelpers.ts` |
+| L0 目录 | `024_eia_catalog.sql` · `pnpm cli eia catalog sync` → **232** 叶子 |
+| L1 采集 | [`config/eia-routes.yml`](../../config/eia-routes.yml) **16** 条 Tier A/B（`verify-eia-routes.mjs` 16/16） |
+| 调度 | collect：`eia` `0 3 * * 0`；L0：`eia-catalog-sync` `0 4 * * 0`（[`eiaCatalogSchedule.ts`](../../src/scheduler/eiaCatalogSchedule.ts)） |
+| 行内维度 | `raw_json.route` / facet 组合；无 `energy_subsector`（留 H5 / 行业方案） |
+| YAML | `collect_max_items: 500` · `eia_tier_filter: A,B`（[`config/sources.yml`](../../config/sources.yml)） |
+| RAG | `indicator` → `indicatorChunks` |
+| DB 视图 | `019_eia.sql` → `economic_indicators` |
 
 ### 2.2 EIA API v2 能力摘要（官网）
 
@@ -297,12 +298,12 @@ for each RequestPlan plan in facetPlan(route):
 
 ### 7.1 Job 拆分
 
-| Job ID | 周期 | 内容 |
-|--------|------|------|
-| `eia-catalog-weekly` | 周日凌晨 | 仅 L0 |
-| `eia-snapshot-daily` | 每日（可仅 Tier A） | L1，Tier A routes |
-| `eia-snapshot-weekly` | 现有 `0 3 * * 0` | L1，Tier A+B |
-| `eia-backfill-manual` | 手动 | L2，单 route 或 top_level |
+| Job ID | 周期 | 内容 | 落地 |
+|--------|------|------|------|
+| `eia-catalog-sync` | `0 4 * * 0`（YAML `eia_catalog_cron`） | 仅 L0 | ✅ `registerEiaCatalogSchedule` |
+| `eia`（collect） | `0 3 * * 0` | L1 snapshot，Tier A+B | ✅ `registerSchedulesFromConfig` |
+| `eia-snapshot-daily` | 每日（可选） | 仅 Tier A | □ 未拆 job |
+| `eia-backfill-manual` | 手动 | L2，`EIA_COLLECT_MODE=backfill` | 🟡 模式已接 CLI |
 
 `sources.yml` 中 **`eia` 保持单 Connector id**；用 `options.collect_mode` 区分（`catalog` | `snapshot` | `backfill`），Scheduler 注册多 cron 时传不同 env/option（见 §8）。
 
@@ -356,7 +357,8 @@ for each RequestPlan plan in facetPlan(route):
 | 变量 | 必须 | 说明 |
 |------|------|------|
 | `EIA_API_KEY` | 是 | 已有 |
-| `EIA_CATALOG_SYNC_ENABLED` | 否 | `1` 时 Scheduler 注册 `eia-catalog-weekly` |
+| `EIA_CATALOG_SYNC_ENABLED` | 否 | `1` 时注册 `eia-catalog-sync`（或 YAML `eia_catalog_sync_enabled: true`） |
+| `EIA_CATALOG_CRON` | 否 | 覆盖默认 `0 4 * * 0` |
 | `EIA_COLLECT_MODE` | 否 | 覆盖 `collect_mode` |
 | `EIA_BACKFILL_ROUTE` | 否 | 手动 backfill 单 route |
 | `EIA_TOP_LEVEL_FILTER` | 否 | 逗号分隔，如 `electricity,petroleum` |
@@ -374,7 +376,8 @@ Git 真源：Tier A/B 路由、facet 计划、frequency、observations；L0 目�
 | **H0** | 迁移 `024` + `catalogCrawl` + `cli eia catalog sync` | 目录表有数据 | `EIA_API_KEY` |
 | **H1** | `routeCollect` + `facetPlan` + 扩展 `mapEiaRowToRawJson` | Tier A 的 3–5 条 route 可 snapshot | H0 |
 | **H2** | `eia.ts` collect 多 route 编排；`sources.yml` + `eia-routes.yml` | 替换单路由 PoC | H1 |
-| **H3** | `search` 接目录；stats 覆盖率 | 检索可发现未采集 route | H2 |
+| **H3** | 扩 Tier YAML + 周级 catalog cron | 16 route L1 · `eia-catalog-sync` | ✅ 2026-05-21（见 [树形API多源方案](./树形API多源完备采集实施方案.md) §4） |
+| **H3b** | `search` 接目录；stats 覆盖率 | 检索可发现未采集 route | □ |
 | **H4** | L2 backfill CLI + D2 镜像分 route 目录 | 历史数据可选回填 | H2 |
 | **H5** | 行业方案联动：`energy_subsector` + `industry_tag=能源` | [行业维度方案](./行业维度接入设计方案.md) G 轨 | H2 |
 
@@ -418,6 +421,7 @@ Git 真源：Tier A/B 路由、facet 计划、frequency、observations；L0 目�
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| v1.3 | 2026-05-21 | H3 收尾同步：§2.1 真源 · `eia-catalog-sync` 调度 · 16 route；链轨 T 方案 |
 | v1.2 | 2026-05-21 | 链入 [树形API完备采集方法论](../knowledge/树形API数据源完备采集方法论.md)；二次验证 14 顶层 / 232 叶子 / YAML 5/5 |
 | v1.1 | 2026-05-21 | **H0–H2 落地**：`024_eia_catalog` · `src/connectors/eia/*` · `config/eia-routes.yml` · `pnpm cli eia catalog`；L2 backfill 模式已接、Admin API 未做 |
 | v1.0 | 2026-05-21 | 初稿：L0 目录 + L1 快照 + L2 回填；Tier A–D；`eia_catalog_routes`；模块与 Phase H0–H5 |

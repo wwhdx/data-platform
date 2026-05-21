@@ -37,6 +37,12 @@ export interface ScheduledTaskMeta {
   query: string;
 }
 
+/** 非 collect 的维护任务（如 EIA L0 catalog sync） */
+export interface MaintenanceTaskMeta {
+  taskId: string;
+  cronExpr: string;
+}
+
 export interface TriggerOptions {
   onProgress?: CollectProgressReporter;
   /** 每批 dedup 写入 skip_sample 的抽样条数；未设则用 COLLECT_LOG_SKIP_SAMPLES */
@@ -54,6 +60,8 @@ export interface TriggerOptions {
 export class Scheduler {
   private jobs: Map<string, cron.ScheduledTask> = new Map();
   private scheduleMeta: Map<string, ScheduledTaskMeta> = new Map();
+  private maintenanceJobs: Map<string, cron.ScheduledTask> = new Map();
+  private maintenanceMeta: Map<string, MaintenanceTaskMeta> = new Map();
   private connectors: Map<string, ConnectorFactory> = new Map();
 
   registerConnector(factory: ConnectorFactory): void {
@@ -72,6 +80,31 @@ export class Scheduler {
   /** 内存中已注册 cron 详情（B14 live 可观测） */
   getScheduleDetails(): ScheduledTaskMeta[] {
     return [...this.scheduleMeta.values()];
+  }
+
+  /** 维护任务 cron（与 sourceId 独立，如 eia-catalog-sync） */
+  getMaintenanceScheduleDetails(): MaintenanceTaskMeta[] {
+    return [...this.maintenanceMeta.values()];
+  }
+
+  scheduleMaintenance(
+    taskId: string,
+    cronExpr: string,
+    handler: () => Promise<void>,
+  ): void {
+    if (this.maintenanceJobs.has(taskId)) return;
+
+    const task = cron.schedule(cronExpr, () => {
+      void handler().catch((err) => {
+        console.error(
+          `[scheduler:${taskId}]`,
+          err instanceof Error ? err.message : err,
+        );
+      });
+    });
+
+    this.maintenanceJobs.set(taskId, task);
+    this.maintenanceMeta.set(taskId, { taskId, cronExpr });
   }
 
   schedule(sourceId: string, cronExpr: string, searchQuery: string): void {
@@ -110,10 +143,16 @@ export class Scheduler {
     for (const [, task] of this.jobs) {
       task.start();
     }
+    for (const [, task] of this.maintenanceJobs) {
+      task.start();
+    }
   }
 
   stop(): void {
     for (const [, task] of this.jobs) {
+      task.stop();
+    }
+    for (const [, task] of this.maintenanceJobs) {
       task.stop();
     }
   }

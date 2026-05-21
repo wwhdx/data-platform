@@ -179,6 +179,8 @@ psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.
 | `CORE_API_KEY` | 是（core） | [CORE API](https://core.ac.uk/services/api) 注册；Bearer 头；导出须保留 `core_attribution` |
 | `MATERIALS_PROJECT_API_KEY` | 是（materials_project） | [materialsproject.org](https://materialsproject.org) Dashboard → Header `X-API-KEY` |
 | `EIA_API_KEY` | 是（eia） | [EIA Open Data](https://www.eia.gov/opendata/) 注册；Query `api_key=`；多 route 见 `config/eia-routes.yml` · `pnpm cli eia catalog sync` |
+| `EIA_CATALOG_SYNC_ENABLED` | 否 | `1`/`true` 时 `serve` 注册 `eia-catalog-sync` 周 cron（默认读 YAML `eia_catalog_sync_enabled`） |
+| `EIA_CATALOG_CRON` | 否 | 目录同步 cron（默认 `0 4 * * 0`） |
 | `EIA_COLLECT_MODE` | 否 | `snapshot`（默认）或 `backfill` |
 | `EIA_TIER_FILTER` | 否 | 逗号分隔 Tier，如 `A,B` |
 | `EIA_BACKFILL_ROUTE` | 否 | 手动 backfill 单 route（CLI/调试） |

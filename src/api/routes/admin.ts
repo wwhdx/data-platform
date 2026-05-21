@@ -116,7 +116,8 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const active = scheduler.getScheduleDetails();
-    return reply.send({ mode: "live", active });
+    const maintenance = scheduler.getMaintenanceScheduleDetails();
+    return reply.send({ mode: "live", active, maintenance });
   });
 
   // 配置更新
