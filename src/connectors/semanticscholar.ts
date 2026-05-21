@@ -15,6 +15,8 @@ import {
   buildSemanticScholarDocumentRequest,
 } from "./provenance/semanticscholar";
 
+/** 有 Key 默认 1 RPS（semanticscholar.org/product/api/tutorial）；无 Key 共享 5000/5min（github.com/allenai/s2-folks API_RELEASE_NOTES） */
+
 export const SEMANTIC_SCHOLAR_META: ConnectorMeta = {
   id: "semanticscholar",
   name: "Semantic Scholar",
@@ -22,7 +24,7 @@ export const SEMANTIC_SCHOLAR_META: ConnectorMeta = {
   license: "non-commercial free",
   commercialUse: false,
   authType: "header_custom",
-  rateLimit: "10 RPS (authenticated)",
+  rateLimit: "1 RPS (authenticated default) · 5000/5min (unauthenticated pool)",
   description: "2亿+ 论文与引用图，abstract + tldr 可直接用于 RAG",
 };
 
@@ -67,8 +69,8 @@ export class SemanticScholarConnector extends BaseConnector {
       },
       SEMANTIC_SCHOLAR_META.baseUrl,
     );
-    const hasKey = Boolean(config.apiKey);
-    this.rateLimiter = RateLimiter.fromRPS(hasKey ? 8 : 1, hasKey ? 125 : 1000);
+    // 官方默认 1 RPS（有/无 Key 均保守）；提额见 semanticscholar.org/product/api#api-key-form
+    this.rateLimiter = RateLimiter.fromRPS(1, 1000);
   }
 
   private authHeaders(): Record<string, string> {

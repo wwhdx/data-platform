@@ -26,7 +26,7 @@ describe("integration/api: Fastify inject routes", () => {
               name: "OpenAlex",
               license: "CC0",
               commercial_use: true,
-              rate_limit: "100000/day",
+              rate_limit: "freemium ~10k list+filter/day ($1 free)",
               total_docs: 42,
               last_fetch: "2026-05-19T07:00:00.000Z",
             },

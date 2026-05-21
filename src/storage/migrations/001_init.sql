@@ -62,7 +62,7 @@ CREATE INDEX IF NOT EXISTS idx_collection_jobs_status
 -- 注册 MVP Connector 元数据
 INSERT INTO data_sources (id, name, base_url, auth_type, rate_limit, license, commercial_use)
 VALUES
-    ('openalex', 'OpenAlex', 'https://api.openalex.org', 'query_param_key', '100000/day', 'CC0', true),
-    ('semanticscholar', 'Semantic Scholar', 'https://api.semanticscholar.org/graph/v1', 'header_custom', '10 RPS', 'non-commercial free', false),
+    ('openalex', 'OpenAlex', 'https://api.openalex.org', 'query_param_key', 'freemium ~10k list+filter/day ($1 free)', 'CC0', true),
+    ('semanticscholar', 'Semantic Scholar', 'https://api.semanticscholar.org/graph/v1', 'header_custom', '1 RPS (authenticated) · 5000/5min (unauthenticated pool)', 'non-commercial free', false),
     ('patentsview', 'USPTO ODP Patents', 'https://api.uspto.gov', 'header_custom', 'not specified', 'public domain', true)
 ON CONFLICT (id) DO NOTHING;

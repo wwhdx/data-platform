@@ -767,7 +767,7 @@ def fetch_edgar(url: str) -> requests.Response:
   "auth_method": "api_key_query",
   "license": "CC0",
   "commercial_use": true,
-  "rate_limit": "100000/day",
+  "rate_limit": "freemium ~10k list+filter/day ($1 free)",
   "data_freshness": "daily",
   "last_accessed": "2025-05-01",
   "legal_review": "approved",

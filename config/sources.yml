@@ -114,7 +114,8 @@ sources:
     name: OpenAlex
     enabled: true
     base_url: https://api.openalex.org
-    rate_limit: "100000/day"
+    # 官方 freemium：https://developers.openalex.org/api-reference/authentication
+    rate_limit: "freemium ~10k list+filter/day ($1 free)"
     license: CC0
     commercial_use: true
     schedule: "0 3 * * *"
@@ -140,7 +141,8 @@ sources:
     name: Semantic Scholar
     enabled: false
     base_url: https://api.semanticscholar.org/graph/v1
-    rate_limit: "10 RPS (authenticated)"
+    # 有 Key 默认 1 RPS：https://www.semanticscholar.org/product/api/tutorial
+    rate_limit: "1 RPS (authenticated) · 5000/5min (unauthenticated pool)"
     license: "non-commercial free"
     commercial_use: false
     schedule: "0 3 * * *"

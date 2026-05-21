@@ -16,6 +16,9 @@ import {
   buildOpenAlexDocumentRequest,
 } from "./provenance/openalex";
 
+/** Freemium $1/天免费 ≈ 10k List+Filter 或 1k Search。collect 走 filter+cursor（List+Filter）。官方：https://developers.openalex.org/api-reference/authentication */
+const OPENALEX_DAILY_LIST_FILTER_CALLS = 10_000;
+
 export const OPENALEX_META: ConnectorMeta = {
   id: "openalex",
   name: "OpenAlex",
@@ -23,7 +26,7 @@ export const OPENALEX_META: ConnectorMeta = {
   license: "CC0",
   commercialUse: true,
   authType: "query_param_key",
-  rateLimit: "100000/day",
+  rateLimit: "freemium ~10k list+filter/day ($1 free; search 10× cost)",
   description: "2.4亿+ 学术作品元数据，含作者、机构、引用、主题",
 };
 
@@ -66,7 +69,8 @@ export class OpenAlexConnector extends BaseConnector {
       },
       OPENALEX_META.baseUrl,
     );
-    this.rateLimiter = RateLimiter.fromDailyLimit(100_000);
+    // 对齐官方 freemium 日预算（List+Filter）；Search 端点计价更高见 developers.openalex.org/api-reference/authentication
+    this.rateLimiter = RateLimiter.fromDailyLimit(OPENALEX_DAILY_LIST_FILTER_CALLS);
   }
 
   private get authParam(): string {

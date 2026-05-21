@@ -14,7 +14,7 @@
 |------|-----|
 | Base URL | `https://api.openalex.org` |
 | 认证 | API Key（Query Param `?api_key=`）或无需认证 |
-| 速率 | 100,000 次/天（有 Key） |
+| 速率 | Freemium：Key 每日 **$1 免费额度**；List+Filter **$0.10/千次**、Search **$1/千次**、Singleton **免费**；硬顶 **100 RPS**（[官方](https://developers.openalex.org/api-reference/authentication)）→ 详 [附录 B](#附录-b已接入源配额与速率限制评估) |
 | 响应 | JSON |
 | 许可 | CC0（完全开放，可商用） |
 | 分页 | offset + cursor 双模式 |
@@ -41,7 +41,7 @@ GET /topics         # 主题
 |------|-----|
 | Base URL | `https://api.semanticscholar.org/graph/v1` |
 | 认证 | Header `x-api-key`（可选但推荐） |
-| 速率 | 无认证：5,000/5min；已认证：1-10 RPS |
+| 速率 | 无 Key：**5000/5min**（全局共享池）；有 Key：默认 **1 RPS**（[Tutorial](https://www.semanticscholar.org/product/api/tutorial)）→ 详 [附录 B](#附录-b已接入源配额与速率限制评估) |
 | 响应 | JSON |
 | 许可 | 非商业免费，商业需授权 |
 | **摘要可用性** | ✅ `abstract`（直接字符串）+ `tldr.text`（AI 生成摘要） |
@@ -81,7 +81,7 @@ GET  /recommendations/v1/papers/{id}     # 推荐
 |------|-----|
 | Base URL | `https://api.crossref.org/v1/` |
 | 认证 | Polite（`?mailto=`）；Plus（付费 `crossref-api-key: Bearer`） |
-| 速率 | 动态（Header `x-rate-limit-limit`） |
+| 速率 | Polite pool：**10 req/s**、并发 **3**；Public **5 req/s**、并发 **1**（Header `x-rate-limit-*`；[官方](https://www.crossref.org/documentation/retrieve-metadata/rest-api/access-and-authentication/)）→ 详 [附录 B](#附录-b已接入源配额与速率限制评估) |
 | 分页 | cursor |
 | 许可 | Polite 免费，商业需确认 |
 | **摘要可用性** | 🟡 约 20% 文章含 `abstract`（Wiley/Springer 等） |
@@ -323,6 +323,7 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 |------|-----|
 | Base URL | `https://api.stlouisfed.org/fred/` |
 | 认证 | Query `api_key=`（免费注册） |
+| 速率 | **2 req/s**（[FRED API Errors](https://fred.stlouisfed.org/docs/api/fred/v2/errors.html)）→ 详 [附录 B](#附录-b已接入源配额与速率限制评估) |
 | 响应 | JSON / XML |
 | **摘要可用性** | ❌ 时序数值数据，无文本摘要 |
 | **RAG 适用性** | ⭐（不适合向量检索） |
@@ -337,6 +338,7 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 |------|-----|
 | Base URL | `https://api.worldbank.org/v2/` |
 | 认证 | 无需 |
+| 速率 | 无明确 RPS（公平使用）；本包 3 RPS → [附录 B](#附录-b已接入源配额与速率限制评估) |
 | 许可 | CC BY |
 
 ### 4.2 ClinicalTrials.gov
@@ -483,7 +485,230 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 
 ---
 
-## 附录：Connector 优先实现顺序
+## 附录 B：已接入源配额与速率限制评估
+
+> **核查日期**：2026-05-21  
+> **范围**：`src/connectors/` 已注册的全部 Connector（32 个 runtime id，含 YAML `enabled: false`）；富化器 Unpaywall 单列。  
+> **本包限速**：各 Connector 构造函数内 `RateLimiter` 保守值（见 `src/connectors/<id>.ts` 的 `*_META.rateLimit`）。  
+> **维护**：官方策略变更时同步更新本附录与各分节「速率」行；OpenAlex / CrossRef 2025–2026 已发生政策调整，**优先复核**。
+
+### B.1 汇总对照表
+
+| runtime `id` | YAML | 官方限额（摘要） | 本包限速 | 超额典型后果 | 官方文档 |
+|---|---|---|---|---|---|
+| `openalex` | ✅ | Key 每日 $1 免费额度；List $0.10/千次；Search $1/千次；Singleton 免费；**100 RPS** 硬顶 | **10k/天** token bucket（List+Filter 日预算） | `429`；超日预算后按量计费 | [Authentication & Pricing](https://developers.openalex.org/api-reference/authentication) · 代码 [`openalex.ts`](../src/connectors/openalex.ts) |
+| `crossref` | ✅ | Polite **10/s** 并发 **3**；Public **5/s** 并发 **1** | 5 RPS | `429` / `403` | [Access & authentication](https://www.crossref.org/documentation/retrieve-metadata/rest-api/access-and-authentication/) |
+| `pubmed` | ✅ | 无 Key **3/s**；有 `NCBI_API_KEY` **10/s**（全 E-utilities 共享） | 3 或 10 RPS | `{"error":"API rate limit exceeded"}`；IP 封禁 | [NCBI Usage Guidelines](https://www.ncbi.nlm.nih.gov/books/NBK25497/#chapter2.Usage_Guidelines_and_Requiremen) |
+| `semanticscholar` | ❌ | 无 Key 全局共享 **5000/5min**；有 Key 新申请默认 **1 RPS**（可申请更高） | **1 RPS** | `429` | [API Tutorial](https://www.semanticscholar.org/product/api/tutorial) · [Release Notes](https://github.com/allenai/s2-folks/blob/main/API_RELEASE_NOTES.md) · 代码 [`semanticscholar.ts`](../src/connectors/semanticscholar.ts) |
+| `arxiv_oai` | ✅ | Legacy API：**≥3s/请求**；`max_results`≤30000 | 1 req / 3s | 慢响应 / HTTP 400 | [arXiv API Manual](https://info.arxiv.org/help/api/user-manual.html) |
+| `biorxiv_oai` | ✅ | 无书面 RPS；**100 条/页** | 1 req / 2s | 未文档化（礼貌访问） | [bioRxiv API](https://api.biorxiv.org/) |
+| `medrxiv_oai` | ✅ | 同 bioRxiv API 根 | 1 req / 2s | 同上 | 同上 |
+| `core` | ❌ | 未注册：基础 token bucket；注册 Key：更高配额（档位因机构而异） | 1 req / 2s | `429` | [CORE API Rate limits](https://api.core.ac.uk/docs/v3#section/Rate-limits) |
+| `opencitations` | ❌ | **180 req/min/IP**（≈3/s） | 2 RPS | 限速 | [OpenCitations Index API](https://api.opencitations.net/index/v2) |
+| `patentsview` | ✅ | ODP **未公开** RPS；默认分页 **25/页** | 2 RPS | 未文档化 | [ODP Getting Started](https://data.uspto.gov/apis/getting-started) |
+| `epo_ops` | ✅ | **4 GB/周**免费（日历周 Mon–Sun GMT）；`X-OPS-Range` 最大 **100/页**、总计 **2000** | 2 RPS | 超量需订阅；`X-Throttling-Control` | [EPO Fair use charter](https://www.epo.org/en/service-support/ordering/fair-use) |
+| `google_patents` | ❌ | BigQuery 查询：**1 TB/月**免费；本包列裁剪单次约 **230 GB** 扫描 | 1 req / 1s | 超额计费 | [BigQuery pricing](https://cloud.google.com/bigquery/pricing) |
+| `wipo` | ✅ | 无 REST；HTML 搜索 **10 条/页**；无官方 RPS | 1 RPS | 挂起 / 空结果（滥用时） | [PATENTSCOPE](https://www.wipo.int/patentscope/en/) |
+| `sec_edgar` | ✅ | **10 req/s**；须 `User-Agent` 含联系邮箱 | 8 RPS | IP 封禁 | [SEC Webmaster FAQ](https://www.sec.gov/os/webmaster-faq#developers) |
+| `yahoo_finance` | ✅ | **非官方** npm SDK；无书面限额 | 1 RPS | IP / 账号风控 | [yahoo-finance2](https://www.npmjs.com/package/yahoo-finance2) |
+| `fred` | ✅ | **2 req/s**（超限 `429`，可临时封禁 Key） | 2 RPS | `429` / Key 暂停 | [FRED API Errors](https://fred.stlouisfed.org/docs/api/fred/v2/errors.html) |
+| `worldbank` | ✅ | **无明确** RPS；公平使用 | 3 RPS | 未文档化 | [World Bank API](https://datahelpdesk.worldbank.org/knowledgebase/articles/889386) |
+| `clinicaltrials` | ✅ | 公开 v2 API；**无 Key**；社区/实现侧建议 **≤10/s**（官方未单独成文） | 8 RPS | 未文档化 | [ClinicalTrials.gov API](https://clinicaltrials.gov/data-api/about-api) |
+| `github` | ✅ | 认证 **5000/h** REST；Search **30/min**（独立桶）；GraphQL **5000 点/h** | 5 RPS（有 Token）/ 1 RPS | `403`/`429` + secondary limit | [GitHub REST rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api) |
+| `hackernews` | ✅ | Firebase：**无书面**限额 | 2 RPS | 未文档化 | [HN Firebase API](https://github.com/HackerNews/API) |
+| `youtube` | ✅ | 默认 **10000 units/天**；`search.list`=**100**；`videos.list`=**1**；`commentThreads.list`=**1** | 0.5 RPS | `403 quotaExceeded` | [Quota costs](https://developers.google.com/youtube/v3/determine_quota_cost) |
+| `reddit` | ⏸ | OAuth client id：**100 QPM** | 1.5 RPS | `429` | [Reddit Data API Wiki](https://support.reddithelp.com/hc/en-us/articles/16160319875092) |
+| `chembl` | ❌ | EBI 公平使用；社区经验 **~5/s**（无硬数字） | 5 RPS | 未文档化 | [ChEMBL Web Services](https://chembl.gitbook.io/chembl-interface-documentation/web-services) |
+| `pubchem` | ❌ | 与 PubMed 共用 **NCBI** 3/10 RPS | 3 或 10 RPS | 同 NCBI | [NCBI Usage Guidelines](https://www.ncbi.nlm.nih.gov/books/NBK25497/) |
+| `materials_project` | ✅ | 注册用户；文档 **25 req/s** | 2 RPS | `429` / IP 临时封禁 | [MP API docs](https://docs.materialsproject.org/downloading-data/using-the-api/tips-for-large-downloads) |
+| `eia` | ✅ | Key 必填；**秒/小时级 throttle**（具体阈值见 Open Data 页，文档未给固定 RPS） | 2 RPS | Key **临时暂停** | [EIA API documentation](https://www.eia.gov/opendata/documentation.php) |
+| `eurostat` | ✅ | 公平使用（请求数 + 提取成本）；大提取 **413 异步** | 2 RPS | 强制异步 / 拒绝 | [Eurostat API Statistics](https://ec.europa.eu/eurostat/web/user-guides/data-browser/api-data-access/api-detailed-guidelines/api-statistics) |
+| `oecd` | ✅ | SDMX REST 礼貌访问（**~2/s** 社区建议） | 2 RPS | 未文档化 | [OECD SDMX API](https://sdmx.oecd.org/public/rest/) |
+| `uniprot` | ✅ | REST **200 req/s**（大下载建议 pagination / `size=-1` 流式） | 3 RPS | `429` | [UniProt REST](https://www.uniprot.org/help/api) |
+| `unpaywall`（富化） | — | 须 `email=`；**无公开 RPS**；默认间隔 **200ms** | 5 req/s（200ms） | 未文档化 | [Unpaywall API](https://unpaywall.org/products/api) |
+
+> **YAML ✅**：`config/sources.yml` 当前 `enabled: true`（2026-05-21 共 **22** 源）。⏸ = 产品冻结（`reddit`）。
+
+### B.2 分源举例（典型 collect / 富化路径）
+
+下列估算基于本包 Connector 默认分页与 ENV；实际以 `data/logs/collect/<source>/` 的 `run.ndjson` 为准。
+
+#### 学术与 DOI
+
+**OpenAlex**（定时 collect：`filter=from_publication_date:…` + cursor）
+
+- 路径：`GET /works?filter=from_publication_date:{since}&per_page=200&cursor=*`（**List+Filter**，非 `search=`）。
+- 官方：List+Filter **$0.10/千次**；每日 **$1 免费** ≈ **10000 次 List+Filter** 或 **1000 次 Search**（[Authentication & Pricing](https://developers.openalex.org/api-reference/authentication)）。
+- 举例：200 条、`per_page=200` → **1 次 API** ≈ **$0.0001**；本包 **10k/天** token bucket（[`openalex.ts`](../src/connectors/openalex.ts)）。
+- CLI `search` 走 `search=` 端点，计价约为 collect 的 **10 倍**——高频 search 请监控 `X-RateLimit-*` 或 [`/rate-limit`](https://developers.openalex.org/api-reference/rate-limits/check-rate-limit-status)。
+
+**CrossRef**（Polite + `mailto=`，collect 200 条）
+
+- 路径：`GET /works?cursor=*&rows=100`。
+- 官方：Polite **10 req/s**、并发 **3**（[Access](https://www.crossref.org/documentation/retrieve-metadata/rest-api/access-and-authentication/)）。
+- 举例：200 条 → **2 次请求**；本包 5 RPS → 约 **0.4s** 完成；远低于 10/s 上限。
+
+**PubMed**（有 `NCBI_API_KEY`，200 篇含摘要 + PMC 全文）
+
+- 路径：`esearch` → `esummary` → `efetch`(abstract) → `elink`+`efetch`(PMC)（每批最多 50 篇 PMC，ENV 可控）。
+- 官方：**10 req/s**（[NCBI](https://www.ncbi.nlm.nih.gov/books/NBK25497/#chapter2.Usage_Guidelines_and_Requiremen)）。
+- 举例：200 篇 ≈ **4×(esearch+esummary+efetch)** + PMC 全文另计 → 约 **12–20 次** E-utilities；10 RPS 下 **2–3 秒**量级。
+
+**Semantic Scholar**（有 Key，collect 100 篇）
+
+- 官方：新 Key 默认 **1 RPS**（[Tutorial](https://www.semanticscholar.org/product/api/tutorial) · [Release Notes](https://github.com/allenai/s2-folks/blob/main/API_RELEASE_NOTES.md)）；无 Key 共享 **5000/5min**。
+- 举例：`paper/search?limit=100` **1 次**；本包 **1 RPS**（[`semanticscholar.ts`](../src/connectors/semanticscholar.ts)）→ 约 **1s**。
+
+**arXiv OAI**（collect 200 条）
+
+- 官方：连续请求 **≥3s 间隔**（[User Manual](https://info.arxiv.org/help/api/user-manual.html)）。
+- 举例：200 条 OAI ListRecords 多页 → 本包 **3s/请求** → 10 页约 **30s** 仅限速等待（不含传输）。
+
+**bioRxiv / medRxiv**（日期窗 collect 200 条）
+
+- 官方：**100 条/页**（[api.biorxiv.org](https://api.biorxiv.org/)）。
+- 举例：200 条 → **2 次** `details/{server}/{from}/{to}/{cursor}/json`；本包 **2s/请求** → 约 **4s**。
+
+#### 专利
+
+**USPTO ODP**（`patentsview`，POST search 200 条）
+
+- 官方：分页默认 **25/页** → 200 条需 **8 次** POST；**无公开 RPS**。
+- 举例：本包 2 RPS → 约 **4s**；若返回 429 应退避。
+
+**EPO OPS**（关键词检索 500 条摘要）
+
+- 官方：**4 GB/周** 流量（非请求数）；每页最多 **100** 条（`X-OPS-Range: 1-100`）。
+- 举例：500 条 → **5 次** biblio 请求；若每次响应 ~200 KB → **~1 MB/周**，远低于 4 GB。
+
+**WIPO PATENTSCOPE**（browse 无 query，10 条/页）
+
+- 举例：collect `max-items 50` → **5 次** HTML 解析；本包 **1 RPS** → **≥5s**；绝对日期 Lucene 会挂起（见 §2.4）。
+
+**Google Patents BigQuery**（单次列裁剪查询）
+
+- 官方：**1 TB/月** 免费查询量；本包 `maximum_bytes_billed=300GB`（`sources.yml`）。
+- 举例：单次扫描 ~230 GB → 月内约 **4 次** 全量检索即接近免费额度上限。
+
+#### 金融 / 监管
+
+**SEC EDGAR**（10 个 filing 全文）
+
+- 官方：**10 req/s**。
+- 举例：每份 10-K ≈ index + primary document **2–3 次** → 10 份 **20–30 次**；8 RPS 下 **3–4s**。
+
+**FRED**（collect 50 序列：search + observations）
+
+- 官方：**2 req/s**。
+- 举例：50 序列 × 2 端点 ≈ **100 次** → 2 RPS 下 **~50s**。
+
+**Yahoo Finance**（5 ticker `quote`）
+
+- 举例：5 次 SDK 调用；本包 **1 RPS** → **5s**；非官方 API，突发易触发风控。
+
+#### 统计 / 垂直
+
+**World Bank**（单指标多国序列）
+
+- 举例：`/v2/country/all/indicator/…` **1–2 次**；无硬限额，本包 3 RPS 礼貌访问。
+
+**ClinicalTrials**（200 trials）
+
+- 举例：`/api/v2/studies?pageSize=100` → **2 次**；本包 8 RPS。
+
+**Eurostat / OECD**（各 1 个核心 indicator 序列）
+
+- 举例：各 **1 次** GET；Eurostat 大表可能 **413 异步**——应用 `lastTimePeriod=1` 等过滤（本包已用）。
+
+**Materials Project**（formula 搜索 100 材料）
+
+- 官方：**25 req/s**；本包 2 RPS。
+- 举例：`/materials/summary/` 分页 ~**4 次**（`_limit=25`）→ 2 RPS 下 **~2s**。
+
+**EIA**（油价序列 1 dataset）
+
+- 举例：`/v2/.../data/` **1 次** + 分页；Key 超限会 **临时 suspend**（文档 §API key limits）。
+
+**UniProt**（100 蛋白）
+
+- 官方：**200 req/s**；本包 3 RPS。
+- 举例：`size=100` **1 次** 即可。
+
+**ChEMBL / PubChem**（各 disabled；各 100 化合物）
+
+- ChEMBL：`molecule/search` 分页；本包 5 RPS。
+- PubChem：name → cid → property **2–3 次/化合物**；100 化合物 ≈ **200–300 次** NCBI 调用 → 10 RPS 下 **20–30s**。
+
+#### 社交 / 媒体
+
+**GitHub**（REST search 30 repos + README）
+
+- 官方：Search **30/min** 独立于 5000/h（[REST limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)）。
+- 举例：1 次 search + 30 次 contents = **31 次**；GraphQL（`use_graphql: true`）可压为 **1 次**。
+
+**Hacker News**（top 50 stories + 可选外链全文）
+
+- 举例：1 次 `topstories` + 50 次 `item` = **51 次**；2 RPS → **~25s**；`HACKERNEWS_URL_FULLTEXT_*` 另计 HTML 抓取。
+
+**YouTube**（1 页 search + statistics + 5 条评论/视频）
+
+- 官方配额：`search.list` **100** + `videos.list` **1×N** + `commentThreads.list` **1×N**。
+- 举例：25 视频、开 statistics + comments（5/视频）→ **100 + 25 + 125 = 250 units**；默认 **10000 units/天** → 约 **40 次** 类似 collect/天。
+
+**Reddit**（⏸ 冻结；参考）
+
+- 官方：**100 QPM** ≈ **1.67/s**；本包 1.5 RPS。
+
+#### 富化（非 Connector）
+
+**Unpaywall**（dedup 后 50 篇 DOI，`UNPAYWALL_ENRICH_ENABLED=1`）
+
+- 路径：`GET /v2/{doi}?email=` 每 DOI 一次。
+- 举例：50 DOI × **200ms** 间隔（默认 `UNPAYWALL_MIN_INTERVAL_MS`）→ **~10s**；须有效 `UNPAYWALL_EMAIL`。
+
+### B.3 运维建议
+
+1. **共享 Key**：`NCBI_API_KEY` 同时作用于 `pubmed` 与 `pubchem`——并发 collect 时合并计算 10/s 上限。
+2. **日配额型**：YouTube（units/天）、OpenAlex（$/天）、Google Patents（TB/月）、EPO OPS（GB/周）——在调度器错开高峰源，或降低 `COLLECT_ALL_MAX_ITEMS`。
+3. **响应头监控**：CrossRef `x-rate-limit-*`、OpenAlex `X-RateLimit-*`（[说明](https://developers.openalex.org/api-reference/authentication)）、GitHub `x-ratelimit-remaining`——429 时 `BaseConnector` 已有退避，但应记录到 collect log。
+4. **代码同步（2026-05-21）**：`openalex.ts` → 10k/天 List+Filter 预算；`semanticscholar.ts` → 1 RPS。提额后可在 Connector 内调整 `RateLimiter` 并更新本附录。
+
+### B.4 官方文档原始链接（按 runtime id）
+
+| runtime `id` | 官方配额/速率文档 |
+|---|---|
+| `openalex` | https://developers.openalex.org/api-reference/authentication |
+| `crossref` | https://www.crossref.org/documentation/retrieve-metadata/rest-api/access-and-authentication/ |
+| `pubmed` / `pubchem` | https://www.ncbi.nlm.nih.gov/books/NBK25497/#chapter2.Usage_Guidelines_and_Requiremen |
+| `semanticscholar` | https://www.semanticscholar.org/product/api/tutorial · https://github.com/allenai/s2-folks/blob/main/API_RELEASE_NOTES.md |
+| `arxiv_oai` | https://info.arxiv.org/help/api/user-manual.html |
+| `biorxiv_oai` / `medrxiv_oai` | https://api.biorxiv.org/ |
+| `core` | https://api.core.ac.uk/docs/v3#section/Rate-limits |
+| `opencitations` | https://api.opencitations.net/index/v2 |
+| `patentsview` | https://data.uspto.gov/apis/getting-started |
+| `epo_ops` | https://www.epo.org/en/service-support/ordering/fair-use |
+| `google_patents` | https://cloud.google.com/bigquery/pricing |
+| `wipo` | https://www.wipo.int/patentscope/en/ |
+| `sec_edgar` | https://www.sec.gov/os/webmaster-faq#developers |
+| `yahoo_finance` | https://www.npmjs.com/package/yahoo-finance2 |
+| `fred` | https://fred.stlouisfed.org/docs/api/fred/v2/errors.html |
+| `worldbank` | https://datahelpdesk.worldbank.org/knowledgebase/articles/889386 |
+| `clinicaltrials` | https://clinicaltrials.gov/data-api/about-api |
+| `github` | https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api |
+| `hackernews` | https://github.com/HackerNews/API |
+| `youtube` | https://developers.google.com/youtube/v3/determine_quota_cost |
+| `reddit` | https://support.reddithelp.com/hc/en-us/articles/16160319875092 |
+| `chembl` | https://chembl.gitbook.io/chembl-interface-documentation/web-services |
+| `materials_project` | https://docs.materialsproject.org/downloading-data/using-the-api/tips-for-large-downloads |
+| `eia` | https://www.eia.gov/opendata/documentation.php |
+| `eurostat` | https://ec.europa.eu/eurostat/web/user-guides/data-browser/api-data-access/api-detailed-guidelines/api-statistics |
+| `oecd` | https://sdmx.oecd.org/public/rest/ |
+| `uniprot` | https://www.uniprot.org/help/api |
+| `unpaywall` | https://unpaywall.org/products/api |
+
+---
+
+## 附录 A：Connector 优先实现顺序
 
 ```
 已完成：
@@ -533,4 +758,5 @@ RAG 质量优先（遗留增强）：
 > **内容层评估**：2026-05-19 增补，详析见 [数据源接入与RAG构建方案.md §7](./plans/数据源接入与RAG构建方案.md#7-内容层评估与-rag-可用性分析)。
 > **A4 Semantic Scholar**：2026-05-19 落地 `semanticscholar.ts`；`SEMANTIC_SCHOLAR_API_KEY`；YAML 默认 `enabled: false`。  
 > **勘误（2026-05-20）**：§2.1–2.2 Google Patents / EPO OPS 对齐官方路径与限额；§5.3 Reddit 100 QPM。  
+> **配额评估（2026-05-21）**：新增 [附录 B](#附录-b已接入源配额与速率限制评估)（32 Connector + Unpaywall 富化；官方对照 + collect 举例 + [B.4 原始链接](#b4-官方文档原始链接按-runtime-id)）；§1.1 OpenAlex、§1.4 CrossRef 速率行更新；**代码同步** `openalex.ts`（10k/天）、`semanticscholar.ts`（1 RPS）；**DB** `001_init.sql` 种子 + 迁移 `023_rate_limit_openalex_s2.sql`。  
 > **12 Connector 全景（2026-05-19）**：见 [实施进度总览 §2.1](./plans/实施进度总览.md#21-connector-运行时)。
