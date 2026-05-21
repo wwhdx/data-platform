@@ -104,7 +104,15 @@ export class WorldBankConnector extends BaseConnector {
       if (params.signal?.aborted) break;
       if (yielded >= maxItems) break;
 
-      yield* this.collectIndicator(code, maxItems - yielded, params.signal);
+      for await (const doc of this.collectIndicator(
+        code,
+        maxItems - yielded,
+        params.signal,
+      )) {
+        yield doc;
+        yielded++;
+        if (yielded >= maxItems) return;
+      }
     }
   }
 

@@ -4,7 +4,8 @@
  * 测试字段映射、null value 过滤、indicator/observation 数据转换。
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { WorldBankConnector } from "../../connectors/worldbank";
 
 // ── 模拟 World Bank API 响应格式 ──
 
@@ -127,6 +128,56 @@ describe("World Bank connector helpers", () => {
   });
 
   // ── search: indicator name matching ──
+
+  describe("WorldBankConnector.collect maxItems", () => {
+    const originalFetch = global.fetch;
+    const wbMeta = { page: 1, pages: 1, per_page: "50", total: 30 };
+
+    function obsBatch(code: string, n: number, start = 0): ReturnType<typeof makeObservation>[] {
+      return Array.from({ length: n }, (_, i) =>
+        makeObservation(code, `Ind ${code}`, `C${start + i}`, `Country ${start + i}`, "2024", i + 1),
+      );
+    }
+
+    beforeEach(() => {
+      global.fetch = vi.fn();
+    });
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+      vi.restoreAllMocks();
+    });
+
+    it("跨多个 CORE_INDICATORS 累计不超过 maxItems", async () => {
+      vi.mocked(global.fetch).mockImplementation(async (input) => {
+        const url = String(input);
+        if (url.includes("NY.GDP.MKTP.CD")) {
+          return {
+            ok: true,
+            json: async () => [wbMeta, obsBatch("NY.GDP.MKTP.CD", 30)],
+          } as Response;
+        }
+        if (url.includes("NY.GDP.PCAP.CD")) {
+          return {
+            ok: true,
+            json: async () => [wbMeta, obsBatch("NY.GDP.PCAP.CD", 30, 100)],
+          } as Response;
+        }
+        return { ok: true, json: async () => [wbMeta, []] } as Response;
+      });
+
+      const c = new WorldBankConnector({});
+      const docs = [];
+      for await (const d of c.collect({ maxItems: 50 })) {
+        docs.push(d);
+      }
+      expect(docs).toHaveLength(50);
+      const codes = new Set(docs.map((d) => String(d.rawJson.indicator_code)));
+      expect(codes.has("NY.GDP.MKTP.CD")).toBe(true);
+      expect(codes.has("NY.GDP.PCAP.CD")).toBe(true);
+      expect(global.fetch).toHaveBeenCalled();
+    });
+  });
 
   describe("indicator search", () => {
     it("filters indicators by name substring match", () => {
