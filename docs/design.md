@@ -1,13 +1,88 @@
 # data-platform 数据平台设计方案
 
-> v0.2 — 职责边界澄清（/api/context 移除）+ MVP 路径  
-> 基于望野项目 UODE（通用机遇探索引擎）理念与 16 个主流数据平台 API 协议设计。  
-> **文档地图** → [README.md](./README.md) · **代码/任务真源** → [plans/实施进度总览.md](plans/实施进度总览.md)（本文不维护实现进度表）
+> **v0.3** — 设计大纲 + 架构真源（2026-05-21）  
+> 基于望野 UODE 理念与多源 API 协议；**实现进度/Connector 数量/测试数** → [plans/实施进度总览.md](plans/实施进度总览.md) §2（本文不维护进度表）  
+> **文档地图** → [README.md](./README.md) · **短入口** → [overview.md](./overview.md)
+
+---
+
+## 零、设计大纲（当前态摘要）
+
+> 本节为**一页纸架构大纲**；字段级速查见 [data-sources.md](./data-sources.md)，HTTP 契约见 [knowledge/数据平台API协议.md](./knowledge/数据平台API协议.md)。
+
+### 0.1 定位与边界
+
+| 维度 | 说明 |
+|------|------|
+| **角色** | 望野三层架构中的**数据层**：多源采集 → 清洗存储 → RAG 检索 |
+| **独立部署** | 独立进程 `:3400`、独立库 `DATA_PLATFORM_DATABASE_URL`（禁止父仓 `DATABASE_URL`） |
+| **对外契约** | `SearchProvider` 兼容 HTTP（`POST /api/search`）；engine-core 消费检索结果注入 `knowledgeContext` |
+| **不做** | LLM 编排、DAG、引用校验、用户权限、LLM 摘要（均在 engine-core / 主平台） |
+
+### 0.2 六层架构（L1→L6）
+
+```
+L1 调度   node-cron + YAML sources.yml → Scheduler.trigger
+L2 采集   29× BaseConnector → RawDocument（不可变 JSONB）
+L3 存储   PostgreSQL 16 + pgvector（向量与关系数据同库）
+L4 处理   dedup → 富化/全文补全 → chunk → embed
+L5 RAG     hybridSearch（pgvector 语义 + tsvector 关键词 → RRF）
+L6 API     Fastify：/api/search · /api/sources · /api/admin/*
+```
+
+数据主路径：`调度 → Connector.collect → dedup → postProcess → embedDocuments → document_chunks → hybridSearch → API`。
+
+### 0.3 实现快照（链真源，不复制全表）
+
+| 项 | 当前态 | 详情 |
+|----|--------|------|
+| Connector | **29** 运行时类 · YAML **30** 登记（含 Legacy `arxiv`） | [实施进度 §2.1](plans/实施进度总览.md#21-connector-运行时) |
+| 定时采集 | **22** 源 cron 开 · **7** 源策略关（含 reddit ⏸） | `config/sources.yml` |
+| 迁移 | `001`–`022` · pgvector + 配置审计表 | `src/storage/migrations/` |
+| CLI | 10 顶层命令 + `config` 子命令 | `src/cli/index.ts` |
+| 测试 | L0 单元 + **I 轨** L2-fast 闭环 | [§十一](#十一集成测试与质量门禁i-轨) · 实施进度 §2.5 |
+| 下一动作 | **波次 10**：运维启用 + 父仓 C2/C3 | [实施进度 §4.10](plans/实施进度总览.md#410-波次-10运维启用--父仓对接p1-重评估2026-05-21) |
+
+### 0.4 模块地图（代码 ↔ 设计章节）
+
+| 能力 | 路径 | 设计 |
+|------|------|------|
+| Connector 框架 | `src/connectors/` · `bootstrap.ts` | [§四](#四connector-系统) |
+| 配置 v1.1 | `src/config/` · `config/sources.yml` | [plans/数据源配置-interface-profile实施方案.md](plans/数据源配置-interface-profile实施方案.md) |
+| 采集编排 | `src/scheduler/` · `src/collect/` | [§八](#八调度系统) · [plans/采集日志与可观测性设计方案.md](plans/采集日志与可观测性设计方案.md) |
+| 处理流水线 | `src/processors/`（dedup · chunk · 全文/Unpaywall 富化） | [§五](#五处理流水线) |
+| RAG | `src/rag/`（embed · vectorStore · retriever） | [§六](#六rag-检索系统) |
+| REST API | `src/api/` | [§七](#七api-设计) · [knowledge/数据平台API协议.md](./knowledge/数据平台API协议.md) |
+| engine-core 适配 | `src/adapters/engineCore.ts` | [§九](#九与-engine-core-对接) |
+| 导出/镜像 D1–D2 | `src/export/` | [plans/原始数据本地导出与镜像方案.md](plans/原始数据本地导出与镜像方案.md) |
+| HTTP 溯源 D5 | `src/connectors/provenance/` | 同上 §4.7 |
+
+### 0.5 横切能力轨
+
+| 轨 | 目标 | 方案 |
+|----|------|------|
+| **A** | Connector + 流水线 | [数据源接入与RAG构建方案.md](plans/数据源接入与RAG构建方案.md) · 实施进度 §3 A |
+| **B** | 配置热更新 / Admin | [外部数据源配置热更新方案.md](plans/外部数据源配置热更新方案.md) |
+| **D** | 原始 JSON 导出与镜像 | [原始数据本地导出与镜像方案.md](plans/原始数据本地导出与镜像方案.md) |
+| **I** | 子包 collect→search 闭环 | [集成测试最小闭环方案.md](plans/集成测试最小闭环方案.md) · [§十一](#十一集成测试与质量门禁i-轨) |
+| **L** | 采集 NDJSON 日志与进度 | [采集日志与可观测性设计方案.md](plans/采集日志与可观测性设计方案.md) |
+| **P** | 父仓 HTTP 契约 | [父仓对接集成测试闭环方案.md](plans/父仓对接集成测试闭环方案.md) · [平台接入设计框架.md](plans/平台接入设计框架.md) |
+
+### 0.6 Phase 路线图
+
+| Phase | 目标 | 状态 |
+|-------|------|------|
+| **1** MVP 骨架（3 源闭环 → 扩展） | PG + 搜索 API + Scheduler | ✅ |
+| **2** RAG（pgvector + 混合检索 + 分块） | Embedding 多后端 | ✅ |
+| **2+** 多源波次 5a–9 | 29 Connector · D5 · 全文加深 | ✅ 2026-05-21 |
+| **3** 知识图谱（Neo4j + 实体关系） | 图检索 | □ |
+| **4** 平台化 | 仪表盘 · Webhook · BullMQ | 🟡 Connector 已超原 16+ 目标；调度/监控待做 |
 
 ---
 
 ## 目录
 
+- [零、设计大纲（当前态摘要）](#零设计大纲当前态摘要)
 - [一、项目定位](#一项目定位)
 - [二、整体架构](#二整体架构)
 - [三、数据模型](#三数据模型)
@@ -68,7 +143,7 @@ data-platform 是望野三层架构（平台 → engine-core → data-platform�
 2. **原始数据不可变**：RawDocument 只追加不修改，保证审计可追溯
 3. **异步流水线**：采集 → 去重 → 富化 → 分块 → Embedding 独立阶段
 4. **多消费者复用**：同一数据集供 engine-core、前端仪表盘、管理员查询消费
-5. **先窄后宽**：MVP 3 个源跑通闭环，再扩展到全 16+ 源
+5. **先窄后宽**：MVP 3 源跑通闭环，再波次扩展（当前 **29** 运行时 Connector，见 [实施进度 §2.1](plans/实施进度总览.md#21-connector-运行时)）
 
 ---
 
@@ -84,9 +159,9 @@ data-platform 是望野三层架构（平台 → engine-core → data-platform�
 ├──────────────────────────────────────────────────────────┤
 │ L4 处理层       │ 去重 → 富化 → 分块 → Embedding       │
 ├──────────────────────────────────────────────────────────┤
-│ L3 存储层       │ PostgreSQL + Qdrant + (Neo4j Phase3)   │
+│ L3 存储层       │ PostgreSQL 16 + pgvector (+ Neo4j Phase3) │
 ├──────────────────────────────────────────────────────────┤
-│ L2 采集层       │ 16+ Connector → 标准化 RawDocument     │
+│ L2 采集层       │ 29 Connector → 标准化 RawDocument      │
 ├──────────────────────────────────────────────────────────┤
 │ L1 调度层       │ Cron 定时 + Webhook 事件 + 手动触发   │
 └──────────────────────────────────────────────────────────┘
@@ -101,7 +176,7 @@ data-platform 是望野三层架构（平台 → engine-core → data-platform�
 处理器 ──→ 去重(by source+extId) ──→ 富化(实体抽取) ──→ EnrichedDocument (PG)
                               │
                               ▼
-分块器 ──→ 文本分块 ──→ Embedding 生成 ──→ Qdrant 向量存储
+分块器 ──→ 文本分块 ──→ Embedding 生成 ──→ document_chunks (pgvector)
                               │
                               ▼
 RAG 检索 ──→ 语义搜索 + 关键词 ──→ 混合排序 ──→ API 响应
@@ -117,7 +192,7 @@ RAG 检索 ──→ 语义搜索 + 关键词 ──→ 混合排序 ──→ A
 | 调度 | node-cron → BullMQ | MVP 简单，生产可靠 |
 | HTTP | Fastify | 性能好，TypeScript 生态好 |
 | Embedding | Voyage AI / OpenAI | 文本嵌入质量高 |
-| ORM | Prisma | 与望野技术栈一致 |
+| 数据访问 | `pg` 连接池 + 手写 SQL | 迁移在 `src/storage/migrations/`；无 ORM 层 |
 | 包管理 | pnpm | 与望野一致 |
 
 ---
@@ -822,7 +897,7 @@ ctx.state.dataPlatformResults = data.results.map(r => ({
 
 - [x] 项目初始化：tsconfig, package.json, vitest
 - [x] BaseConnector + RateLimiter + ExponentialBackoff + `paginateOffset`
-- [x] OpenAlexConnector + CrossRefConnector + WorldBankConnector（Phase 1 MVP）；**扩展至 12 运行时 Connector**（见 [实施进度总览](plans/实施进度总览.md) §2.1）
+- [x] OpenAlexConnector + CrossRefConnector + WorldBankConnector（Phase 1 MVP）；**扩展至 29 运行时 Connector**（见 [实施进度总览](plans/实施进度总览.md) §2.1）
 - [x] PostgreSQL 数据模型 + 迁移 `001`–`006`
 - [x] 去重处理器（Stage 1）+ Scheduler 200 条批量
 - [x] 搜索 API（`/api/search`，混合检索非纯关键词）
@@ -858,7 +933,8 @@ ctx.state.dataPlatformResults = data.results.map(r => ({
 
 - [ ] 采集仪表盘（Grafana / 内置页面）
 - [ ] Webhook 事件驱动采集
-- [ ] 扩展 Connector 到 16+ 源
+- [x] 扩展 Connector 至 29 源（波次 5a–9 ✅；cron 分层见实施进度 §2.1）
+- [ ] BullMQ 替换 node-cron（生产级 repeatable jobs）
 - [ ] 开放 API Key 管理（第三方接入）
 - [ ] BullMQ 生产级调度
 
@@ -934,6 +1010,7 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-05-21 | v0.3 | 新增 **§零 设计大纲**（六层/模块地图/横切轨/Phase）；修正 Qdrant→pgvector、Prisma→pg 池、Connector 29、Phase 4 勾选 |
 | 2026-05-19 | v0.2.8 | `patentsview` 迁至 ODP（`api.uspto.gov` + `USPTO_ODP_API_KEY`）；废弃 PatentSearch / `PATENTSVIEW_API_KEY` |
 | 2026-05-19 | v0.2.7 | PatentsView 文档同步：`data-sources.md` §2.3 ODP 迁移与 Key 申请 |
 | 2026-05-19 | v0.2.6 | 12 Connector 全景；Phase 2 分块标 A8；链 [实施进度总览](plans/实施进度总览.md) v3.1 |
@@ -945,7 +1022,7 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 | 2025-05-15 | v0.1 | 初始草案 |
 | 2026-05-15 | v0.2 | 职责边界澄清：移除 `/api/context`（LLM 摘要生成 → engine-core）；§9.1 接入点从 3 个精简为 2 个；§1.2 边界表新增 LLM 摘要/实体抽取行；Phase 4 移除 `/api/context` |
 
-> **版本**: v0.2.8 | **状态**: Phase 1/2 + 12 Connector + I 轨已落地 | **最后更新**: 2026-05-19
+> **版本**: v0.3 | **状态**: Phase 1/2 + 29 Connector + I/L/D 轨已落地 · 波次 10 进行中 | **最后更新**: 2026-05-21
 >
 > 相关文档：
 > - 实施进度总览：`docs/plans/实施进度总览.md`

@@ -1,7 +1,7 @@
 # data-platform 概览
 
-> **版本**：v2.0（2026-05-19）· **类型**：短入口，非架构/进度真源  
-> **完整文档地图** → [README.md](./README.md)
+> **版本**：v2.1（2026-05-21）· **类型**：短入口，非架构/进度真源  
+> **完整文档地图** → [README.md](./README.md) · **设计大纲（架构真源）** → [design.md §零](./design.md#零设计大纲当前态摘要)
 
 ---
 
@@ -23,7 +23,26 @@ data-platform 是望野 monorepo 中的**数据层子包**（`packages/data-plat
 
 ---
 
-## 2. 实现状态（不在此展开）
+## 2. 设计大纲（一页纸）
+
+> 完整大纲与模块地图 → [design.md §零](./design.md#零设计大纲当前态摘要)。**不在此复制 Connector 清单或测试数。**
+
+| 层次 | 要点 | 代码 |
+|------|------|------|
+| **L1 调度** | YAML cron · 增量 `since` · 重复扫描 abort | `src/scheduler/` |
+| **L2 采集** | 29 Connector · D5 溯源 · `collect_max_items` | `src/connectors/` · `src/collect/` |
+| **L3 存储** | PG + pgvector · 迁移 `001`–`022` | `src/storage/` |
+| **L4 处理** | dedup → 全文/Unpaywall → chunk → embed | `src/processors/` |
+| **L5 RAG** | hybridSearch · RRF · 多 Embedding 后端 | `src/rag/` |
+| **L6 API** | Fastify `:3400` · Admin collect | `src/api/` |
+
+**横切轨**：I 集成测试 · L 采集日志 · D 导出/镜像 · P 父仓对接 — 方案索引见 [design.md §0.5](./design.md#05-横切能力轨)。
+
+**实现状态** → [plans/实施进度总览.md](./plans/实施进度总览.md) §2（**22** cron 开 / **7** 关 · 波次 10 🟡）。
+
+---
+
+## 3. 实现状态（不在此展开）
 
 **代码与任务真源** → [plans/实施进度总览.md](./plans/实施进度总览.md) §2（Connector、CLI、迁移、测试数）与 §4（下一阶段任务）。
 
@@ -33,7 +52,7 @@ data-platform 是望野 monorepo 中的**数据层子包**（`packages/data-plat
 
 ---
 
-## 3. 关键模块（链接真源）
+## 4. 关键模块（链接真源）
 
 | 模块 | 设计 | 实现对照 |
 |------|------|----------|
@@ -48,7 +67,7 @@ data-platform 是望野 monorepo 中的**数据层子包**（`packages/data-plat
 
 ---
 
-## 4. 文档索引
+## 5. 文档索引
 
 与 [README.md](./README.md) 一致；日常维护优先更新 **实施进度总览** 与对应 **plans/** 专题稿，勿在本文件复制进度表。
 
@@ -60,3 +79,4 @@ data-platform 是望野 monorepo 中的**数据层子包**（`packages/data-plat
 |------|------|------|
 | v1.0–v1.7 | 2026-05-19 | 原 `功能实现与设计总览.md`（已与 design/实施进度大量重复） |
 | v2.0 | 2026-05-19 | 瘦身为入口页；架构/进度迁至 design.md 与实施进度总览；重命名为 `overview.md` |
+| v2.1 | 2026-05-21 | 新增 §2 设计大纲（链 design §零）；章节序号顺延 |

@@ -7,7 +7,7 @@
 | 你想了解… | 读这个 | 不要在这里找… |
 |-----------|--------|----------------|
 | 项目是什么、文档怎么分 | **本文** | 架构细节、任务勾选 |
-| 架构与模块边界（目标态） | [design.md](./design.md) | 当前 Connector 数量、Phase 勾选 |
+| 架构与模块边界（目标态 + **设计大纲**） | [design.md](./design.md) §零 | 当前 Connector 数量、Phase 勾选 |
 | 代码现状 ↔ 任务（真源） | [plans/实施进度总览.md](./plans/实施进度总览.md) | 六层架构长文、外部 API 字段表 |
 | Phase 1 历史拆解（归档） | [phase1-plan.md](./phase1-plan.md) | 下一阶段排期 |
 | Connector 实现字段/速率 | [data-sources.md](./data-sources.md) | HTTP 契约、按认证类型分类 |
@@ -30,7 +30,7 @@
 |------|------|----------|
 | [README.md](./README.md) | 文档地图与解耦约定 | 增删文档时 |
 | [overview.md](./overview.md) | 定位 + 边界 + 文档索引（短） | 职责/边界变化时 |
-| [design.md](./design.md) | 架构、数据模型、分 Phase **设计** | 架构决策变更时 |
+| [design.md](./design.md) | 架构、数据模型、分 Phase **设计**；**§零 设计大纲** | 架构决策变更时 |
 | [phase1-plan.md](./phase1-plan.md) | Phase 1 **归档**（只读参考） | 不更新，仅勘误 |
 | [data-sources.md](./data-sources.md) | 各外部 API **Connector 实现速查** | 改 Connector / 上游 API 时 |
 | [storage-strategy.md](./storage-strategy.md) | 异构数据存储方案 **评估** | 存储架构决策时 |
@@ -83,5 +83,6 @@
 
 | 日期 | 说明 |
 |------|------|
+| 2026-05-21 | design.md v0.3：§零 设计大纲；overview v2.1 链入 §零 |
 | 2026-05-19 | 增补 doc-writing-guide 与 doc-writing.mdc 索引 |
 | 2026-05-19 | 初版：建立文档索引；总览瘦身并重命名为 `overview.md` |
