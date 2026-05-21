@@ -92,6 +92,8 @@ describe("HackerNewsConnector", () => {
     }
     expect(docs).toHaveLength(1);
     expect(docs[0]?.externalId).toBe("99");
+    expect(docs[0]?.fetchProvenance?.documentRequest?.url).toContain("/item/99.json");
+    expect(docs[0]?.fetchProvenance?.batchRequest?.url).toContain("topstories.json");
   });
 
   it("collect 外链 fulltext 可选", async () => {

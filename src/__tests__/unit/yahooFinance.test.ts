@@ -78,6 +78,8 @@ describe("YahooFinanceConnector", () => {
     }
     expect(docs).toHaveLength(1);
     expect(docs[0]?.externalId).toBe("AAPL");
+    expect(docs[0]?.fetchProvenance?.documentRequest?.synthetic).toBe(true);
+    expect(docs[0]?.fetchProvenance?.batchRequest?.synthetic).toBe(true);
     expect(sdk.search).not.toHaveBeenCalled();
     expect(sdk.quote).toHaveBeenCalledWith("AAPL");
   });

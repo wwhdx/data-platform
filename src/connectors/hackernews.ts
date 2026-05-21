@@ -20,6 +20,12 @@ import {
   isHnUrlFulltextEnabled,
   shouldFetchHnStoryUrl,
 } from "./hackernewsUrlFulltext";
+import { attachProvenance } from "./provenance/attach";
+import {
+  buildHackernewsBatchRequest,
+  buildHackernewsCanonicalUrl,
+  buildHackernewsDocumentRequest,
+} from "./provenance/hackernews";
 
 export const HACKERNEWS_META: ConnectorMeta = {
   id: "hackernews",
@@ -99,8 +105,20 @@ export class HackerNewsConnector extends BaseConnector {
   async *collect(params: CollectParams = {}): AsyncGenerator<RawDocument> {
     const maxItems = params.maxItems ?? Infinity;
     const ids = (await this.fetchJson<number[]>("topstories")) ?? [];
+    const batchRequest = {
+      ...buildHackernewsBatchRequest(this.runtimeBaseUrl),
+      batchIndex: 0,
+      documentsInBatch: ids.length,
+      ephemeral: false,
+    };
+    const collectCtx = {
+      mode: "incremental" as const,
+      since: params.since,
+      query: params.query,
+    };
     const q = params.query?.trim().toLowerCase();
     let yielded = 0;
+    let documentIndexInBatch = 0;
     const withFulltext = isHnUrlFulltextEnabled();
     const fulltextCfg = hnUrlFulltextConfig(this.userAgent);
     const fulltextBudget = {
@@ -124,12 +142,19 @@ export class HackerNewsConnector extends BaseConnector {
         ? await this.resolveStoryFulltext(item, fulltextBudget, fulltextCfg)
         : undefined;
       const { externalId, rawJson } = mapHnItemToRawJson(item, fulltext);
-      yield {
+      const doc: RawDocument = {
         sourceId: HACKERNEWS_META.id,
         externalId,
         rawJson,
         fetchedAt: new Date(),
       };
+      yield attachProvenance(doc, HACKERNEWS_META, {
+        documentRequest: buildHackernewsDocumentRequest(externalId, this.runtimeBaseUrl),
+        batchRequest: { ...batchRequest, documentIndexInBatch },
+        collect: collectCtx,
+        canonicalUrl: buildHackernewsCanonicalUrl(rawJson),
+      });
+      documentIndexInBatch++;
       yielded++;
     }
   }

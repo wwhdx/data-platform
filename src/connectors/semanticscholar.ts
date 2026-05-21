@@ -8,6 +8,12 @@ import type {
 } from "../types";
 import { BaseConnector } from "./base";
 import { RateLimiter } from "./rateLimiter";
+import { attachProvenance } from "./provenance/attach";
+import {
+  buildSemanticScholarBatchRequest,
+  buildSemanticScholarCanonicalUrl,
+  buildSemanticScholarDocumentRequest,
+} from "./provenance/semanticscholar";
 
 export const SEMANTIC_SCHOLAR_META: ConnectorMeta = {
   id: "semanticscholar",
@@ -99,6 +105,12 @@ export class SemanticScholarConnector extends BaseConnector {
     const pageSize = 100;
     let offset = 0;
     let yielded = 0;
+    let batchIndex = 0;
+    const collectCtx = {
+      mode: "incremental" as const,
+      since: params.since ?? since,
+      query: params.query,
+    };
 
     while (yielded < maxItems) {
       if (params.signal?.aborted) break;
@@ -122,9 +134,38 @@ export class SemanticScholarConnector extends BaseConnector {
       const papers = body.data ?? [];
       if (papers.length === 0) break;
 
-      for (const paper of papers) {
+      const batchRequest = {
+        ...buildSemanticScholarBatchRequest(
+          this.runtimeBaseUrl,
+          this.userAgent,
+          {
+            query: searchQuery,
+            offset,
+            limit,
+            since,
+            apiKey: this.apiKey,
+          },
+        ),
+        batchIndex,
+        documentsInBatch: papers.length,
+        ephemeral: batchIndex > 0,
+      };
+
+      for (let documentIndexInBatch = 0; documentIndexInBatch < papers.length; documentIndexInBatch++) {
         if (params.signal?.aborted) break;
-        yield this.toRawDocument(paper);
+        const paper = papers[documentIndexInBatch]!;
+        const doc = this.toRawDocument(paper);
+        yield attachProvenance(doc, SEMANTIC_SCHOLAR_META, {
+          documentRequest: buildSemanticScholarDocumentRequest(
+            paper.paperId,
+            this.runtimeBaseUrl,
+            this.userAgent,
+            this.apiKey,
+          ),
+          batchRequest: { ...batchRequest, documentIndexInBatch },
+          collect: collectCtx,
+          canonicalUrl: buildSemanticScholarCanonicalUrl(doc.rawJson, paper.paperId),
+        });
         yielded++;
         if (yielded >= maxItems) break;
       }
@@ -133,6 +174,7 @@ export class SemanticScholarConnector extends BaseConnector {
       const nextOffset = body.next ?? offset + papers.length;
       if (nextOffset >= total || papers.length < limit) break;
       offset = nextOffset;
+      batchIndex++;
     }
   }
 

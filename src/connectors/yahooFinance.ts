@@ -17,6 +17,12 @@ import {
   type YfQuoteLike,
   type YfSearchQuoteLike,
 } from "./yahooFinanceHelpers";
+import { attachProvenance } from "./provenance/attach";
+import {
+  buildYahooFinanceBatchRequest,
+  buildYahooFinanceCanonicalUrl,
+  buildYahooFinanceDocumentRequest,
+} from "./provenance/yahooFinance";
 
 export const YAHOO_FINANCE_META: ConnectorMeta = {
   id: "yahoo_finance",
@@ -129,9 +135,21 @@ export class YahooFinanceConnector extends BaseConnector {
       "SPY";
     const term = params.query?.trim() || defaultQ;
     const symbols = await this.resolveSymbols(term, Math.min(maxItems, 25));
+    const batchRequest = {
+      ...buildYahooFinanceBatchRequest(term, { synthetic: true }),
+      batchIndex: 0,
+      documentsInBatch: symbols.length,
+      ephemeral: true,
+    };
+    const collectCtx = {
+      mode: "incremental" as const,
+      since: params.since,
+      query: params.query,
+    };
     let yielded = 0;
 
-    for (const symbol of symbols) {
+    for (let documentIndexInBatch = 0; documentIndexInBatch < symbols.length; documentIndexInBatch++) {
+      const symbol = symbols[documentIndexInBatch]!;
       if (params.signal?.aborted) break;
       if (yielded >= maxItems) break;
 
@@ -140,12 +158,20 @@ export class YahooFinanceConnector extends BaseConnector {
       if (!quote?.symbol) continue;
 
       const { externalId, rawJson } = mapQuoteToRawJson(quote);
-      yield {
+      const doc: RawDocument = {
         sourceId: YAHOO_FINANCE_META.id,
         externalId,
         rawJson,
         fetchedAt: new Date(),
       };
+      yield attachProvenance(doc, YAHOO_FINANCE_META, {
+        documentRequest: buildYahooFinanceDocumentRequest(externalId, {
+          synthetic: true,
+        }),
+        batchRequest: { ...batchRequest, documentIndexInBatch },
+        collect: collectCtx,
+        canonicalUrl: buildYahooFinanceCanonicalUrl(rawJson),
+      });
       yielded++;
     }
   }

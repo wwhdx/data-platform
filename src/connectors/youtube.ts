@@ -24,6 +24,12 @@ import {
   type YtVideoListResponse,
   type YtCommentThreadsResponse,
 } from "./youtubeHelpers";
+import { attachProvenance } from "./provenance/attach";
+import {
+  buildYoutubeBatchRequest,
+  buildYoutubeCanonicalUrl,
+  buildYoutubeDocumentRequest,
+} from "./provenance/youtube";
 
 export const YOUTUBE_META: ConnectorMeta = {
   id: "youtube",
@@ -181,9 +187,18 @@ export class YouTubeConnector extends BaseConnector {
     );
     const enrich = this.enrichEnabled();
     const withComments = this.commentsEnabled();
+    const collectCtx = {
+      mode: "incremental" as const,
+      since: params.since,
+      query: params.query,
+    };
+    const lang = this.sourceOptions.relevance_language;
+    const relevanceLanguage =
+      typeof lang === "string" && lang.length >= 2 ? lang : undefined;
     let pageToken: string | undefined;
     let pages = 0;
     let yielded = 0;
+    let batchIndex = 0;
 
     while (yielded < maxItems && pages < maxPages) {
       if (params.signal?.aborted) break;
@@ -196,6 +211,21 @@ export class YouTubeConnector extends BaseConnector {
       );
       const items = body.items ?? [];
       if (items.length === 0) break;
+
+      const apiKey = this.requireApiKey();
+      const batchRequest = {
+        ...buildYoutubeBatchRequest(this.runtimeBaseUrl, {
+          query: term,
+          maxResults: Math.min(perPage, maxItems - yielded),
+          since: params.since,
+          apiKey,
+          pageToken,
+          relevanceLanguage,
+        }),
+        batchIndex,
+        documentsInBatch: items.length,
+        ephemeral: batchIndex > 0,
+      };
 
       const now = new Date();
       const byId = enrich
@@ -211,7 +241,8 @@ export class YouTubeConnector extends BaseConnector {
           )
         : null;
 
-      for (const item of items) {
+      for (let documentIndexInBatch = 0; documentIndexInBatch < items.length; documentIndexInBatch++) {
+        const item = items[documentIndexInBatch]!;
         if (yielded >= maxItems) break;
         const vid = item.id?.videoId;
         if (!vid) continue;
@@ -227,18 +258,30 @@ export class YouTubeConnector extends BaseConnector {
             )
           : mapSearchItemToRawJson(item);
         if (!mapped) continue;
-        yield {
+        const doc: RawDocument = {
           sourceId: YOUTUBE_META.id,
           externalId: mapped.externalId,
           rawJson: mapped.rawJson,
           fetchedAt: now,
         };
+        yield attachProvenance(doc, YOUTUBE_META, {
+          documentRequest: buildYoutubeDocumentRequest(
+            vid,
+            this.runtimeBaseUrl,
+            apiKey,
+            { enrichStats: enrich },
+          ),
+          batchRequest: { ...batchRequest, documentIndexInBatch },
+          collect: collectCtx,
+          canonicalUrl: buildYoutubeCanonicalUrl(mapped.rawJson),
+        });
         yielded++;
       }
 
       pageToken = body.nextPageToken;
       pages++;
       if (!pageToken) break;
+      batchIndex++;
     }
   }
 }

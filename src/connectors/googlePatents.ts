@@ -19,6 +19,12 @@ import {
   validateGooglePatentsEnv,
   type GpPublicationRow,
 } from "./googlePatentsHelpers";
+import { attachProvenance } from "./provenance/attach";
+import {
+  buildGooglePatentsBatchRequest,
+  buildGooglePatentsCanonicalUrl,
+  buildGooglePatentsDocumentRequest,
+} from "./provenance/googlePatents";
 
 export const GOOGLE_PATENTS_META: ConnectorMeta = {
   id: "google_patents",
@@ -316,12 +322,31 @@ export class GooglePatentsConnector extends BaseConnector {
     const maxItems = params.maxItems ?? Infinity;
     let offset = 0;
     let yielded = 0;
+    let batchIndex = 0;
     const pageSize = 100;
+    const collectCtx = {
+      mode: "incremental" as const,
+      since: params.since,
+      query: params.query,
+    };
 
     while (yielded < maxItems) {
       if (params.signal?.aborted) break;
 
       const limit = Math.min(pageSize, maxItems - yielded);
+      const batchRequest = {
+        ...buildGooglePatentsBatchRequest(this.tableFqn, {
+          term: params.query,
+          since: params.since,
+          limit,
+          offset,
+          countryCode: this.countryCode,
+        }),
+        batchIndex,
+        documentsInBatch: limit,
+        ephemeral: batchIndex > 0,
+      };
+
       const rows = await this.queryRows(
         params.query,
         params.since,
@@ -331,20 +356,35 @@ export class GooglePatentsConnector extends BaseConnector {
       if (rows.length === 0) break;
 
       const now = new Date();
-      for (const row of rows) {
+      for (let documentIndexInBatch = 0; documentIndexInBatch < rows.length; documentIndexInBatch++) {
+        const row = rows[documentIndexInBatch]!;
         const { externalId, rawJson } = mapGpRowToRawJson(row);
-        yield {
+        const doc: RawDocument = {
           sourceId: GOOGLE_PATENTS_META.id,
           externalId,
           rawJson,
           fetchedAt: now,
         };
+        yield attachProvenance(doc, GOOGLE_PATENTS_META, {
+          documentRequest: buildGooglePatentsDocumentRequest(
+            externalId,
+            this.tableFqn,
+          ),
+          batchRequest: {
+            ...batchRequest,
+            documentsInBatch: rows.length,
+            documentIndexInBatch,
+          },
+          collect: collectCtx,
+          canonicalUrl: buildGooglePatentsCanonicalUrl(rawJson),
+        });
         yielded++;
         if (yielded >= maxItems) break;
       }
 
       offset += rows.length;
       if (rows.length < limit) break;
+      batchIndex++;
     }
   }
 }

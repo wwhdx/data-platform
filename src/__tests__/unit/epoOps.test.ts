@@ -120,6 +120,8 @@ describe("EpoOpsConnector", () => {
     }
     expect(docs).toHaveLength(1);
     expect(docs[0]?.sourceId).toBe("epo_ops");
+    expect(docs[0]?.fetchProvenance?.documentRequest?.curl).toContain("curl");
+    expect(docs[0]?.fetchProvenance?.batchRequest?.curl).toContain("curl");
     expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 });

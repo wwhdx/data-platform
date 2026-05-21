@@ -97,6 +97,8 @@ describe("YouTubeConnector", () => {
     expect(docs).toHaveLength(1);
     expect(docs[0]?.sourceId).toBe("youtube");
     expect(docs[0]?.externalId).toBe("abc123xyz");
+    expect(docs[0]?.fetchProvenance?.documentRequest?.curl).toContain("curl");
+    expect(docs[0]?.fetchProvenance?.batchRequest?.url).toContain("/search");
   });
 
   it("collect enrich_statistics 拉 videos.list", async () => {

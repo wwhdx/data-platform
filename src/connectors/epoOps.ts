@@ -20,6 +20,12 @@ import {
   extractEpoExchangeDocuments,
   mapEpoDocToRawJson,
 } from "./epoOpsHelpers";
+import { attachProvenance } from "./provenance/attach";
+import {
+  buildEpoOpsBatchRequest,
+  buildEpoOpsCanonicalUrl,
+  buildEpoOpsDocumentRequest,
+} from "./provenance/epoOps";
 
 export const EPO_OPS_META: ConnectorMeta = {
   id: "epo_ops",
@@ -139,6 +145,12 @@ export class EpoOpsConnector extends BaseConnector {
     const cql = buildEpoCql({ query: params.query, since: params.since });
     let rangeStart = 1;
     let yielded = 0;
+    let batchIndex = 0;
+    const collectCtx = {
+      mode: "incremental" as const,
+      since: params.since,
+      query: params.query,
+    };
 
     while (yielded < maxItems && rangeStart <= EPO_OPS_MAX_RESULTS) {
       if (params.signal?.aborted) break;
@@ -152,21 +164,46 @@ export class EpoOpsConnector extends BaseConnector {
       const docs = await this.searchPage(cql, rangeStart, rangeEnd);
       if (docs.length === 0) break;
 
+      const batchRequest = {
+        ...buildEpoOpsBatchRequest(
+          this.runtimeBaseUrl,
+          this.userAgent,
+          cql,
+          rangeStart,
+          rangeEnd,
+        ),
+        batchIndex,
+        documentsInBatch: docs.length,
+        ephemeral: batchIndex > 0,
+      };
+
       const now = new Date();
-      for (const doc of docs) {
+      for (let documentIndexInBatch = 0; documentIndexInBatch < docs.length; documentIndexInBatch++) {
+        const doc = docs[documentIndexInBatch]!;
         const { externalId, rawJson } = mapEpoDocToRawJson(doc);
-        yield {
+        const rawDoc: RawDocument = {
           sourceId: EPO_OPS_META.id,
           externalId,
           rawJson,
           fetchedAt: now,
         };
+        yield attachProvenance(rawDoc, EPO_OPS_META, {
+          documentRequest: buildEpoOpsDocumentRequest(
+            externalId,
+            this.runtimeBaseUrl,
+            this.userAgent,
+          ),
+          batchRequest: { ...batchRequest, documentIndexInBatch },
+          collect: collectCtx,
+          canonicalUrl: buildEpoOpsCanonicalUrl(rawJson),
+        });
         yielded++;
         if (yielded >= maxItems) break;
       }
 
       rangeStart += docs.length;
       if (docs.length < pageSize) break;
+      batchIndex++;
     }
   }
 }

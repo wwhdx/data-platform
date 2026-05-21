@@ -19,6 +19,12 @@ import {
   assertWipoOk,
   buildWipoCanonicalUrl,
 } from "./wipoHelpers";
+import { attachProvenance } from "./provenance/attach";
+import {
+  buildWipoBatchRequest,
+  buildWipoCanonicalUrlFromRaw,
+  buildWipoDocumentRequest,
+} from "./provenance/wipo";
 
 export const WIPO_META: ConnectorMeta = {
   id: "wipo",
@@ -100,12 +106,24 @@ export class WipoConnector extends BaseConnector {
     const q = buildWipoCollectQuery({ query: keyword || undefined, since });
     const html = await this.fetchResultPage(q);
     const hits = parseWipoResultHtml(html).slice(0, maxItems);
+    const batchRequest = {
+      ...buildWipoBatchRequest(this.runtimeBaseUrl, q, this.officeFilter()),
+      batchIndex: 0,
+      documentsInBatch: hits.length,
+      ephemeral: false,
+    };
+    const collectCtx = {
+      mode: "incremental" as const,
+      since: params.since,
+      query: params.query,
+    };
     const now = new Date();
 
-    for (const hit of hits) {
+    for (let documentIndexInBatch = 0; documentIndexInBatch < hits.length; documentIndexInBatch++) {
+      const hit = hits[documentIndexInBatch]!;
       if (params.signal?.aborted) break;
       const { externalId, rawJson } = mapWipoHitToRawJson(hit);
-      yield {
+      const doc: RawDocument = {
         sourceId: WIPO_META.id,
         externalId,
         rawJson: {
@@ -115,6 +133,12 @@ export class WipoConnector extends BaseConnector {
         },
         fetchedAt: now,
       };
+      yield attachProvenance(doc, WIPO_META, {
+        documentRequest: buildWipoDocumentRequest(externalId),
+        batchRequest: { ...batchRequest, documentIndexInBatch },
+        collect: collectCtx,
+        canonicalUrl: buildWipoCanonicalUrlFromRaw(doc.rawJson),
+      });
     }
   }
 }

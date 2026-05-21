@@ -133,6 +133,8 @@ describe("WipoConnector", () => {
     }
     expect(docs).toHaveLength(1);
     expect(docs[0]?.externalId).toBe("WO2026000002");
+    expect(docs[0]?.fetchProvenance?.documentRequest?.url).toContain("WO2026000002");
+    expect(docs[0]?.fetchProvenance?.batchRequest?.url).toContain("result.jsf");
     expect(vi.mocked(global.fetch).mock.calls).toHaveLength(1);
     const url = String(vi.mocked(global.fetch).mock.calls[0]?.[0]);
     expect(url).toContain("query=battery");

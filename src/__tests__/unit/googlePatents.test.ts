@@ -93,6 +93,8 @@ describe("GooglePatentsConnector", () => {
     }
     expect(docs).toHaveLength(1);
     expect(docs[0]?.sourceId).toBe("google_patents");
+    expect(docs[0]?.fetchProvenance?.documentRequest?.curl).toContain("curl");
+    expect(docs[0]?.fetchProvenance?.batchRequest?.curl).toContain("bigquery");
     expect(docs[0]?.externalId).toBe("EP-1000000-A1");
     expect(queryFn).toHaveBeenCalledOnce();
   });
