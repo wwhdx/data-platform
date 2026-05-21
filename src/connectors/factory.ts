@@ -40,6 +40,9 @@ function guessApiKeyEnv(sourceId: string): string | undefined {
     github: "GITHUB_TOKEN",
     youtube: "YOUTUBE_API_KEY",
     core: "CORE_API_KEY",
+    pubchem: "NCBI_API_KEY",
+    materials_project: "MATERIALS_PROJECT_API_KEY",
+    eia: "EIA_API_KEY",
   };
   return map[sourceId];
 }

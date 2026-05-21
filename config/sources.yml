@@ -385,6 +385,64 @@ sources:
       enrich_statistics: false
       relevance_language: en
 
+  # role: primary | collect: main | cluster: pharma_vertical
+  # 波次 7 · 默认 disabled；ChEMBL 无需 Key
+  - id: chembl
+    profile: rest_none
+    name: ChEMBL
+    enabled: false
+    base_url: https://www.ebi.ac.uk/chembl/api/data
+    rate_limit: "fair use (~5/sec)"
+    license: "CC BY-SA 3.0"
+    commercial_use: true
+    schedule: "0 3 * * 0"
+    description: "EBI 生物活性分子库，靶点/化合物/活性"
+    options:
+      default_collect_query: aspirin
+
+  # role: primary | collect: main | cluster: pharma_vertical
+  # 波次 7 · 默认 disabled；推荐 NCBI_API_KEY 提限速
+  - id: pubchem
+    profile: rest_none
+    name: PubChem
+    enabled: false
+    base_url: https://pubchem.ncbi.nlm.nih.gov/rest/pug
+    rate_limit: "3/sec (no key) · 10/sec (NCBI_API_KEY)"
+    license: "public domain (US gov)"
+    commercial_use: true
+    schedule: "0 3 * * 0"
+    description: "NCBI 化合物数据库，PUG REST 名称/CID 查询"
+    options:
+      default_collect_query: aspirin
+
+  # role: primary | collect: main | cluster: materials
+  # 波次 7 · 默认 disabled；须 MATERIALS_PROJECT_API_KEY
+  - id: materials_project
+    profile: rest_header_custom
+    name: Materials Project
+    enabled: false
+    base_url: https://api.materialsproject.org
+    rate_limit: "registered users"
+    license: "CC BY 4.0"
+    commercial_use: true
+    schedule: "0 3 * * 0"
+    description: "DFT 计算材料摘要，band gap / 稳定性"
+    options:
+      default_collect_query: Fe2O3
+
+  # role: primary | collect: main | cluster: energy
+  # 波次 7 · 默认 disabled；须 EIA_API_KEY
+  - id: eia
+    profile: rest_query_param_key
+    name: EIA Open Data
+    enabled: false
+    base_url: https://api.eia.gov/v2
+    rate_limit: "not specified"
+    license: "public domain (US gov)"
+    commercial_use: true
+    schedule: "0 3 * * 0"
+    description: "美国能源信息署官方能源时间序列"
+
   # role: primary | collect: main | cluster: community_social
   # 默认关：商业用途须合规评审后再 enabled
   - id: reddit

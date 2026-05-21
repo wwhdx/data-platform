@@ -31,6 +31,8 @@ describe("chunkDocument", () => {
     });
     expect(chunks).toHaveLength(1);
     expect(resolveContentType("worldbank")).toBe("indicator");
+    expect(resolveContentType("eia")).toBe("indicator");
+    expect(resolveContentType("chembl")).toBe("paper");
   });
 
   it("splits markdown body sections when present", () => {

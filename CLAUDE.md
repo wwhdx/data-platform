@@ -171,6 +171,10 @@ psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.
 | `REDDIT_USER_AGENT` | 是（reddit） | 格式 `platform:app:version (by /u/username)`；采集与探活均必填 |
 | `YOUTUBE_API_KEY` | 是（youtube） | GCP 启用 YouTube Data API v3；`search.list` 100 units/次；YAML 默认 `enabled: false` |
 | `CORE_API_KEY` | 是（core） | [CORE API](https://core.ac.uk/services/api) 注册；Bearer 头；导出须保留 `core_attribution` |
+| `MATERIALS_PROJECT_API_KEY` | 是（materials_project） | [materialsproject.org](https://materialsproject.org) Dashboard → Header `X-API-KEY` |
+| `EIA_API_KEY` | 是（eia） | [EIA Open Data](https://www.eia.gov/opendata/) 注册；Query `api_key=` |
+| （无） | — | `chembl` 无需 Key |
+| `NCBI_API_KEY` | 否（推荐 pubchem） | 与 `pubmed` 共用；3 rps 无 Key / 10 rps 有 Key |
 | `OPENCITATIONS_ACCESS_TOKEN` | 否（opencitations） | [OpenCitations Access Token](https://opencitations.net/accesstoken)；`authorization` 头 |
 | `UNPAYWALL_EMAIL` | 是（富化启用时） | Unpaywall API 必填 query 参数；配合 `UNPAYWALL_ENRICH_ENABLED=1` |
 | `UNPAYWALL_ENRICH_ENABLED` | 否 | `1`/`true` 时 dedup 后对 DOI 文档批处理 OA 元数据（`processors/unpaywallEnrich.ts`） |

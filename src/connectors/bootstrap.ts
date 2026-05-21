@@ -36,6 +36,13 @@ import {
 } from "./yahooFinance";
 import { RedditConnector, REDDIT_META } from "./reddit";
 import { YouTubeConnector, YOUTUBE_META } from "./youtube";
+import { ChemblConnector, CHEMBL_META } from "./chembl";
+import { PubchemConnector, PUBCHEM_META } from "./pubchem";
+import {
+  MaterialsProjectConnector,
+  MATERIALS_PROJECT_META,
+} from "./materialsProject";
+import { EiaConnector, EIA_META } from "./eia";
 import { OPENALEX_META } from "./openalex";
 import { CROSSREF_META } from "./crossref";
 import { WORLD_BANK_META } from "./worldbank";
@@ -62,6 +69,10 @@ export {
   YAHOO_FINANCE_META,
   REDDIT_META,
   YOUTUBE_META,
+  CHEMBL_META,
+  PUBCHEM_META,
+  MATERIALS_PROJECT_META,
+  EIA_META,
 };
 
 /** 运行时已 registerConnector 的源 id（与 scheduleReport / B14 对齐） */
@@ -87,6 +98,10 @@ export const REGISTERED_CONNECTOR_IDS = [
   "yahoo_finance",
   "reddit",
   "youtube",
+  "chembl",
+  "pubchem",
+  "materials_project",
+  "eia",
 ] as const;
 
 export async function registerDefaultConnectors(
@@ -184,6 +199,24 @@ export async function registerDefaultConnectors(
       apiKey: process.env.YOUTUBE_API_KEY,
     }),
   );
+  const chembl = new ChemblConnector(
+    await resolveConnectorConfig("chembl", CHEMBL_META),
+  );
+  const pubchem = new PubchemConnector(
+    await resolveConnectorConfig("pubchem", PUBCHEM_META, {
+      apiKey: process.env.NCBI_API_KEY,
+    }),
+  );
+  const materialsProject = new MaterialsProjectConnector(
+    await resolveConnectorConfig("materials_project", MATERIALS_PROJECT_META, {
+      apiKey: process.env.MATERIALS_PROJECT_API_KEY,
+    }),
+  );
+  const eia = new EiaConnector(
+    await resolveConnectorConfig("eia", EIA_META, {
+      apiKey: process.env.EIA_API_KEY,
+    }),
+  );
 
   scheduler.registerConnector({ id: "openalex", create: () => openalex });
   scheduler.registerConnector({ id: "crossref", create: () => crossref });
@@ -221,4 +254,11 @@ export async function registerDefaultConnectors(
   });
   scheduler.registerConnector({ id: "reddit", create: () => reddit });
   scheduler.registerConnector({ id: "youtube", create: () => youtube });
+  scheduler.registerConnector({ id: "chembl", create: () => chembl });
+  scheduler.registerConnector({ id: "pubchem", create: () => pubchem });
+  scheduler.registerConnector({
+    id: "materials_project",
+    create: () => materialsProject,
+  });
+  scheduler.registerConnector({ id: "eia", create: () => eia });
 }

@@ -32,7 +32,10 @@ export const SOURCE_CREDENTIAL_SPECS: Record<string, SourceCredentialSpec> = {
   github: { envVar: "GITHUB_TOKEN", required: false },
   semanticscholar: { envVar: "SEMANTIC_SCHOLAR_API_KEY", required: false },
   pubmed: { envVar: "NCBI_API_KEY", required: false },
+  pubchem: { envVar: "NCBI_API_KEY", required: false },
   openalex: { envVar: "OPENALEX_API_KEY", required: false },
+  materials_project: { envVar: "MATERIALS_PROJECT_API_KEY", required: true },
+  eia: { envVar: "EIA_API_KEY", required: true },
 };
 
 export function resolveApiKeyForSource(
@@ -118,6 +121,11 @@ export function probeAuthHeaders(
     case "openalex":
       return {};
     case "pubmed":
+    case "pubchem":
+      return {};
+    case "materials_project":
+      return { "X-API-KEY": key };
+    case "eia":
       return {};
     default:
       return {};

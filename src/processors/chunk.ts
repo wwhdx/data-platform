@@ -11,9 +11,12 @@ const PAPER_SOURCES = new Set([
   "biorxiv_oai",
   "medrxiv_oai",
   "core",
+  "chembl",
+  "pubchem",
+  "materials_project",
 ]);
 
-const INDICATOR_SOURCES = new Set(["worldbank", "fred"]);
+const INDICATOR_SOURCES = new Set(["worldbank", "fred", "eia"]);
 
 export function resolveContentType(sourceId: string): string {
   if (INDICATOR_SOURCES.has(sourceId)) return "indicator";

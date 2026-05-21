@@ -380,6 +380,54 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 
 ---
 
+## 六、医药与材料垂直（波次 7 ✅）
+
+### 6.1 ChEMBL
+
+| 字段 | 值 |
+|------|-----|
+| Base URL | `https://www.ebi.ac.uk/chembl/api/data` |
+| 认证 | 无 |
+| 端点 | `GET /molecule/search.json?q=&limit=&offset=` |
+| 代码 | `src/connectors/chembl.ts` · `chemblHelpers.ts` |
+| RAG | `paper`；`title`+`abstract`（SMILES/phase/属性） |
+| YAML | `enabled: false` |
+
+### 6.2 PubChem
+
+| 字段 | 值 |
+|------|-----|
+| Base URL | `https://pubchem.ncbi.nlm.nih.gov/rest/pug` |
+| 认证 | 无（推荐 `NCBI_API_KEY` 与 pubmed 共用提限速） |
+| 端点 | `GET /compound/name/{name}/cids/JSON` → `property` · `description` |
+| 代码 | `src/connectors/pubchem.ts` · `pubchemHelpers.ts` |
+| RAG | `paper` |
+| YAML | `enabled: false` |
+
+### 6.3 Materials Project
+
+| 字段 | 值 |
+|------|-----|
+| Base URL | `https://api.materialsproject.org` |
+| 认证 | Header `X-API-KEY`（`MATERIALS_PROJECT_API_KEY`） |
+| 端点 | `GET /materials/summary/?formula=&_limit=&_skip=` |
+| 代码 | `src/connectors/materialsProject.ts` · `materialsProjectHelpers.ts` |
+| RAG | `paper`（材料摘要） |
+| YAML | `enabled: false` |
+
+### 6.4 EIA Open Data
+
+| 字段 | 值 |
+|------|-----|
+| Base URL | `https://api.eia.gov/v2` |
+| 认证 | Query `api_key=`（`EIA_API_KEY`） |
+| 端点 | `GET /petroleum/pri/spt/data/?data[0]=value&length=&offset=` |
+| 代码 | `src/connectors/eia.ts` · `eiaHelpers.ts` |
+| RAG | `indicator`（`indicatorChunks`） |
+| YAML | `enabled: false` |
+
+---
+
 ## 附录：Connector 优先实现顺序
 
 ```

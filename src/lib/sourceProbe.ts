@@ -53,12 +53,29 @@ const PROBE_TARGETS: Record<string, string | ((baseUrl: string) => string)> = {
   },
   core: "/search/outputs?q=title:test&limit=1",
   opencitations: "/reference-count/doi:10.1038/nature12373",
+  chembl: "/molecule/search.json?q=aspirin&limit=1",
+  pubchem: (base) => {
+    const root = base.replace(/\/$/, "");
+    return `${root}/compound/name/aspirin/cids/JSON`;
+  },
+  materials_project: (base) => {
+    const root = base.replace(/\/$/, "");
+    return `${root}/materials/summary/?formula=Fe2O3&_limit=1&_fields=material_id,formula_pretty`;
+  },
+  eia: (base) => {
+    const root = base.replace(/\/$/, "");
+    const key = process.env.EIA_API_KEY?.trim();
+    const ak = key ? `&api_key=${encodeURIComponent(key)}` : "";
+    return `${root}/petroleum/pri/spt/data/?frequency=daily&data[0]=value&length=1${ak}`;
+  },
   arxiv: "https://export.arxiv.org/api/query?search_query=all:test&max_results=1",
 };
 
 const EXTRA_ENV_BY_SOURCE: Record<string, string[]> = {
   crossref: ["CROSSREF_MAILTO"],
   fred: ["FRED_API_KEY"],
+  eia: ["EIA_API_KEY"],
+  materials_project: ["MATERIALS_PROJECT_API_KEY"],
 };
 
 function probeUserAgent(sourceId: string): string {

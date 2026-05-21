@@ -34,5 +34,12 @@ export {
 } from "./yahooFinance";
 export { RedditConnector, REDDIT_META } from "./reddit";
 export { YouTubeConnector, YOUTUBE_META } from "./youtube";
+export { ChemblConnector, CHEMBL_META } from "./chembl";
+export { PubchemConnector, PUBCHEM_META } from "./pubchem";
+export {
+  MaterialsProjectConnector,
+  MATERIALS_PROJECT_META,
+} from "./materialsProject";
+export { EiaConnector, EIA_META } from "./eia";
 export { resolveConnectorConfig } from "./factory";
 export { registerDefaultConnectors } from "./bootstrap";
