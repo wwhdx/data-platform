@@ -11,6 +11,7 @@ import {
 import { ArxivOaiConnector, ARXIV_OAI_META } from "./arxivOai";
 import { BiorxivOaiConnector, BIORXIV_OAI_META } from "./biorxivOai";
 import { MedrxivOaiConnector, MEDRXIV_OAI_META } from "./medrxivOai";
+import { CoreConnector, CORE_META } from "./core";
 import { PatentsViewConnector, PATENTSVIEW_META } from "./patentsview";
 import {
   ClinicalTrialsConnector,
@@ -44,6 +45,7 @@ export {
   ARXIV_OAI_META,
   BIORXIV_OAI_META,
   MEDRXIV_OAI_META,
+  CORE_META,
   PATENTSVIEW_META,
   CLINICALTRIALS_META,
   SEC_EDGAR_META,
@@ -67,6 +69,7 @@ export const REGISTERED_CONNECTOR_IDS = [
   "arxiv_oai",
   "biorxiv_oai",
   "medrxiv_oai",
+  "core",
   "patentsview",
   "clinicaltrials",
   "sec_edgar",
@@ -114,6 +117,11 @@ export async function registerDefaultConnectors(
   );
   const medrxivOai = new MedrxivOaiConnector(
     await resolveConnectorConfig("medrxiv_oai", MEDRXIV_OAI_META),
+  );
+  const core = new CoreConnector(
+    await resolveConnectorConfig("core", CORE_META, {
+      apiKey: process.env.CORE_API_KEY,
+    }),
   );
   const patentsview = new PatentsViewConnector(
     await resolveConnectorConfig("patentsview", PATENTSVIEW_META, {
@@ -177,6 +185,7 @@ export async function registerDefaultConnectors(
   scheduler.registerConnector({ id: "arxiv_oai", create: () => arxivOai });
   scheduler.registerConnector({ id: "biorxiv_oai", create: () => biorxivOai });
   scheduler.registerConnector({ id: "medrxiv_oai", create: () => medrxivOai });
+  scheduler.registerConnector({ id: "core", create: () => core });
   scheduler.registerConnector({ id: "patentsview", create: () => patentsview });
   scheduler.registerConnector({
     id: "clinicaltrials",

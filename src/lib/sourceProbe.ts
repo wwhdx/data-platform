@@ -51,6 +51,7 @@ const PROBE_TARGETS: Record<string, string | ((baseUrl: string) => string)> = {
     const from = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
     return `${root}/details/medrxiv/${from}/${to}/0/json`;
   },
+  core: "/search/outputs?q=title:test&limit=1",
   arxiv: "https://export.arxiv.org/api/query?search_query=all:test&max_results=1",
 };
 
@@ -179,6 +180,8 @@ function formatHeaderLog(
     lines.push("Authorization: Bearer *** (已设置)");
   } else if (sourceId === "github") {
     lines.push("Authorization: (未发送，匿名 60 req/h)");
+  } else if (sourceId === "core") {
+    lines.push("Authorization: (未发送，须 CORE_API_KEY Bearer)");
   } else if (sourceId === "epo_ops" || sourceId === "reddit") {
     lines.push("Authorization: (未发送，须 OAuth Bearer)");
   }

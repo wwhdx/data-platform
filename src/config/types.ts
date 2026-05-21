@@ -111,6 +111,7 @@ export const IMPLEMENTED_CONNECTOR_IDS = [
   "arxiv_oai",
   "biorxiv_oai",
   "medrxiv_oai",
+  "core",
   "patentsview",
   "clinicaltrials",
   "sec_edgar",
@@ -121,6 +122,7 @@ export const IMPLEMENTED_CONNECTOR_IDS = [
   "google_patents",
   "yahoo_finance",
   "reddit",
+  "youtube",
 ] as const;
 
 export interface ValidationIssue {

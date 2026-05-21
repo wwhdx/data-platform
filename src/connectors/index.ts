@@ -12,6 +12,7 @@ export {
 export { ArxivOaiConnector, ARXIV_OAI_META } from "./arxivOai";
 export { BiorxivOaiConnector, BIORXIV_OAI_META } from "./biorxivOai";
 export { MedrxivOaiConnector, MEDRXIV_OAI_META } from "./medrxivOai";
+export { CoreConnector, CORE_META } from "./core";
 export { PatentsViewConnector, PATENTSVIEW_META } from "./patentsview";
 export {
   ClinicalTrialsConnector,

@@ -128,6 +128,20 @@ GET  /recommendations/v1/papers/{id}     # 推荐
 | YAML | `enabled: false`（L2 冒烟后开启，同 §4.7 新源默认） |
 | 代码 | `src/connectors/medrxivOai.ts`（`options.server: medrxiv`）· 共享 `biorxivOaiHelpers.ts` · D5 `provenance/medrxivOai.ts` |
 
+### 1.8 CORE（W5a ✅）
+
+| 字段 | 值 |
+|------|-----|
+| API | `https://api.core.ac.uk/v3` · `GET /search/outputs` · `GET /outputs/{id}` |
+| 运行时 `id` | `core` |
+| 认证 | `Authorization: Bearer {CORE_API_KEY}`（[注册](https://core.ac.uk/api-keys/register)） |
+| 速率 | Token bucket（注册用户更高配额） |
+| 许可 | 逐篇 `license`；须保留 `raw_json.core_attribution`（导出/D1 不剥离） |
+| **摘要/全文** | ✅ `abstract`；`full_text` → `raw_json.fulltext`（若有） |
+| **RAG** | ⭐⭐⭐⭐ |
+| YAML | `enabled: false`（L2 冒烟 + Key 就绪后开启） |
+| 代码 | `src/connectors/core.ts` · `coreHelpers.ts` · D5 `provenance/core.ts` |
+
 ---
 
 ## 二、专利
@@ -373,7 +387,7 @@ RAG 质量优先（遗留增强）：
   SEC EDGAR Phase B        ← 申报 HTML 全文 + fulltext 分块
 
 **待接入（波次 5–8）** → [plans/待接入数据源清单与波次方案.md](./plans/待接入数据源清单与波次方案.md)  
-  P0：ChEMBL · CORE（`biorxiv_oai` ✅ · `medrxiv_oai` ✅）  
+  P0：ChEMBL（`biorxiv_oai` ✅ · `medrxiv_oai` ✅ · `core` ✅）  
   P1：PubChem · Stack Overflow · Materials Project · EIA · Eurostat/OECD  
   P2：GDELT · WIPO · …（暂缓源见专题方案 §3.4）
 

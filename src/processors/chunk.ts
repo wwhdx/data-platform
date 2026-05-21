@@ -10,6 +10,7 @@ const PAPER_SOURCES = new Set([
   "arxiv_oai",
   "biorxiv_oai",
   "medrxiv_oai",
+  "core",
 ]);
 
 const INDICATOR_SOURCES = new Set(["worldbank", "fred"]);

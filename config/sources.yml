@@ -176,6 +176,19 @@ sources:
     options:
       server: medrxiv
 
+  - id: core
+    profile: rest_bearer
+    name: CORE
+    enabled: false
+    base_url: https://api.core.ac.uk/v3
+    rate_limit: "token bucket (registered)"
+    license: "varies (OA aggregation; attribution required)"
+    commercial_use: true
+    schedule: "0 3 * * *"
+    description: "CORE 开放论文全文索引；须 CORE_API_KEY；导出保留 core_attribution"
+    options:
+      default_collect_query: machine learning
+
   - id: patentsview
     profile: rest_header_custom
     name: "USPTO ODP Patents"

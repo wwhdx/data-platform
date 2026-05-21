@@ -170,6 +170,7 @@ psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.
 | `REDDIT_CLIENT_SECRET` | 是（reddit） | 与 Client ID 配对 |
 | `REDDIT_USER_AGENT` | 是（reddit） | 格式 `platform:app:version (by /u/username)`；采集与探活均必填 |
 | `YOUTUBE_API_KEY` | 是（youtube） | GCP 启用 YouTube Data API v3；`search.list` 100 units/次；YAML 默认 `enabled: false` |
+| `CORE_API_KEY` | 是（core） | [CORE API](https://core.ac.uk/services/api) 注册；Bearer 头；导出须保留 `core_attribution` |
 | `PORT` | 否 | 服务端口（默认 3400） |
 | `ARXIV_FULLTEXT_ENABLED` | 否 | `1`/`true` 时 `arxiv_oai` 采集后同步拉 HTML 写入 `raw_json.fulltext`（`processors/arxivFulltext.ts`） |
 | `ARXIV_FULLTEXT_MAX_PER_JOB` | 否 | 每批 dedup 最多补全文篇数（默认 50） |

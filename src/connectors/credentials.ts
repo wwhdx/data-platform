@@ -28,6 +28,7 @@ export const SOURCE_CREDENTIAL_SPECS: Record<string, SourceCredentialSpec> = {
   youtube: { envVar: "YOUTUBE_API_KEY", required: true },
   sec_edgar: { envVar: "SEC_EDGAR_USER_AGENT", required: true },
   fred: { envVar: "FRED_API_KEY", required: true },
+  core: { envVar: "CORE_API_KEY", required: true },
   github: { envVar: "GITHUB_TOKEN", required: false },
   semanticscholar: { envVar: "SEMANTIC_SCHOLAR_API_KEY", required: false },
   pubmed: { envVar: "NCBI_API_KEY", required: false },
@@ -108,6 +109,8 @@ export function probeAuthHeaders(
       return { "x-api-key": key };
     case "github":
       return { Authorization: `Bearer ${key}` };
+    case "core":
+      return { Authorization: `bearer ${key}` };
     case "openalex":
       return {};
     case "pubmed":
