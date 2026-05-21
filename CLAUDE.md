@@ -166,9 +166,9 @@ psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.
 | `GITHUB_TOKEN` | 否 | GitHub REST Bearer |
 | `FRED_API_KEY` | 是（fred 采集） | FRED `api_key` 查询参数 |
 | （无） | — | `yahoo_finance` 使用 npm `yahoo-finance2`，无需 env；非官方 API |
-| `REDDIT_CLIENT_ID` | 是（reddit） | [reddit.com/prefs/apps](https://www.reddit.com/prefs/apps) Web app |
-| `REDDIT_CLIENT_SECRET` | 是（reddit） | 与 Client ID 配对 |
-| `REDDIT_USER_AGENT` | 是（reddit） | 格式 `platform:app:version (by /u/username)`；采集与探活均必填 |
+| `REDDIT_CLIENT_ID` | —（**reddit ⏸ 冻结**） | 产品不支持；代码保留，勿配置 |
+| `REDDIT_CLIENT_SECRET` | —（**reddit ⏸ 冻结**） | 同上 |
+| `REDDIT_USER_AGENT` | —（**reddit ⏸ 冻结**） | 同上 |
 | `YOUTUBE_API_KEY` | 是（youtube） | GCP 启用 YouTube Data API v3；`search.list` 100 units/次；YAML 默认 `enabled: false` |
 | `CORE_API_KEY` | 是（core） | [CORE API](https://core.ac.uk/services/api) 注册；Bearer 头；导出须保留 `core_attribution` |
 | `MATERIALS_PROJECT_API_KEY` | 是（materials_project） | [materialsproject.org](https://materialsproject.org) Dashboard → Header `X-API-KEY` |

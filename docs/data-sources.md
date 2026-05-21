@@ -272,6 +272,20 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
   }'
 ```
 
+### 2.4 WIPO PATENTSCOPE（`wipo` 源）
+
+| 字段 | 值 |
+|------|-----|
+| 搜索 | `GET …/search/en/result.jsf?query={Lucene}&office=WO`（**HTML**，非 JSON REST） |
+| 认证 | 无（公开 HTML 搜索）；付费 [PCT Webservice](https://www.wipo.int/patentscope/en/data) SOAP 另议 |
+| 速率 | 礼貌访问（Connector 内置 1 RPS；每页 10 条） |
+| 采集策略 | 有关键词：直接 Lucene 关键词；无关键词：`DP:[TODAY-N TO TODAY]` 相对窗（**禁止**绝对 `YYYY-MM-DD`，会挂起） |
+| 代码 | `src/connectors/wipo.ts`、`wipoHelpers.ts` |
+| Connector | **✅**（YAML 默认 `enabled: false`；`office=WO` 聚焦 PCT） |
+| **RAG 适用性** | ⭐⭐⭐（结果页 title + abstract；与 `epo_ops` 互补） |
+
+**说明**：WIPO 无类似 EPO OPS 的免费 REST 检索 API；本 Connector 解析 PATENTSCOPE 公开 HTML 结果页。带 `--query` 时不加日期过滤（窄窗易空结果）；无 query 的 browse 采集用 `TODAY-N` 相对语法（绝对日期会挂起）。单次最多 10 条/页。
+
 ---
 
 ## 三、金融与市场
@@ -366,6 +380,8 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 | **RAG 适用性** | ⭐⭐⭐（`snippet.description` 作 abstract） |
 
 ### 5.4 Reddit
+
+> **⏸ 产品冻结（2026-05-21）**：不支持 Reddit 采集；Connector 保留维护，永久 `enabled: false`。下文仅作 API 参考。
 
 | 字段 | 值 |
 |------|-----|
@@ -491,13 +507,12 @@ RAG 质量优先（遗留增强）：
 
 远期（未入 YAML）：
   Google Patents ← ✅ `googlePatents.ts`
-  ✅ Reddit           ← reddit.ts（REDDIT_*；默认 disabled）
+  ✅ Reddit           ← reddit.ts（**⏸ 产品冻结**；永久 disabled）
   ✅ YouTube Data v3  ← youtube.ts（须 YOUTUBE_API_KEY）
   SEC EDGAR Phase B        ← 申报 HTML 全文 + fulltext 分块
 
-**待接入（波次 5–8）** → [plans/待接入数据源清单与波次方案.md](./plans/待接入数据源清单与波次方案.md)  
-  P0：ChEMBL（`biorxiv_oai` ✅ · `medrxiv_oai` ✅ · `core` ✅）  
-  P1：PubChem · Stack Overflow · Materials Project · EIA · Eurostat/OECD  
+**待接入** → [plans/待接入数据源清单与波次方案.md](./plans/待接入数据源清单与波次方案.md)（**stackoverflow ⏸ 冻结**）  
+  波次 7–8 真源垂直/扩展：ChEMBL · PubChem · MP · EIA · WIPO · Eurostat/OECD · UniProt ✅  
   P2：GDELT · WIPO · …（暂缓源见专题方案 §3.4）
 
 详排期与分源接入清单 → [plans/剩余数据源接入实施方案.md](./plans/剩余数据源接入实施方案.md) · [plans/待接入数据源清单与波次方案.md](./plans/待接入数据源清单与波次方案.md)

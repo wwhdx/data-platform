@@ -78,6 +78,10 @@ const PROBE_TARGETS: Record<string, string | ((baseUrl: string) => string)> = {
     return `${root}/data/OECD.SDD.STES,DSD_KEI@DF_KEI/OECD.A.B1GQ_Q.GR._T.Y.GY?dimensionAtObservation=AllDimensions&format=jsondata&lastNObservations=1`;
   },
   uniprot: (base) => buildUniprotSearchUrl(base, "insulin", 1),
+  wipo: (base) => {
+    const root = base.replace(/\/$/, "");
+    return `${root}/result.jsf?query=WO2026000001&office=WO&sortOption=Pub%20Date%20Desc&prevFilter=&currFilter=&viewType=All`;
+  },
   arxiv: "https://export.arxiv.org/api/query?search_query=all:test&max_results=1",
 };
 
@@ -107,6 +111,7 @@ function probeUserAgent(sourceId: string): string {
 /** 外网探活默认 JSON Accept（与 BaseConnector.fetch 对齐；arxiv_oai Identify 为 XML 除外） */
 export function probeAcceptHeader(sourceId: string): Record<string, string> {
   if (sourceId === "arxiv_oai") return {};
+  if (sourceId === "wipo") return { Accept: "text/html,application/xhtml+xml" };
   return { Accept: "application/json" };
 }
 
