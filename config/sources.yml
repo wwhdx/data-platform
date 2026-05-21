@@ -367,6 +367,9 @@ sources:
     commercial_use: true
     schedule: "0 3 * * *"
     description: "开源仓库元数据 + 技术趋势 (stars/forks/commits)"
+    options:
+      # 波次 9 GH-B：须 GITHUB_TOKEN；一次 GraphQL 取 repo + README
+      use_graphql: false
 
   # role: primary | collect: main | cluster: community_tech
   - id: hackernews
@@ -395,6 +398,9 @@ sources:
       max_results_per_page: 25
       max_search_pages: 1
       enrich_statistics: false
+      # 波次 9 YT-B：videos.list contentDetails + 可选 commentThreads（配额敏感）
+      enrich_comments: false
+      comments_max_per_video: 5
       relevance_language: en
 
   # role: primary | collect: main | cluster: pharma_vertical

@@ -11,7 +11,10 @@ export interface HnItem {
   descendants?: number;
 }
 
-export function mapHnItemToRawJson(item: HnItem): {
+export function mapHnItemToRawJson(
+  item: HnItem,
+  fulltext?: string,
+): {
   externalId: string;
   rawJson: Record<string, unknown>;
 } {
@@ -22,18 +25,22 @@ export function mapHnItemToRawJson(item: HnItem): {
     ? new Date(item.time * 1000).toISOString().slice(0, 10)
     : undefined;
 
-  return {
-    externalId: id,
-    rawJson: {
-      title,
-      abstract,
-      publication_date: pub,
-      type: "forum_post",
-      url: item.url ?? `https://news.ycombinator.com/item?id=${id}`,
-      score: item.score,
-      descendants: item.descendants,
-    },
+  const rawJson: Record<string, unknown> = {
+    title,
+    abstract,
+    publication_date: pub,
+    type: "forum_post",
+    url: item.url ?? `https://news.ycombinator.com/item?id=${id}`,
+    score: item.score,
+    descendants: item.descendants,
   };
+  if (fulltext) {
+    rawJson.fulltext = fulltext;
+    rawJson.fulltext_source = "linked_url";
+    rawJson.fulltext_url = item.url;
+  }
+
+  return { externalId: id, rawJson };
 }
 
 export function itemPassesSince(item: HnItem, since?: string): boolean {

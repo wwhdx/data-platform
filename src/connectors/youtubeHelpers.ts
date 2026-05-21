@@ -25,6 +25,27 @@ export interface YtVideoItem {
     likeCount?: string;
     commentCount?: string;
   };
+  contentDetails?: {
+    duration?: string;
+    definition?: string;
+    caption?: string;
+  };
+}
+
+export interface YtCommentThreadItem {
+  snippet?: {
+    topLevelComment?: {
+      snippet?: {
+        textDisplay?: string;
+        authorDisplayName?: string;
+        likeCount?: number;
+      };
+    };
+  };
+}
+
+export interface YtCommentThreadsResponse {
+  items?: YtCommentThreadItem[];
 }
 
 export interface YtSearchListResponse {
@@ -77,41 +98,92 @@ export function buildSearchListParams(opts: {
 export function buildVideosListParams(
   videoIds: string[],
   apiKey: string,
+  opts?: { includeContentDetails?: boolean },
 ): URLSearchParams {
+  const parts = ["snippet", "statistics"];
+  if (opts?.includeContentDetails) parts.push("contentDetails");
   return new URLSearchParams({
-    part: "snippet,statistics",
+    part: parts.join(","),
     id: videoIds.join(","),
     key: apiKey,
   });
+}
+
+export function buildCommentThreadsParams(
+  videoId: string,
+  apiKey: string,
+  maxResults: number,
+): URLSearchParams {
+  return new URLSearchParams({
+    part: "snippet",
+    videoId,
+    maxResults: String(Math.min(Math.max(maxResults, 1), 20)),
+    order: "relevance",
+    textFormat: "plainText",
+    key: apiKey,
+  });
+}
+
+export function isYoutubeCommentsEnabled(
+  options: Record<string, unknown>,
+): boolean {
+  const env = (process.env.YOUTUBE_ENRICH_COMMENTS_ENABLED ?? "").toLowerCase();
+  if (env === "1" || env === "true") return true;
+  return options.enrich_comments === true;
+}
+
+export function youtubeCommentsMaxPerVideo(
+  options: Record<string, unknown>,
+): number {
+  const fromEnv = Number(process.env.YOUTUBE_COMMENTS_MAX_PER_VIDEO);
+  if (Number.isFinite(fromEnv) && fromEnv > 0) {
+    return Math.min(fromEnv, 20);
+  }
+  return readYoutubeIntOption(options, "comments_max_per_video", 5, 20);
+}
+
+export function extractCommentTexts(
+  body: YtCommentThreadsResponse,
+): string[] {
+  const texts: string[] = [];
+  for (const item of body.items ?? []) {
+    const text = item.snippet?.topLevelComment?.snippet?.textDisplay?.trim();
+    if (text) texts.push(text);
+  }
+  return texts;
 }
 
 export function mapVideoToRawJson(
   videoId: string,
   snippet?: YtSnippet,
   statistics?: YtVideoItem["statistics"],
+  contentDetails?: YtVideoItem["contentDetails"],
+  topComments?: string[],
 ): { externalId: string; rawJson: Record<string, unknown> } {
   const desc = snippet?.description?.trim() ?? "";
   const abstract = desc.length > 8000 ? `${desc.slice(0, 8000)}…` : desc;
-  return {
-    externalId: videoId,
-    rawJson: {
-      title: snippet?.title?.trim() || videoId,
-      abstract: abstract || snippet?.title?.trim(),
-      publication_date: snippet?.publishedAt?.slice(0, 10),
-      channel_title: snippet?.channelTitle,
-      url: watchUrl(videoId),
-      type: "video",
-      view_count: statistics?.viewCount
-        ? Number.parseInt(statistics.viewCount, 10)
-        : undefined,
-      like_count: statistics?.likeCount
-        ? Number.parseInt(statistics.likeCount, 10)
-        : undefined,
-      comment_count: statistics?.commentCount
-        ? Number.parseInt(statistics.commentCount, 10)
-        : undefined,
-    },
+  const rawJson: Record<string, unknown> = {
+    title: snippet?.title?.trim() || videoId,
+    abstract: abstract || snippet?.title?.trim(),
+    publication_date: snippet?.publishedAt?.slice(0, 10),
+    channel_title: snippet?.channelTitle,
+    url: watchUrl(videoId),
+    type: "video",
+    view_count: statistics?.viewCount
+      ? Number.parseInt(statistics.viewCount, 10)
+      : undefined,
+    like_count: statistics?.likeCount
+      ? Number.parseInt(statistics.likeCount, 10)
+      : undefined,
+    comment_count: statistics?.commentCount
+      ? Number.parseInt(statistics.commentCount, 10)
+      : undefined,
   };
+  if (contentDetails?.duration) rawJson.duration = contentDetails.duration;
+  if (contentDetails?.definition) rawJson.definition = contentDetails.definition;
+  if (contentDetails?.caption) rawJson.caption = contentDetails.caption;
+  if (topComments?.length) rawJson.top_comments = topComments;
+  return { externalId: videoId, rawJson };
 }
 
 export function mapSearchItemToRawJson(

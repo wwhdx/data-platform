@@ -15,6 +15,14 @@ import {
   type GhRepo,
   type GhSearchResponse,
 } from "./githubHelpers";
+import {
+  buildRepoSearchGraphqlQuery,
+  GITHUB_GRAPHQL_URL,
+  isGithubGraphqlEnabled,
+  mapGraphqlRepoToRawJson,
+  parseGraphqlSearchRepos,
+  type GhGraphqlSearchResponse,
+} from "./githubGraphqlHelpers";
 import { attachProvenance } from "./provenance/attach";
 import {
   buildGithubCanonicalUrl,
@@ -29,7 +37,7 @@ export const GITHUB_META: ConnectorMeta = {
   commercialUse: true,
   authType: "header_bearer",
   rateLimit: "5000/hour (authenticated)",
-  description: "开源仓库搜索 + README 摘要",
+  description: "开源仓库搜索 + README 摘要（REST 或 GraphQL）",
 };
 
 export class GitHubConnector extends BaseConnector {
@@ -56,6 +64,10 @@ export class GitHubConnector extends BaseConnector {
     return h;
   }
 
+  private useGraphql(): boolean {
+    return isGithubGraphqlEnabled(this.sourceOptions, Boolean(this.apiKey));
+  }
+
   private async fetchReadmeExcerpt(fullName: string): Promise<string> {
     const [owner, repo] = fullName.split("/");
     if (!owner || !repo) return "";
@@ -67,7 +79,25 @@ export class GitHubConnector extends BaseConnector {
     return decodeReadmeContent(body.content, body.encoding).slice(0, 1500);
   }
 
-  private async searchRepos(
+  private async searchReposGraphql(
+    q: string,
+    perPage: number,
+  ): Promise<Array<{ externalId: string; rawJson: Record<string, unknown> }>> {
+    const payload = buildRepoSearchGraphqlQuery(q, perPage);
+    const res = await this.fetch(GITHUB_GRAPHQL_URL, {
+      method: "POST",
+      headers: {
+        ...this.authHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) return [];
+    const body = (await res.json()) as GhGraphqlSearchResponse;
+    return parseGraphqlSearchRepos(body).map(mapGraphqlRepoToRawJson);
+  }
+
+  private async searchReposRest(
     q: string,
     page: number,
     perPage: number,
@@ -87,11 +117,22 @@ export class GitHubConnector extends BaseConnector {
   }
 
   async search(query: string, opts?: SearchOptions): Promise<SearchResult[]> {
-    const repos = await this.searchRepos(
-      buildRepoSearchQuery(query),
-      1,
-      Math.min(opts?.maxResults ?? 10, 30),
-    );
+    const max = Math.min(opts?.maxResults ?? 10, 30);
+    if (this.useGraphql()) {
+      const mapped = await this.searchReposGraphql(buildRepoSearchQuery(query), max);
+      return mapped.map(({ rawJson }) => ({
+        title: String(rawJson.title),
+        url: String(rawJson.url),
+        snippet: String(rawJson.abstract ?? "").slice(0, 300),
+        sourceId: GITHUB_META.id,
+        sourceName: GITHUB_META.name,
+        publishedAt: rawJson.publication_date as string | undefined,
+        score: (rawJson.stars as number | undefined) ?? 0,
+        license: GITHUB_META.license,
+        commercialUse: GITHUB_META.commercialUse,
+      }));
+    }
+    const repos = await this.searchReposRest(buildRepoSearchQuery(query), 1, max);
     return repos.map((r) => {
       const { rawJson } = mapRepoToRawJson(r);
       return {
@@ -114,11 +155,46 @@ export class GitHubConnector extends BaseConnector {
     let page = 1;
     const perPage = 30;
     let yielded = 0;
+    const collectCtx = {
+      mode: "incremental" as const,
+      since: params.since,
+      query: params.query,
+    };
 
     while (yielded < maxItems) {
       if (params.signal?.aborted) break;
 
-      const repos = await this.searchRepos(
+      if (this.useGraphql()) {
+        const mapped = await this.searchReposGraphql(
+          q,
+          Math.min(perPage, maxItems - yielded),
+        );
+        if (mapped.length === 0) break;
+        const now = new Date();
+        for (const { externalId, rawJson } of mapped) {
+          const doc: RawDocument = {
+            sourceId: GITHUB_META.id,
+            externalId,
+            rawJson,
+            fetchedAt: now,
+          };
+          yield attachProvenance(doc, GITHUB_META, {
+            documentRequest: buildGithubDocumentRequest(
+              externalId,
+              GITHUB_GRAPHQL_URL,
+              this.userAgent,
+              this.apiKey,
+            ),
+            collect: collectCtx,
+            canonicalUrl: buildGithubCanonicalUrl(rawJson),
+          });
+          yielded++;
+          if (yielded >= maxItems) break;
+        }
+        break;
+      }
+
+      const repos = await this.searchReposRest(
         q,
         page,
         Math.min(perPage, maxItems - yielded),
@@ -126,12 +202,6 @@ export class GitHubConnector extends BaseConnector {
       if (repos.length === 0) break;
 
       const now = new Date();
-      const collectCtx = {
-        mode: "incremental" as const,
-        since: params.since,
-        query: params.query,
-      };
-
       for (const repo of repos) {
         const readme = await this.fetchReadmeExcerpt(repo.full_name);
         const { externalId, rawJson } = mapRepoToRawJson(repo, readme);

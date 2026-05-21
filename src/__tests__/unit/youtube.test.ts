@@ -3,6 +3,9 @@ import {
   mapSearchItemToRawJson,
   buildSearchListParams,
   sinceToPublishedAfter,
+  mapVideoToRawJson,
+  extractCommentTexts,
+  isYoutubeCommentsEnabled,
 } from "../../connectors/youtubeHelpers";
 import { YouTubeConnector } from "../../connectors/youtube";
 
@@ -39,6 +42,32 @@ describe("youtube helpers", () => {
   it("sinceToPublishedAfter 非法日期返回 undefined", () => {
     expect(sinceToPublishedAfter("bad")).toBeUndefined();
   });
+
+  it("mapVideoToRawJson 含 contentDetails 与 top_comments", () => {
+    const mapped = mapVideoToRawJson(
+      "vid1",
+      { title: "T", description: "desc" },
+      { viewCount: "10" },
+      { duration: "PT5M", definition: "hd" },
+      ["great video"],
+    );
+    expect(mapped.rawJson.duration).toBe("PT5M");
+    expect(mapped.rawJson.top_comments).toEqual(["great video"]);
+  });
+
+  it("extractCommentTexts", () => {
+    const texts = extractCommentTexts({
+      items: [{ snippet: { topLevelComment: { snippet: { textDisplay: "hi" } } } }],
+    });
+    expect(texts).toEqual(["hi"]);
+  });
+
+  it("isYoutubeCommentsEnabled 读 ENV", () => {
+    const prev = process.env.YOUTUBE_ENRICH_COMMENTS_ENABLED;
+    process.env.YOUTUBE_ENRICH_COMMENTS_ENABLED = "1";
+    expect(isYoutubeCommentsEnabled({})).toBe(true);
+    process.env.YOUTUBE_ENRICH_COMMENTS_ENABLED = prev;
+  });
 });
 
 describe("YouTubeConnector", () => {
@@ -68,6 +97,40 @@ describe("YouTubeConnector", () => {
     expect(docs).toHaveLength(1);
     expect(docs[0]?.sourceId).toBe("youtube");
     expect(docs[0]?.externalId).toBe("abc123xyz");
+  });
+
+  it("collect enrich_statistics 拉 videos.list", async () => {
+    vi.mocked(global.fetch)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ items: [SEARCH_ITEM] }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          items: [
+            {
+              id: "abc123xyz",
+              snippet: SEARCH_ITEM.snippet,
+              statistics: { viewCount: "99" },
+              contentDetails: { duration: "PT10M" },
+            },
+          ],
+        }),
+      } as Response);
+
+    const c = new YouTubeConnector({
+      apiKey: "yt-test",
+      sourceOptions: { enrich_statistics: true },
+    });
+    const docs = [];
+    for await (const d of c.collect({ query: "ml", maxItems: 1 })) {
+      docs.push(d);
+    }
+    expect(docs[0]?.rawJson.view_count).toBe(99);
+    expect(docs[0]?.rawJson.duration).toBe("PT10M");
   });
 
   it("缺 Key 时 collect 抛错", async () => {

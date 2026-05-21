@@ -47,6 +47,7 @@ export function chunkDocument(input: ChunkInput): string[] {
   if (type === "indicator") return indicatorChunks(input);
   if (type === "paper") return paperChunks(input);
   if (type === "company_filing") return companyFilingChunks(input);
+  if (type === "tech_activity") return techActivityChunks(input);
   return defaultChunks(input);
 }
 
@@ -75,6 +76,11 @@ function paperChunks(input: ChunkInput): string[] {
 
 function companyFilingChunks(input: ChunkInput): string[] {
   return paperChunks(input);
+}
+
+function techActivityChunks(input: ChunkInput): string[] {
+  if (pickBodyText(input.rawJson)) return paperChunks(input);
+  return defaultChunks(input);
 }
 
 function indicatorChunks(input: ChunkInput): string[] {

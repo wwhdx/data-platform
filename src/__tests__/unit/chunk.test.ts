@@ -58,4 +58,15 @@ describe("chunkDocument", () => {
     });
     expect(chunks.length).toBeGreaterThan(1);
   });
+
+  it("tech_activity uses fulltext when present", () => {
+    const body = "Section one. ".repeat(60);
+    const chunks = chunkDocument({
+      sourceId: "hackernews",
+      title: "HN Story",
+      abstract: "Short",
+      rawJson: { fulltext: body },
+    });
+    expect(chunks.length).toBeGreaterThan(1);
+  });
 });

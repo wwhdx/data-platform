@@ -359,6 +359,8 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 | GraphQL | `https://api.github.com/graphql` |
 | 认证 | Bearer Token |
 | 速率 | 5,000 次/小时（REST）；5,000 点/小时（GraphQL） |
+| **波次 9 GH-B** | YAML `options.use_graphql: true` + `GITHUB_TOKEN` → 一次 GraphQL 取 repo + README |
+| 代码 | `github.ts` · `githubHelpers.ts` · `githubGraphqlHelpers.ts` |
 
 ### 5.2 Hacker News
 
@@ -366,6 +368,8 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 |------|-----|
 | Base URL | `https://hacker-news.firebaseio.com/v0/` |
 | 认证 | 无需 |
+| **波次 9 HN-B** | `HACKERNEWS_URL_FULLTEXT_ENABLED=1` 时 collect 可选抓 Story 外链 HTML → `raw_json.fulltext`（默认关） |
+| 代码 | `hackernews.ts` · `hackernewsHelpers.ts` · `hackernewsUrlFulltext.ts` |
 
 ### 5.3 YouTube Data API v3
 
@@ -373,10 +377,11 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 |------|-----|
 | Base URL | `https://www.googleapis.com/youtube/v3/` |
 | 认证 | Query `key=`（`YOUTUBE_API_KEY`） |
-| 配额 | 默认 10,000 units/天；`search.list` = 100 units |
-| 端点 | `GET /search`（`part=snippet&type=video`）；可选 `GET /videos`（`part=snippet,statistics`） |
+| 配额 | 默认 10,000 units/天；`search.list` = 100 units；`commentThreads.list` = 1 unit |
+| 端点 | `GET /search`；可选 `GET /videos`（`part=snippet,statistics,contentDetails`）；可选 `GET /commentThreads` |
+| **波次 9 YT-B** | YAML `enrich_statistics: true` 拉 contentDetails；`enrich_comments` 或 `YOUTUBE_ENRICH_COMMENTS_ENABLED=1` 拉热评 |
 | 代码 | `src/connectors/youtube.ts`、`youtubeHelpers.ts` |
-| YAML | `enabled: false`（省配额）；`max_search_pages: 1` |
+| YAML | `enabled: true`；`max_search_pages: 1`；`enrich_statistics` / `enrich_comments` 默认 `false` |
 | **RAG 适用性** | ⭐⭐⭐（`snippet.description` 作 abstract） |
 
 ### 5.4 Reddit

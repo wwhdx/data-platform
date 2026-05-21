@@ -13,6 +13,13 @@ import {
   mapHnItemToRawJson,
   type HnItem,
 } from "./hackernewsHelpers";
+import {
+  fetchHnStoryUrlFulltext,
+  hnUrlFulltextConfig,
+  hnUrlFulltextMaxPerJob,
+  isHnUrlFulltextEnabled,
+  shouldFetchHnStoryUrl,
+} from "./hackernewsUrlFulltext";
 
 export const HACKERNEWS_META: ConnectorMeta = {
   id: "hackernews",
@@ -22,7 +29,7 @@ export const HACKERNEWS_META: ConnectorMeta = {
   commercialUse: true,
   authType: "none",
   rateLimit: "unlimited",
-  description: "HN top stories 元数据（标题 + 正文片段）",
+  description: "HN top stories 元数据（可选外链正文）",
 };
 
 export class HackerNewsConnector extends BaseConnector {
@@ -42,6 +49,23 @@ export class HackerNewsConnector extends BaseConnector {
 
   private async fetchItem(id: number): Promise<HnItem | null> {
     return this.fetchJson<HnItem>(`item/${id}`);
+  }
+
+  private async resolveStoryFulltext(
+    item: HnItem,
+    fulltextBudget: { remaining: number; lastFetchAt: number },
+    cfg: ReturnType<typeof hnUrlFulltextConfig>,
+  ): Promise<string | undefined> {
+    if (fulltextBudget.remaining <= 0) return undefined;
+    if (!shouldFetchHnStoryUrl(item.url)) return undefined;
+
+    const waitMs = cfg.minIntervalMs - (Date.now() - fulltextBudget.lastFetchAt);
+    if (waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
+
+    const text = await fetchHnStoryUrlFulltext(item.url!, globalThis.fetch, cfg);
+    fulltextBudget.lastFetchAt = Date.now();
+    if (text) fulltextBudget.remaining--;
+    return text ?? undefined;
   }
 
   async search(query: string, opts?: SearchOptions): Promise<SearchResult[]> {
@@ -77,6 +101,12 @@ export class HackerNewsConnector extends BaseConnector {
     const ids = (await this.fetchJson<number[]>("topstories")) ?? [];
     const q = params.query?.trim().toLowerCase();
     let yielded = 0;
+    const withFulltext = isHnUrlFulltextEnabled();
+    const fulltextCfg = hnUrlFulltextConfig(this.userAgent);
+    const fulltextBudget = {
+      remaining: withFulltext ? hnUrlFulltextMaxPerJob() : 0,
+      lastFetchAt: 0,
+    };
 
     for (const id of ids) {
       if (params.signal?.aborted) break;
@@ -90,7 +120,10 @@ export class HackerNewsConnector extends BaseConnector {
         if (!hay.includes(q)) continue;
       }
 
-      const { externalId, rawJson } = mapHnItemToRawJson(item);
+      const fulltext = withFulltext
+        ? await this.resolveStoryFulltext(item, fulltextBudget, fulltextCfg)
+        : undefined;
+      const { externalId, rawJson } = mapHnItemToRawJson(item, fulltext);
       yield {
         sourceId: HACKERNEWS_META.id,
         externalId,

@@ -163,13 +163,19 @@ psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.
 | `GCP_PROJECT_ID` | 是（google_patents） | BigQuery 项目 ID |
 | `GOOGLE_APPLICATION_CREDENTIALS` | 否（google_patents） | **Docker**：容器内路径 `/gcp/adc.json`（`secrets/gcp-adc.json` 挂载）；**本地**：留空用 gcloud ADC；详见 `docs/data-sources.md` §2.1 |
 | `SEC_EDGAR_USER_AGENT` | 是（sec_edgar 采集） | `CompanyName email@domain.com` |
-| `GITHUB_TOKEN` | 否 | GitHub REST Bearer |
+| `GITHUB_TOKEN` | 否 | GitHub REST/GraphQL Bearer；GH-B 启用 `sources.yml` `use_graphql: true` 时必填 |
 | `FRED_API_KEY` | 是（fred 采集） | FRED `api_key` 查询参数 |
 | （无） | — | `yahoo_finance` 使用 npm `yahoo-finance2`，无需 env；非官方 API |
 | `REDDIT_CLIENT_ID` | —（**reddit ⏸ 冻结**） | 产品不支持；代码保留，勿配置 |
 | `REDDIT_CLIENT_SECRET` | —（**reddit ⏸ 冻结**） | 同上 |
 | `REDDIT_USER_AGENT` | —（**reddit ⏸ 冻结**） | 同上 |
-| `YOUTUBE_API_KEY` | 是（youtube） | GCP 启用 YouTube Data API v3；`search.list` 100 units/次；YAML 默认 `enabled: false` |
+| `YOUTUBE_API_KEY` | 是（youtube） | GCP 启用 YouTube Data API v3；`search.list` 100 units/次 |
+| `YOUTUBE_ENRICH_COMMENTS_ENABLED` | 否 | `1`/`true` 或 YAML `enrich_comments: true` 时拉 `commentThreads.list`（1 unit/次） |
+| `YOUTUBE_COMMENTS_MAX_PER_VIDEO` | 否 | 每视频热评条数上限（默认 5，最大 20） |
+| `HACKERNEWS_URL_FULLTEXT_ENABLED` | 否 | `1`/`true` 时 HN collect 可选抓 Story 外链 HTML → `raw_json.fulltext` |
+| `HACKERNEWS_URL_FULLTEXT_MAX_PER_JOB` | 否 | 每批 collect 最多抓外链篇数（默认 20） |
+| `HACKERNEWS_URL_FULLTEXT_MIN_INTERVAL_MS` | 否 | 外链请求间隔（默认 3000） |
+| `HACKERNEWS_URL_FULLTEXT_MAX_CHARS` | 否 | 单篇外链正文上限字符（默认 50000） |
 | `CORE_API_KEY` | 是（core） | [CORE API](https://core.ac.uk/services/api) 注册；Bearer 头；导出须保留 `core_attribution` |
 | `MATERIALS_PROJECT_API_KEY` | 是（materials_project） | [materialsproject.org](https://materialsproject.org) Dashboard → Header `X-API-KEY` |
 | `EIA_API_KEY` | 是（eia） | [EIA Open Data](https://www.eia.gov/opendata/) 注册；Query `api_key=` |

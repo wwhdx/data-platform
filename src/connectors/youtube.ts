@@ -12,12 +12,17 @@ import { validateCredentialsForCollect } from "./credentials";
 import {
   buildSearchListParams,
   buildVideosListParams,
+  buildCommentThreadsParams,
   mapSearchItemToRawJson,
   mapVideoToRawJson,
   itemToSearchResult,
   readYoutubeIntOption,
+  isYoutubeCommentsEnabled,
+  youtubeCommentsMaxPerVideo,
+  extractCommentTexts,
   type YtSearchListResponse,
   type YtVideoListResponse,
+  type YtCommentThreadsResponse,
 } from "./youtubeHelpers";
 
 export const YOUTUBE_META: ConnectorMeta = {
@@ -28,7 +33,7 @@ export const YOUTUBE_META: ConnectorMeta = {
   commercialUse: false,
   authType: "query_param_key",
   rateLimit: "10000 units/day (search=100 units)",
-  description: "视频搜索元数据（search.list + 可选 videos.list 统计）",
+  description: "视频搜索元数据（search.list + 可选 videos.list / commentThreads）",
 };
 
 const RESULT_META = {
@@ -94,20 +99,42 @@ export class YouTubeConnector extends BaseConnector {
 
   private async videosList(
     videoIds: string[],
+    enrichStats: boolean,
   ): Promise<YtVideoListResponse> {
     if (videoIds.length === 0) return { items: [] };
-    const sp = buildVideosListParams(videoIds, this.requireApiKey());
+    const sp = buildVideosListParams(videoIds, this.requireApiKey(), {
+      includeContentDetails: enrichStats,
+    });
     const res = await this.fetch(this.apiUrl("videos", sp));
     this.assertAuthorizedResponse(res);
     if (!res.ok) return { items: [] };
     return (await res.json()) as YtVideoListResponse;
   }
 
+  private async fetchTopComments(videoId: string): Promise<string[]> {
+    const sp = buildCommentThreadsParams(
+      videoId,
+      this.requireApiKey(),
+      youtubeCommentsMaxPerVideo(this.sourceOptions),
+    );
+    const res = await this.fetch(this.apiUrl("commentThreads", sp));
+    if (!res.ok) return [];
+    return extractCommentTexts((await res.json()) as YtCommentThreadsResponse);
+  }
+
+  private enrichEnabled(): boolean {
+    return this.sourceOptions.enrich_statistics === true;
+  }
+
+  private commentsEnabled(): boolean {
+    return isYoutubeCommentsEnabled(this.sourceOptions);
+  }
+
   async search(query: string, opts?: SearchOptions): Promise<SearchResult[]> {
     const max = opts?.maxResults ?? 10;
     const body = await this.searchList(query, Math.min(max, 50));
     const items = body.items ?? [];
-    if (this.sourceOptions.enrich_statistics !== true) {
+    if (!this.enrichEnabled()) {
       return items
         .map((item) => itemToSearchResult(item, RESULT_META))
         .filter((r): r is SearchResult => r !== null)
@@ -118,7 +145,7 @@ export class YouTubeConnector extends BaseConnector {
       .filter((id): id is string => Boolean(id))
       .slice(0, max);
     const byId = new Map(
-      (await this.videosList(ids)).items?.map((v) => [v.id ?? "", v]) ?? [],
+      (await this.videosList(ids, true)).items?.map((v) => [v.id ?? "", v]) ?? [],
     );
     const results: SearchResult[] = [];
     for (const item of items) {
@@ -152,7 +179,8 @@ export class YouTubeConnector extends BaseConnector {
       1,
       5,
     );
-    const enrich = this.sourceOptions.enrich_statistics === true;
+    const enrich = this.enrichEnabled();
+    const withComments = this.commentsEnabled();
     let pageToken: string | undefined;
     let pages = 0;
     let yielded = 0;
@@ -177,6 +205,7 @@ export class YouTubeConnector extends BaseConnector {
                 items
                   .map((i) => i.id?.videoId)
                   .filter((id): id is string => Boolean(id)),
+                true,
               )
             ).items?.map((v) => [v.id ?? "", v]) ?? [],
           )
@@ -186,8 +215,16 @@ export class YouTubeConnector extends BaseConnector {
         if (yielded >= maxItems) break;
         const vid = item.id?.videoId;
         if (!vid) continue;
+        const video = byId?.get(vid);
+        const topComments = withComments ? await this.fetchTopComments(vid) : undefined;
         const mapped = enrich
-          ? mapVideoToRawJson(vid, byId?.get(vid)?.snippet ?? item.snippet, byId?.get(vid)?.statistics)
+          ? mapVideoToRawJson(
+              vid,
+              video?.snippet ?? item.snippet,
+              video?.statistics,
+              video?.contentDetails,
+              topComments,
+            )
           : mapSearchItemToRawJson(item);
         if (!mapped) continue;
         yield {
