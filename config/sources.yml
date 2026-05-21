@@ -438,7 +438,7 @@ sources:
   - id: materials_project
     profile: rest_header_custom
     name: Materials Project
-    enabled: false
+    enabled: true
     base_url: https://api.materialsproject.org
     rate_limit: "registered users"
     license: "CC BY 4.0"
@@ -453,7 +453,7 @@ sources:
   - id: eia
     profile: rest_query_param_key
     name: EIA Open Data
-    enabled: false
+    enabled: true
     base_url: https://api.eia.gov/v2
     rate_limit: "not specified"
     license: "public domain (US gov)"
@@ -466,7 +466,7 @@ sources:
   - id: eurostat
     profile: sdmx_json
     name: Eurostat
-    enabled: false
+    enabled: true
     base_url: https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/
     rate_limit: "polite (~2/sec)"
     license: "CC BY 4.0 (Eurostat)"
@@ -481,7 +481,7 @@ sources:
   - id: oecd
     profile: sdmx_json
     name: OECD
-    enabled: false
+    enabled: true
     base_url: https://sdmx.oecd.org/public/rest/
     rate_limit: "polite (~2/sec)"
     license: "OECD Terms and Conditions"
@@ -496,7 +496,7 @@ sources:
   - id: uniprot
     profile: rest_none
     name: UniProt
-    enabled: false
+    enabled: true
     base_url: https://rest.uniprot.org/
     rate_limit: "polite (~3/sec)"
     license: "CC BY 4.0"
@@ -511,7 +511,7 @@ sources:
   - id: wipo
     profile: wipo_patentscope
     name: WIPO PATENTSCOPE
-    enabled: false
+    enabled: true
     base_url: https://patentscope.wipo.int/search/en/
     rate_limit: "polite (~1/sec)"
     license: "WIPO terms (public HTML search)"
