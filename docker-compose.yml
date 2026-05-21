@@ -7,6 +7,8 @@ services:
   db:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
+    env_file:
+      - .env
     networks:
       - dp-network
     environment:
@@ -16,7 +18,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ${DATA_PLATFORM_PGDATA_DIR:-./data/pgdata}:/var/lib/postgresql/data
       - ./src/storage/migrations:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U lumina -d data_platform"]
@@ -28,10 +30,12 @@ services:
   ollama:
     image: ollama/ollama:latest
     restart: unless-stopped
+    env_file:
+      - .env
     networks:
       - dp-network
     volumes:
-      - ollama_models:/root/.ollama
+      - ${DATA_PLATFORM_OLLAMA_DIR:-./data/ollama}:/root/.ollama
     ports:
       - "11434:11434"
     healthcheck:

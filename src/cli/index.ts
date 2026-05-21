@@ -12,7 +12,7 @@
 
 import "../config/loadEnv";
 import { appendCollectLogEvent, getJobLogFilePath, resetCollectLogSession } from "../collect/logWriter";
-import { getCollectLogRoot } from "../collect/env";
+import { collectAllDefaultMaxItems, getCollectLogRoot } from "../collect/env";
 import * as fs from "fs";
 import * as path from "path";
 import type { CollectProgressEvent } from "../scheduler/progress";
@@ -321,9 +321,32 @@ function clearProgressLine(): void {
   }
 }
 
+function formatCollectProgressLine(ev: Extract<CollectProgressEvent, { type: "progress" }>): string {
+  const inserted = ev.inserted ?? ev.itemsCollected ?? 0;
+  const skipped = ev.skippedDuplicate ?? 0;
+  const batch =
+    ev.batchIndex != null && ev.batchIndex > 0 ? `  批 ${ev.batchIndex}` : "";
+  const cap =
+    ev.maxItems != null && Number.isFinite(ev.maxItems)
+      ? `/${ev.maxItems}`
+      : "";
+  const ratio =
+    ev.duplicateRatio != null && ev.fetched > 0
+      ? `  重复率 ${Math.round(ev.duplicateRatio * 100)}%`
+      : "";
+  const phase =
+    ev.phase === "fetch_batch" && ev.waitSec != null && ev.waitSec >= 2
+      ? `  ⏳ 等外网 ${ev.waitSec}s`
+      : ev.phase === "dedup_batch"
+        ? "  dedup…"
+        : "";
+  const dupFlag = ev.duplicateScan ? "  ⚠️重复扫描" : "";
+  return `  · ${ev.sourceId}${batch}  已抓取 ${ev.fetched ?? 0}${cap}，新入库 ${inserted}，重复跳过 ${skipped}${ratio}${phase}${dupFlag}`;
+}
+
 function printCollectProgressEvent(
   ev: CollectProgressEvent,
-  opts: { jsonOutput: boolean; showProgress: boolean },
+  opts: { jsonOutput: boolean; showProgress: boolean; showMilestones?: boolean },
 ): void {
   if (opts.jsonOutput) {
     console.log(JSON.stringify(ev));
@@ -331,33 +354,45 @@ function printCollectProgressEvent(
   }
 
   const quiet = !opts.showProgress;
+  const milestones = opts.showMilestones === true;
 
   switch (ev.type) {
     case "run_start":
-      if (!quiet) {
+      if (milestones || !quiet) {
         clearProgressLine();
-        console.log(
-          `将采集 ${ev.activeCount ?? ev.sourceIds?.length ?? 0} 个信源: ${(ev.sourceIds ?? []).join(", ")}`,
-        );
+        const ids = ev.sourceIds ?? [];
+        const count = ev.activeCount ?? ids.length;
+        const preview =
+          ids.length <= 8
+            ? ids.join(", ")
+            : `${ids.slice(0, 8).join(", ")} … 等 ${ids.length} 个`;
+        console.log(`将采集 ${count} 个信源${preview ? `: ${preview}` : ""}`);
       }
       break;
     case "source_start":
-      if (!quiet) {
+      if (milestones || !quiet) {
         clearProgressLine();
+        const step =
+          ev.index != null && ev.total != null ? `[${ev.index}/${ev.total}] ` : "";
         console.log(
-          `\n▶ ${ev.sourceId}  job #${ev.jobId}  since=${ev.since}${ev.query ? `  query="${ev.query}"` : ""}`,
+          `${step}▶ ${ev.sourceId}  job #${ev.jobId}  since=${ev.since}${ev.query ? `  query="${ev.query}"` : ""}`,
         );
       }
       break;
     case "progress": {
-      if (quiet) break;
-      const inserted = ev.inserted ?? ev.itemsCollected ?? 0;
-      const skipped = ev.skippedDuplicate ?? 0;
-      const line = `  · ${ev.sourceId}  已抓取 ${ev.fetched ?? 0}，新入库 ${inserted}，重复跳过 ${skipped}`;
-      process.stdout.write(`\r${line.padEnd(88)}`);
+      if (quiet && !milestones) break;
+      const line = formatCollectProgressLine(ev);
+      const tick = ev.waitSec != null ? ` [${ev.waitSec}s]` : "";
+      process.stdout.write(`\r${(line + tick).padEnd(108)}`);
       progressLineActive = true;
       break;
     }
+    case "duplicate_scan":
+      clearProgressLine();
+      console.log(
+        `  ${ev.action === "stop" ? "⏹️" : "⚠️"} ${ev.sourceId}: ${ev.message}`,
+      );
+      break;
     case "source_done": {
       clearProgressLine();
       const { job, stats } = ev;
@@ -365,8 +400,11 @@ function printCollectProgressEvent(
       const icon = status === "success" ? "✅" : status === "failed" ? "❌" : "⏳";
 
       if (quiet && stats) {
+        const dupNote = stats.duplicateScan
+          ? `  ⚠️ 重复扫描${stats.stoppedReason ? "，已提前停止" : ""}`
+          : "";
         console.log(
-          `  ${icon} ${job.sourceId}  job #${job.id}: 抓取 ${stats.fetched}，新入库 ${stats.inserted}，重复跳过 ${stats.skippedDuplicate}`,
+          `  ${icon} ${job.sourceId}  job #${job.id}: 抓取 ${stats.fetched}，新入库 ${stats.inserted}，重复跳过 ${stats.skippedDuplicate}${dupNote}`,
         );
         const logPath = getJobLogFilePath(job.sourceId, job.id);
         if (logPath) console.log(`     详细日志: ${logPath}`);
@@ -453,13 +491,50 @@ function printCollectLogDirHint(): void {
   if (root) console.log(`\n完整日志目录: ${root}`);
 }
 
+function printCollectStartup(opts: {
+  all: boolean;
+  sourceId?: string;
+  query?: string;
+  maxItems?: number;
+  maxItemsDefault?: number;
+  since?: string;
+  stream: boolean;
+  showProgress: boolean;
+}): void {
+  const baseUrl = getBaseUrl();
+  console.log(`连接 API: ${baseUrl}`);
+  if (opts.all) {
+    console.log("模式: 全量采集 (--all)，信源将串行执行");
+  } else if (opts.sourceId) {
+    console.log(`模式: 单源采集 (${opts.sourceId})`);
+  }
+  const params: string[] = [];
+  if (opts.query) params.push(`query="${opts.query}"`);
+  if (opts.maxItems != null) {
+    params.push(`max-items=${opts.maxItems}`);
+  } else if (opts.all && opts.maxItemsDefault != null) {
+    params.push(`max-items=${opts.maxItemsDefault}（--all 默认，可 --max-items 覆盖）`);
+  }
+  if (opts.since) params.push(`since=${opts.since}`);
+  if (params.length > 0) console.log(`参数: ${params.join(", ")}`);
+  if (opts.stream) {
+    if (opts.all) {
+      console.log("进度: 逐信源实时计数；重复扫描自动告警/可提前停止");
+    } else if (opts.showProgress) {
+      console.log("进度: 逐批实时 (--progress)");
+    }
+  }
+  console.log("等待 API 响应…");
+}
+
 async function runCollectWithStream(
   body: Record<string, unknown>,
   jsonOutput: boolean,
   showProgress: boolean,
+  showMilestones = false,
 ): Promise<number> {
   const { summary, hadError } = await apiCollectStream(body, (ev) => {
-    printCollectProgressEvent(ev, { jsonOutput, showProgress });
+    printCollectProgressEvent(ev, { jsonOutput, showProgress, showMilestones });
   });
 
   clearProgressLine();
@@ -510,13 +585,24 @@ function parseSinceOpt(opts: Record<string, string>): string | undefined {
   return raw;
 }
 
+function resolveCollectMaxItems(
+  opts: Record<string, string>,
+  isAll: boolean,
+): number | undefined {
+  const explicit = parseMaxItems(opts);
+  if (explicit != null) return explicit;
+  if (isAll) return collectAllDefaultMaxItems();
+  return undefined;
+}
+
 function buildCollectBody(
   base: Record<string, unknown>,
   opts: Record<string, string>,
   verbose: boolean,
+  isAll = false,
 ): Record<string, unknown> {
   let body = withCollectVerbose(base, verbose);
-  const maxItems = parseMaxItems(opts);
+  const maxItems = resolveCollectMaxItems(opts, isAll);
   if (maxItems != null) body = { ...body, maxItems };
   const since = parseSinceOpt(opts);
   if (since != null) body = { ...body, since };
@@ -540,13 +626,30 @@ async function cmdCollect(args: string[]) {
   const jsonOutput = opts.json === "true";
   const noStream = opts["no-stream"] === "true";
   const verbose = opts.verbose === "true";
-  const showProgress = opts.progress === "true";
+  const isAll = opts.all === "true";
+  const showProgress = opts.progress === "true" || isAll;
+  const maxItems = resolveCollectMaxItems(opts, isAll);
+  const allDefaultMax = isAll && parseMaxItems(opts) == null
+    ? collectAllDefaultMaxItems()
+    : undefined;
+  const since = parseSinceOpt(opts);
 
-  if (opts.all === "true") {
+  if (isAll) {
     if (noStream) {
+      if (!jsonOutput) {
+        printCollectStartup({
+          all: true,
+          query,
+          maxItems,
+          maxItemsDefault: allDefaultMax,
+          since,
+          stream: false,
+          showProgress,
+        });
+      }
       const resp = await apiPost<CollectAllResponse>(
         "/api/admin/collect",
-        buildCollectBody({ query }, opts, verbose),
+        buildCollectBody({ query }, opts, verbose, true),
       );
       if (jsonOutput) {
         console.log(JSON.stringify(resp, null, 2));
@@ -556,10 +659,22 @@ async function cmdCollect(args: string[]) {
       }
       return;
     }
+    if (!jsonOutput) {
+      printCollectStartup({
+        all: true,
+        query,
+        maxItems,
+        maxItemsDefault: allDefaultMax,
+        since,
+        stream: true,
+        showProgress,
+      });
+    }
     const code = await runCollectWithStream(
-      buildCollectBody({ query }, opts, verbose),
+      buildCollectBody({ query }, opts, verbose, true),
       jsonOutput,
       showProgress,
+      true,
     );
     if (code !== 0) throw new CliExit(code);
     return;
@@ -1420,11 +1535,11 @@ function printHelp() {
     --source <id>            数据源 ID
     --all                    采集所有 active 数据源
     --query <文本>           搜索查询（可选）
-    --max-items <n>          本次最多采集条数（传给 Connector）
+    --max-items <n>          本次每信源最多抓取条数（--all 默认 200，见 COLLECT_ALL_MAX_ITEMS）
     --since <YYYY-MM-DD>     覆盖 since 水位（默认：DB 上次水位或昨天）
     --json                   JSON 行流式输出（NDJSON，含 progress 事件）
     --no-stream              关闭实时进度，等待结束后一次性 JSON
-    --progress               终端显示逐批进度（默认仅结果；详情写入日志目录）
+    --progress               单源采集时显示逐批进度（--all 默认已开启）
     --verbose                启用 skip_sample 抽样（每批最多 5 条重复 ID）
 
   jobs:

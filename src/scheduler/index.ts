@@ -10,7 +10,17 @@ import {
   toCollectSinceDate,
   touchScheduleRunStart,
 } from "../storage/models/collectionSchedule";
-import { collectLogSkipSampleLimit } from "../collect/env";
+import {
+  collectDuplicateScanMinFetched,
+  collectDuplicateScanRatioThreshold,
+  collectDuplicateScanStopBatches,
+  collectLogSkipSampleLimit,
+} from "../collect/env";
+import {
+  duplicateRatio,
+  isDuplicateScan,
+  nextConsecutiveDupBatches,
+} from "../collect/duplicateScan";
 import { validateCredentialsForCollect } from "../connectors/credentials";
 import { dedup } from "../processors/dedup";
 import { insertCollectionJobEvent } from "../storage/models/collectionJobEvent";
@@ -35,6 +45,10 @@ export interface TriggerOptions {
   maxItems?: number;
   /** 覆盖 since 水位（YYYY-MM-DD）；未设则用 DB 水位或默认 1 天 */
   since?: string;
+  /** runCollectAll 批次序号（1-based，供 CLI 进度展示） */
+  collectIndex?: number;
+  /** runCollectAll 总信源数 */
+  collectTotal?: number;
 }
 
 export class Scheduler {
@@ -87,6 +101,8 @@ export class Scheduler {
       options?.skipSampleLimit,
       options?.maxItems,
       options?.since,
+      options?.collectIndex,
+      options?.collectTotal,
     );
   }
 
@@ -109,6 +125,8 @@ export class Scheduler {
     skipSampleLimit?: number,
     maxItems?: number,
     sinceOverride?: string,
+    collectIndex?: number,
+    collectTotal?: number,
   ): Promise<CollectionJob> {
     const factory = this.connectors.get(sourceId);
     if (!factory) {
@@ -133,6 +151,8 @@ export class Scheduler {
       jobId: job.id,
       since,
       query: collectQuery || undefined,
+      ...(collectIndex != null ? { index: collectIndex } : {}),
+      ...(collectTotal != null ? { total: collectTotal } : {}),
     });
 
     const credentialError = validateCredentialsForCollect(sourceId);
@@ -169,7 +189,7 @@ export class Scheduler {
       const BUFFER_SIZE = 200;
       const buffer: RawDocument[] = [];
 
-      const buildStats = (): CollectJobStats => ({
+      const buildStats = (extra?: Partial<CollectJobStats>): CollectJobStats => ({
         fetched,
         inserted,
         skippedDuplicate,
@@ -177,6 +197,8 @@ export class Scheduler {
         query: collectQuery || undefined,
         batchCount,
         connectorId: sourceId,
+        duplicateRatio: duplicateRatio(fetched, skippedDuplicate),
+        ...extra,
       });
 
       const stampJobId = (doc: RawDocument): RawDocument => {
@@ -218,7 +240,73 @@ export class Scheduler {
         }
       };
 
+      let lastFetchedAt = Date.now();
+      let consecutiveDupBatches = 0;
+      let duplicateScanWarned = false;
+      let stoppedReason: string | undefined;
+      let progressPhase: "streaming" | "fetch_batch" | "dedup_batch" = "streaming";
+      const abort = new AbortController();
+
+      const checkDuplicateScan = (action: "batch" | "heartbeat"): boolean => {
+        const ratio = duplicateRatio(fetched, skippedDuplicate);
+        const scanning = isDuplicateScan({
+          fetched,
+          inserted,
+          skippedDuplicate,
+          minFetched: collectDuplicateScanMinFetched(),
+          ratioThreshold: collectDuplicateScanRatioThreshold(),
+        });
+        if (!scanning) return false;
+
+        const stopAfter = collectDuplicateScanStopBatches();
+        const shouldStop =
+          stopAfter > 0 && consecutiveDupBatches >= stopAfter;
+
+        if (!duplicateScanWarned || action === "batch") {
+          const msg = shouldStop
+            ? `重复扫描：连续 ${consecutiveDupBatches} 批全重复，已抓取 ${fetched}、新入库 0，提前停止`
+            : `重复扫描：已抓取 ${fetched}、新入库 0，重复率 ${Math.round(ratio * 100)}%（dedup 命中已有文档）`;
+          report?.({
+            type: "duplicate_scan",
+            sourceId,
+            jobId: job.id,
+            fetched,
+            inserted,
+            skippedDuplicate,
+            duplicateRatio: ratio,
+            consecutiveDupBatches,
+            action: shouldStop ? "stop" : "warn",
+            message: msg,
+          });
+          duplicateScanWarned = true;
+        }
+
+        if (shouldStop) {
+          stoppedReason = `duplicate_scan: ${consecutiveDupBatches} full-dup batches`;
+          abort.abort();
+          return true;
+        }
+        return false;
+      };
+
       const emitProgress = () => {
+        const waitSec = Math.max(
+          0,
+          Math.floor((Date.now() - lastFetchedAt) / 1000),
+        );
+        const ratio = duplicateRatio(fetched, skippedDuplicate);
+        const scanning = isDuplicateScan({
+          fetched,
+          inserted,
+          skippedDuplicate,
+          minFetched: collectDuplicateScanMinFetched(),
+          ratioThreshold: collectDuplicateScanRatioThreshold(),
+        });
+        let phase = progressPhase;
+        if (phase === "streaming" && waitSec >= 2) {
+          phase = "fetch_batch";
+        }
+
         report?.({
           type: "progress",
           sourceId,
@@ -228,33 +316,86 @@ export class Scheduler {
           inserted,
           skippedDuplicate,
           batchIndex: batchCount,
+          phase,
+          waitSec,
+          duplicateRatio: ratio,
+          duplicateScan: scanning,
+          maxItems,
         });
       };
 
-      for await (const doc of connector.collect({
-        since,
-        query: collectQuery || undefined,
-        maxItems,
-      })) {
-        buffer.push(stampJobId(doc));
-        fetched++;
+      const PROGRESS_HEARTBEAT_MS = 5000;
+      const heartbeat = setInterval(() => {
+        emitProgress();
+        checkDuplicateScan("heartbeat");
+      }, PROGRESS_HEARTBEAT_MS);
 
-        if (buffer.length >= BUFFER_SIZE) {
-          const batchSize = buffer.length;
-          const { newDocs, skippedCount, skippedSampleIds } = await dedup(buffer, {
-            skipSampleLimit: sampleLimit,
-          });
-          inserted += newDocs.length;
-          skippedDuplicate += skippedCount;
-          batchCount++;
-          recordBatch(batchCount, batchSize, newDocs.length, skippedCount, skippedSampleIds);
-          buffer.length = 0;
-          await updateCollectionJob(job.id, { itemsCollected: inserted });
-          emitProgress();
+      try {
+        for await (const doc of connector.collect({
+          since,
+          query: collectQuery || undefined,
+          maxItems,
+          signal: abort.signal,
+        })) {
+          if (abort.signal.aborted) break;
+
+          buffer.push(stampJobId(doc));
+          fetched++;
+          lastFetchedAt = Date.now();
+          progressPhase = "streaming";
+
+          if (fetched === 1 || fetched % 25 === 0) {
+            emitProgress();
+          }
+
+          if (buffer.length >= BUFFER_SIZE) {
+            progressPhase = "dedup_batch";
+            const batchSize = buffer.length;
+            const { newDocs, skippedCount, skippedSampleIds } = await dedup(buffer, {
+              skipSampleLimit: sampleLimit,
+            });
+            inserted += newDocs.length;
+            skippedDuplicate += skippedCount;
+            batchCount++;
+            consecutiveDupBatches = nextConsecutiveDupBatches(
+              consecutiveDupBatches,
+              batchSize,
+              newDocs.length,
+              skippedCount,
+            );
+            recordBatch(batchCount, batchSize, newDocs.length, skippedCount, skippedSampleIds);
+            buffer.length = 0;
+            await updateCollectionJob(job.id, { itemsCollected: inserted });
+            progressPhase = "streaming";
+            lastFetchedAt = Date.now();
+            emitProgress();
+            if (checkDuplicateScan("batch")) break;
+          }
         }
+      } finally {
+        clearInterval(heartbeat);
+      }
+
+      if (abort.signal.aborted && buffer.length === 0 && stoppedReason) {
+        const stats = buildStats({
+          duplicateScan: true,
+          stoppedReason,
+        });
+        await updateCollectionJob(job.id, {
+          status: "success",
+          itemsCollected: inserted,
+          stats,
+        });
+        job.status = "success";
+        job.itemsCollected = inserted;
+        job.stats = stats;
+        emitProgress();
+        report?.({ type: "source_done", job, stats });
+        return job;
       }
 
       if (buffer.length > 0) {
+        progressPhase = "dedup_batch";
         const batchSize = buffer.length;
         const { newDocs, skippedCount, skippedSampleIds } = await dedup(buffer, {
           skipSampleLimit: sampleLimit,

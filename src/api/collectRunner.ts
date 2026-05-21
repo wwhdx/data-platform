@@ -108,6 +108,8 @@ export async function runCollectAll(
         skipSampleLimit: runOpts?.skipSampleLimit,
         maxItems: runOpts?.maxItems,
         since: runOpts?.since,
+        collectIndex: index,
+        collectTotal: total,
       });
       jobs.push(job);
       if (job.status === "failed" && job.errorMessage) {

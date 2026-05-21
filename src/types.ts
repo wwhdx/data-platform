@@ -92,6 +92,9 @@ export interface CollectJobStats {
   query?: string;
   batchCount?: number;
   connectorId?: string;
+  duplicateRatio?: number;
+  duplicateScan?: boolean;
+  stoppedReason?: string;
 }
 
 export interface CollectionJob {

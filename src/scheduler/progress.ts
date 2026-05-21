@@ -35,6 +35,27 @@ export type CollectProgressEvent =
       inserted: number;
       skippedDuplicate: number;
       batchIndex?: number;
+      /** streaming=逐条 yield；fetch_batch=等外网批次；dedup_batch=dedup 中 */
+      phase?: "streaming" | "fetch_batch" | "dedup_batch";
+      /** 距上次 fetched++ 的秒数（心跳时有效） */
+      waitSec?: number;
+      /** skippedDuplicate / fetched */
+      duplicateRatio?: number;
+      /** 满足重复扫描判定（新入库 0 且重复率超阈） */
+      duplicateScan?: boolean;
+      maxItems?: number;
+    }
+  | {
+      type: "duplicate_scan";
+      sourceId: string;
+      jobId: number;
+      fetched: number;
+      inserted: number;
+      skippedDuplicate: number;
+      duplicateRatio: number;
+      consecutiveDupBatches: number;
+      action: "warn" | "stop";
+      message: string;
     }
   | { type: "source_done"; job: CollectionJob; stats: CollectJobStats }
   | {

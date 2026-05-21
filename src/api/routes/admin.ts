@@ -71,10 +71,13 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       "Content-Type": "application/x-ndjson; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
     });
+    (reply.raw as { flushHeaders?: () => void }).flushHeaders?.();
 
     const send = (event: CollectProgressEvent) => {
       reply.raw.write(`${JSON.stringify(event)}\n`);
+      (reply.raw as { flush?: () => void }).flush?.();
     };
 
     try {
