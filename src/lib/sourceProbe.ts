@@ -9,6 +9,7 @@ import {
   EPO_OPS_TOKEN_URL,
 } from "../connectors/epoOpsHelpers";
 import { REDDIT_TOKEN_URL } from "../connectors/redditHelpers";
+import { buildUniprotSearchUrl } from "../connectors/uniprotHelpers";
 import { OAuth2ClientCredentials } from "./oauth2ClientCredentials";
 import type { SourceProbeDetail, SourceStatus } from "../types";
 
@@ -76,6 +77,7 @@ const PROBE_TARGETS: Record<string, string | ((baseUrl: string) => string)> = {
     const root = base.replace(/\/$/, "");
     return `${root}/data/OECD.SDD.STES,DSD_KEI@DF_KEI/OECD.A.B1GQ_Q.GR._T.Y.GY?dimensionAtObservation=AllDimensions&format=jsondata&lastNObservations=1`;
   },
+  uniprot: (base) => buildUniprotSearchUrl(base, "insulin", 1),
   arxiv: "https://export.arxiv.org/api/query?search_query=all:test&max_results=1",
 };
 

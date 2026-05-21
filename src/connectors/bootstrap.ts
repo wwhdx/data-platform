@@ -45,6 +45,7 @@ import {
 import { EiaConnector, EIA_META } from "./eia";
 import { EurostatConnector, EUROSTAT_META } from "./eurostat";
 import { OecdConnector, OECD_META } from "./oecd";
+import { UniprotConnector, UNIPROT_META } from "./uniprot";
 import { OPENALEX_META } from "./openalex";
 import { CROSSREF_META } from "./crossref";
 import { WORLD_BANK_META } from "./worldbank";
@@ -77,6 +78,7 @@ export {
   EIA_META,
   EUROSTAT_META,
   OECD_META,
+  UNIPROT_META,
 };
 
 /** 运行时已 registerConnector 的源 id（与 scheduleReport / B14 对齐） */
@@ -108,6 +110,7 @@ export const REGISTERED_CONNECTOR_IDS = [
   "eia",
   "eurostat",
   "oecd",
+  "uniprot",
 ] as const;
 
 export async function registerDefaultConnectors(
@@ -229,6 +232,9 @@ export async function registerDefaultConnectors(
   const oecd = new OecdConnector(
     await resolveConnectorConfig("oecd", OECD_META),
   );
+  const uniprot = new UniprotConnector(
+    await resolveConnectorConfig("uniprot", UNIPROT_META),
+  );
 
   scheduler.registerConnector({ id: "openalex", create: () => openalex });
   scheduler.registerConnector({ id: "crossref", create: () => crossref });
@@ -275,4 +281,5 @@ export async function registerDefaultConnectors(
   scheduler.registerConnector({ id: "eia", create: () => eia });
   scheduler.registerConnector({ id: "eurostat", create: () => eurostat });
   scheduler.registerConnector({ id: "oecd", create: () => oecd });
+  scheduler.registerConnector({ id: "uniprot", create: () => uniprot });
 }

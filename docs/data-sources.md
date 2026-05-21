@@ -448,6 +448,18 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 | RAG | `indicator`（`indicatorChunks`；KEI：OECD/USA GDP 增速、OECD 失业、CPI） |
 | YAML | `enabled: false` |
 
+### 6.7 UniProt
+
+| 字段 | 值 |
+|------|-----|
+| Base URL | `https://rest.uniprot.org/` |
+| 认证 | 无 |
+| 端点 | `GET /uniprotkb/search?query=&size=&fields=` · Link `rel=next` 分页 |
+| 代码 | `src/connectors/uniprot.ts` · `uniprotHelpers.ts` |
+| RAG | `paper`（蛋白 `title`+`abstract`：功能/organism/序列长度） |
+| 增量 | **`--since` 不参与 API 过滤**（仅写入 provenance；蛋白库无日期增量语义） |
+| YAML | `enabled: false` |
+
 ---
 
 ## 附录：Connector 优先实现顺序

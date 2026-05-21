@@ -39,6 +39,13 @@ describe("sourceProbe", () => {
     expect(url).toContain("db=pubmed");
   });
 
+  it("builds uniprot search probe URL（与 collect 同 fields）", () => {
+    const url = buildProbeUrl("uniprot", "https://rest.uniprot.org/");
+    expect(url).toContain("/uniprotkb/search");
+    expect(url).toContain("query=insulin");
+    expect(url).toContain("protein_existence");
+  });
+
   it("maps HTTP status to probe result", () => {
     expect(mapHttpToProbeStatus(200)).toBe("healthy");
     expect(mapHttpToProbeStatus(401)).toBe("degraded");

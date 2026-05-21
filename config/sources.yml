@@ -479,6 +479,21 @@ sources:
     options:
       default_collect_query: gdp
 
+  # role: primary | collect: main | cluster: pharma_vertical
+  # 波次 8+ · 默认 disabled；UniProt REST（与 pubchem 同属生物分子真源）
+  - id: uniprot
+    profile: rest_none
+    name: UniProt
+    enabled: false
+    base_url: https://rest.uniprot.org/
+    rate_limit: "polite (~3/sec)"
+    license: "CC BY 4.0"
+    commercial_use: true
+    schedule: "0 3 * * 0"
+    description: "UniProt KB 蛋白序列与功能注释，REST 搜索"
+    options:
+      default_collect_query: insulin
+
   # role: primary | collect: main | cluster: community_social
   # 默认关：商业用途须合规评审后再 enabled
   - id: reddit
