@@ -21,9 +21,18 @@ import {
   type EurostatQuery,
 } from "./eurostatHelpers";
 import { attachProvenance } from "./provenance/attach";
+import { buildEurostatDocumentRequest } from "./provenance/eurostat";
 import {
-  buildEurostatDocumentRequest,
-} from "./provenance/eurostat";
+  crawlEurostatCatalog,
+  EUROSTAT_CATALOGUE_TOC_URL,
+} from "./eurostat/catalogCrawl";
+import {
+  loadEurostatDatasetsFile,
+  parseEurostatConnectorOptions,
+  type EurostatConnectorOptions,
+  type EurostatDatasetYamlEntry,
+} from "./eurostat/config";
+import { searchEurostatCatalogByName } from "../storage/models/eurostatCatalogDataset";
 
 export const EUROSTAT_META: ConnectorMeta = {
   id: "eurostat",
@@ -38,6 +47,7 @@ export const EUROSTAT_META: ConnectorMeta = {
 
 export class EurostatConnector extends BaseConnector {
   readonly meta: ConnectorMeta = EUROSTAT_META;
+  private readonly eurostatOpts: EurostatConnectorOptions;
 
   constructor(config: ConnectorConfig = {}) {
     super(
@@ -49,6 +59,7 @@ export class EurostatConnector extends BaseConnector {
       EUROSTAT_META.baseUrl,
     );
     this.rateLimiter = RateLimiter.fromRPS(2, 500);
+    this.eurostatOpts = parseEurostatConnectorOptions(this.sourceOptions);
   }
 
   private dataUrl(query: EurostatQuery): string {
@@ -68,15 +79,60 @@ export class EurostatConnector extends BaseConnector {
     return body;
   }
 
+  async syncCatalog(): Promise<{
+    datasets: number;
+    folders: number;
+    yamlMissing: number;
+  }> {
+    const res = await this.fetch(EUROSTAT_CATALOGUE_TOC_URL, {
+      headers: { Accept: "text/plain" },
+    });
+    if (!res.ok) {
+      throw new Error(`Eurostat TOC HTTP ${res.status}`);
+    }
+    const tocText = await res.text();
+    const yamlDatasets = loadEurostatDatasetsFile(this.eurostatOpts.datasetsFile);
+    const result = await crawlEurostatCatalog(tocText, yamlDatasets);
+    return {
+      datasets: result.datasets,
+      folders: result.folders,
+      yamlMissing: result.yamlMissing,
+    };
+  }
+
   async search(query: string, opts?: SearchOptions): Promise<SearchResult[]> {
     const q = query.trim().toLowerCase() || "gdp";
     const maxResults = opts?.maxResults ?? 10;
-    const matched = EUROSTAT_CORE_QUERIES.filter((item) =>
-      eurostatQueryMatchesText(item, q),
-    ).slice(0, maxResults);
-
     const results: SearchResult[] = [];
+
+    try {
+      const catalogHits = await searchEurostatCatalogByName(q, maxResults);
+      for (const hit of catalogHits) {
+        if (results.length >= maxResults) break;
+        results.push({
+          title: hit.title ?? hit.code,
+          url: buildEurostatCanonicalUrl(hit.code),
+          snippet: (hit.theme_path ?? hit.code).slice(0, 300),
+          sourceId: EUROSTAT_META.id,
+          sourceName: EUROSTAT_META.name,
+          score: 0.5,
+          license: EUROSTAT_META.license,
+          commercialUse: EUROSTAT_META.commercialUse,
+        });
+      }
+    } catch {
+      /* 目录表未迁移时仅走 YAML */
+    }
+
+    const datasets = this.resolveCollectDatasets(
+      loadEurostatDatasetsFile(this.eurostatOpts.datasetsFile),
+    );
+    const matched = datasets
+      .filter((item) => eurostatQueryMatchesText(item, q))
+      .slice(0, maxResults);
+
     for (const item of matched) {
+      if (results.length >= maxResults) break;
       const body = await this.fetchDataset(item);
       if (!body) continue;
       const docs = mapJsonStatToDocuments(item.code, body);
@@ -96,12 +152,17 @@ export class EurostatConnector extends BaseConnector {
         license: EUROSTAT_META.license,
         commercialUse: EUROSTAT_META.commercialUse,
       });
-      if (results.length >= maxResults) break;
     }
-    return results;
+    return results.slice(0, maxResults);
   }
 
   async *collect(params: CollectParams = {}): AsyncGenerator<RawDocument> {
+    const yamlDatasets = loadEurostatDatasetsFile(this.eurostatOpts.datasetsFile);
+    const queries =
+      yamlDatasets.length > 0
+        ? this.resolveCollectDatasets(yamlDatasets)
+        : EUROSTAT_CORE_QUERIES;
+
     const maxItems = params.maxItems ?? Infinity;
     const queryFilter = params.query?.trim().toLowerCase();
     let yielded = 0;
@@ -111,7 +172,7 @@ export class EurostatConnector extends BaseConnector {
       query: params.query,
     };
 
-    for (const item of EUROSTAT_CORE_QUERIES) {
+    for (const item of queries) {
       if (params.signal?.aborted) break;
       if (yielded >= maxItems) break;
       if (queryFilter && !eurostatQueryMatchesText(item, queryFilter)) continue;
@@ -126,7 +187,11 @@ export class EurostatConnector extends BaseConnector {
         const doc: RawDocument = {
           sourceId: EUROSTAT_META.id,
           externalId: mapped.externalId,
-          rawJson: mapped.rawJson,
+          rawJson: {
+            ...mapped.rawJson,
+            dataset_code: item.code.toLowerCase(),
+            collect_tier: (item as EurostatDatasetYamlEntry).tier,
+          },
           fetchedAt: new Date(),
         };
         yield attachProvenance(doc, EUROSTAT_META, {
@@ -141,5 +206,17 @@ export class EurostatConnector extends BaseConnector {
         yielded++;
       }
     }
+  }
+
+  private resolveCollectDatasets(
+    yamlDatasets: EurostatDatasetYamlEntry[],
+  ): EurostatDatasetYamlEntry[] {
+    const tiers = new Set(this.eurostatOpts.tierFilter.map((t) => t.toUpperCase()));
+    return yamlDatasets.filter((d) => {
+      const tier = d.tier.toUpperCase();
+      if (!tiers.has(tier)) return false;
+      if (d.collect_enabled === false) return false;
+      return true;
+    });
   }
 }

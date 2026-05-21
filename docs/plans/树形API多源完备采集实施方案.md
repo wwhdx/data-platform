@@ -1,7 +1,7 @@
 # 树形 API 多源完备采集实施方案
 
-> **状态**：设计草案（待实施）  
-> **版本**：v1.2（2026-05-21）  
+> **状态**：部分落地（T1 ✅）  
+> **版本**：v1.3（2026-05-21）  
 > **进度真源**：[实施进度总览.md](./实施进度总览.md) §4.11（轨 T）  
 > **方法论**：[树形API数据源完备采集方法论.md](../knowledge/树形API数据源完备采集方法论.md)  
 > **样板**：[EIA完备采集方案.md](./EIA完备采集方案.md)（✅ H0–H2 MVP）  
@@ -49,7 +49,7 @@
 | 源 | 官方子方向规模（官网） | L0 | L1 代码真源 | 子方向数据是否覆盖 |
 |----|------------------------|-----|-------------|-------------------|
 | EIA | 14 顶层 / **232** 叶子 | ✅ `pnpm cli eia catalog sync` | `config/eia-routes.yml` **5** 条 Tier A/B | 🟡 目录全、数据抽样 |
-| Eurostat | TOC **~5 466** dataset | ❌ | `EUROSTAT_CORE_QUERIES` **3** 条 | ❌ |
+| Eurostat | TOC **~5 466** dataset | ✅ `pnpm cli eurostat catalog sync` | `config/eurostat-datasets.yml` **6** 条 Tier A | 🟡 目录全、数据 Tier A |
 | FRED | Category 树 + **80 万+** series | ❌ | `fred.ts` → `series/search` 默认 `gdp` ≤50 | ❌ |
 | OECD | 多 agency **dataflow** | ❌ | `OECD_CORE_QUERIES` **4** key / 1 flow | ❌ |
 | World Bank | **16 000+** indicator × topic | ❌ | `CORE_INDICATORS` **10** 条 × 全国家 | ❌ 指标维 |
@@ -270,6 +270,7 @@ flowchart TB
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| v1.3 | 2026-05-21 | T1 落地：Eurostat L0 `eurostat_catalog_datasets` · CLI · YAML 6 条 · verify 6/6 |
 | v1.2 | 2026-05-21 | H3 收尾：`eia-catalog-sync` 周 cron · `scheduleMaintenance` · sources.yml options |
 | v1.1 | 2026-05-21 | H3-2 落地：`eia-routes.yml` 16 条 · verify 16/16 · 实施进度 §4.11 更新 |
 | v1.0 | 2026-05-21 | 初稿：H3 EIA 收尾 + T1–T4 分源步骤；现状差距表；模块模板与验证清单；链方法论与 EIA 方案 |

@@ -1,0 +1,68 @@
+# Eurostat Tier A/B 采集清单（Git 真源）
+# 运行 pnpm cli eurostat catalog sync 后用 L0 校验 code；node scripts/verify-eurostat-datasets.mjs
+datasets:
+  - code: nama_10_gdp
+    tier: A
+    collect_enabled: true
+    title: GDP EU27
+    # industry_tag: 国民经济
+    params:
+      geo: EU27_2020
+      unit: CP_MEUR
+      na_item: B1GQ
+      lastTimePeriod: "1"
+
+  - code: demo_pjan
+    tier: A
+    collect_enabled: true
+    title: Population EU27
+    # industry_tag: 人口
+    params:
+      geo: EU27_2020
+      sex: T
+      age: TOTAL
+      unit: NR
+      lastTimePeriod: "1"
+
+  - code: une_rt_a
+    tier: A
+    collect_enabled: true
+    title: Unemployment EU27
+    # industry_tag: 劳动
+    params:
+      geo: EU27_2020
+      sex: T
+      age: Y20-64
+      unit: PC_ACT
+      lastTimePeriod: "1"
+
+  - code: nrg_bal_c
+    tier: A
+    collect_enabled: true
+    title: Energy balance EU27
+    # industry_tag: 能源
+    params:
+      geo: EU27_2020
+      siec: TOTAL
+      nrg_bal: GIC
+      unit: KTOE
+      lastTimePeriod: "1"
+
+  - code: env_air_gge
+    tier: A
+    collect_enabled: true
+    title: GHG emissions EU27
+    # industry_tag: 环境
+    params:
+      geo: EU27_2020
+      lastTimePeriod: "1"
+
+  - code: ei_bssi_m_r2
+    tier: A
+    collect_enabled: true
+    title: Economic sentiment EU27
+    # industry_tag: 景气
+    params:
+      geo: EU27_2020
+      indic: BS-ESI-I
+      lastTimePeriod: "1"

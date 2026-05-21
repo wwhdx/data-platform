@@ -457,11 +457,15 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 | 字段 | 值 |
 |------|-----|
 | Base URL | `https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/` |
+| 目录（L0） | `GET …/catalogue/toc/txt?lang=en` → `eurostat_catalog_datasets` |
 | 认证 | 无 |
 | 端点 | `GET /data/{datasetCode}?format=JSON&lang=EN&lastTimePeriod=1&…` |
-| 代码 | `src/connectors/eurostat.ts` · `eurostatHelpers.ts` |
-| RAG | `indicator`（`indicatorChunks`；EU27 GDP/人口/失业核心序列） |
-| YAML | `enabled: false` |
+| 代码 | `src/connectors/eurostat.ts` · `eurostat/` · `eurostatHelpers.ts` |
+| L1 清单 | `config/eurostat-datasets.yml`（Tier A/B；`EUROSTAT_TIER_FILTER` / `sources.yml` `eurostat_tier_filter`） |
+| CLI | `pnpm cli eurostat catalog sync` · `catalog list [--theme]` |
+| 验证 | `node scripts/verify-eurostat-datasets.mjs` |
+| RAG | `indicator`（`indicatorChunks`；EU27 GDP/人口/失业/能源/环境/景气） |
+| YAML | `enabled: true`（`collect_max_items: 50`） |
 
 ### 6.6 OECD
 

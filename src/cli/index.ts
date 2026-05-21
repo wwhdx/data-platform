@@ -1654,6 +1654,8 @@ function printHelp() {
   data-platform export --source openalex --since 2026-05-01 --out ./data/raw
   data-platform eia catalog sync
   data-platform eia catalog list --top petroleum
+  data-platform eurostat catalog sync
+  data-platform eurostat catalog list --theme general
   data-platform serve --port 3400
   data-platform config validate
   data-platform config sync
@@ -1713,6 +1715,9 @@ async function main(): Promise<void> {
       break;
     case "eia":
       await (await import("./eiaCommands")).cmdEia(rest);
+      break;
+    case "eurostat":
+      await (await import("./eurostatCommands")).cmdEurostat(rest);
       break;
     case "serve":
       await cmdServe(rest);

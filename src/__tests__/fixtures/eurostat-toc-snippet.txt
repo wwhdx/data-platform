@@ -1,0 +1,10 @@
+"title" "code" "type" "last update of data" "last table structure change" "data start" "data end" "values"
+"Database by themes" "data" "folder" " " " " " " " "
+" General and regional statistics" "general" "folder" " " " " " " " "
+" European and national indicators for short-term analysis" "euroind" "folder" " " " " " " " "
+" Business and consumer surveys" "ei_bcs" "folder" " " " " " " " "
+" Economic sentiment and confidence indicators by sector - monthly data" "ei_bssi_m_r2" "dataset" "29.04.2026" "29.04.2026" "1980-01" "2026-04" 140582
+" National accounts" "nama" "folder" " " " " " " " "
+" Gross domestic product (GDP) - annual data" "nama_10_gdp" "dataset" "20.05.2026" "22.04.2026" "1975" "2025" 1105250
+" Population" "demo" "folder" " " " " " " " "
+" Population on 1 January by age and sex" "demo_pjan" "dataset" "08.05.2026" "13.02.2026" "1960" "2025" 738773

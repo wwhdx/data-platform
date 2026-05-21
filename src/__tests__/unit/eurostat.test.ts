@@ -1,4 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+vi.mock("../../storage/models/eurostatCatalogDataset", () => ({
+  upsertEurostatCatalogDataset: vi.fn().mockResolvedValue(undefined),
+  applyYamlTiersToEurostatCatalog: vi.fn().mockResolvedValue(undefined),
+  searchEurostatCatalogByName: vi.fn().mockResolvedValue([]),
+}));
+
 import { EurostatConnector } from "../../connectors/eurostat";
 import {
   mapJsonStatToDocuments,
@@ -96,6 +103,22 @@ describe("EurostatConnector", () => {
     expect(docs[0]?.fetchProvenance?.documentRequest?.url).toContain(
       "nama_10_gdp",
     );
+  });
+
+  it("syncCatalog 请求 TOC 使用 text/plain Accept（非 application/json）", async () => {
+    vi.mocked(global.fetch).mockResolvedValueOnce({
+      ok: true,
+      text: async () =>
+        '"Database" "data" "folder" " " " " " " " "\n"GDP" "nama_10_gdp" "dataset" " " " " " " " " "',
+    } as Response);
+
+    const c = new EurostatConnector({});
+    await expect(c.syncCatalog()).resolves.toMatchObject({
+      datasets: expect.any(Number),
+    });
+    const [url, init] = vi.mocked(global.fetch).mock.calls[0] ?? [];
+    expect(String(url)).toContain("/catalogue/toc/txt");
+    expect((init?.headers as Record<string, string>)?.Accept).toBe("text/plain");
   });
 
   it("search 按 query 过滤核心序列", async () => {

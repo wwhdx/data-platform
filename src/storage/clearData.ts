@@ -24,6 +24,7 @@ export const SOURCE_EXTENSION_TABLES: Readonly<
   Record<string, readonly string[]>
 > = {
   eia: ["eia_catalog_routes"],
+  eurostat: ["eurostat_catalog_datasets"],
 };
 
 const SOURCE_ID_RE = /^[a-z][a-z0-9_]*$/;

@@ -516,10 +516,12 @@ sources:
     license: "CC BY 4.0 (Eurostat)"
     commercial_use: true
     schedule: "0 3 * * 0"
-    description: "欧盟官方统计 JSON-stat（GDP/人口/失业等 EU27 序列）"
+    description: "欧盟官方统计 JSON-stat（L0 目录 + YAML Tier A 序列）"
     options:
       default_collect_query: gdp
-      collect_max_items: 3
+      collect_max_items: 50
+      eurostat_datasets_file: config/eurostat-datasets.yml
+      eurostat_tier_filter: "A,B"
 
   # role: primary | collect: main | cluster: macro_indicator
   # 波次 8 · 默认 disabled；与 fred/worldbank/eurostat 按 series 维度去重
