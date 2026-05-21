@@ -19,6 +19,15 @@ describe("biorxivOaiHelpers", () => {
     expect(biorxivContentUrl("10.1101/abc", "2")).toBe(
       "https://www.biorxiv.org/content/10.1101/abcv2",
     );
+    expect(biorxivContentUrl("10.1101/abc", "2", "medrxiv")).toBe(
+      "https://www.medrxiv.org/content/10.1101/abcv2",
+    );
+  });
+
+  it("buildDetailsUrl supports medrxiv server", () => {
+    expect(buildDetailsUrl("medrxiv", "2024-01-01", "2024-01-02", 0)).toBe(
+      "https://api.biorxiv.org/details/medrxiv/2024-01-01/2024-01-02/0/json",
+    );
   });
 
   it("looksLikeDoi and paperMatchesQuery", () => {

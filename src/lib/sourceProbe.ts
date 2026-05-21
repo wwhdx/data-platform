@@ -45,6 +45,12 @@ const PROBE_TARGETS: Record<string, string | ((baseUrl: string) => string)> = {
     const from = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
     return `${root}/details/biorxiv/${from}/${to}/0/json`;
   },
+  medrxiv_oai: (base) => {
+    const root = base.replace(/\/$/, "");
+    const to = new Date().toISOString().slice(0, 10);
+    const from = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    return `${root}/details/medrxiv/${from}/${to}/0/json`;
+  },
   arxiv: "https://export.arxiv.org/api/query?search_query=all:test&max_results=1",
 };
 

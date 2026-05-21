@@ -556,6 +556,7 @@ Layer 2 视图（`003_layer2_views.sql`）依赖 `source_id` 做类型分桶。�
 | arxiv | paper | papers |
 | arxiv_oai | paper | papers |
 | biorxiv_oai | paper | papers |
+| medrxiv_oai | paper | papers |
 | patentsview | patent | patents |
 | epo_ops | patent | patents |
 | google_patents | patent | patents |

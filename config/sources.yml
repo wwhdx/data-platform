@@ -163,6 +163,19 @@ sources:
     options:
       server: biorxiv
 
+  - id: medrxiv_oai
+    profile: oai_pmh
+    name: medRxiv (OAI-PMH API)
+    enabled: false
+    base_url: https://api.biorxiv.org
+    rate_limit: ">=2s interval"
+    license: "varies (per preprint; often CC-BY-NC)"
+    commercial_use: false
+    schedule: "0 3 * * *"
+    description: "medRxiv 预印本；api.biorxiv.org/details/medrxiv JSON；复用 BiorxivOaiConnector"
+    options:
+      server: medrxiv
+
   - id: patentsview
     profile: rest_header_custom
     name: "USPTO ODP Patents"

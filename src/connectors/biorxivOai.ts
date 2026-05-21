@@ -42,18 +42,19 @@ export const BIORXIV_OAI_META: ConnectorMeta = {
 };
 
 export class BiorxivOaiConnector extends BaseConnector {
-  readonly meta: ConnectorMeta = BIORXIV_OAI_META;
+  readonly meta: ConnectorMeta;
   private readonly server: string;
 
-  constructor(config: ConnectorConfig = {}) {
+  constructor(config: ConnectorConfig = {}, meta: ConnectorMeta = BIORXIV_OAI_META) {
     super(
       {
         ...config,
         userAgent:
           config.userAgent ?? "WangyeDataPlatform/0.1 (mailto:dev@wangye.app)",
       },
-      BIORXIV_OAI_META.baseUrl,
+      meta.baseUrl,
     );
+    this.meta = meta;
     this.server = resolveBiorxivServer(this.sourceOptions);
     this.rateLimiter = RateLimiter.fromRPS(1, 2000);
   }
@@ -122,15 +123,16 @@ export class BiorxivOaiConnector extends BaseConnector {
 
         const doc = this.toRawDocument(paper);
         const doi = doc.externalId;
-        yield attachProvenance(doc, BIORXIV_OAI_META, {
+        yield attachProvenance(doc, this.meta, {
           documentRequest: buildBiorxivDocumentRequest(
             doi,
             paper.version,
             this.userAgent,
+            { server: this.server },
           ),
           batchRequest: { ...batchRequest, documentIndexInBatch: i },
           collect: collectCtx,
-          canonicalUrl: buildBiorxivCanonicalUrl(doi, paper.version),
+          canonicalUrl: buildBiorxivCanonicalUrl(doi, paper.version, this.server),
         });
         yielded++;
         if (yielded >= maxItems) break;
@@ -175,21 +177,21 @@ export class BiorxivOaiConnector extends BaseConnector {
     const doi = biorxivExternalId(paper.doi);
     return {
       title: paper.title,
-      url: biorxivContentUrl(doi, paper.version),
+      url: biorxivContentUrl(doi, paper.version, this.server),
       snippet: paper.abstract.slice(0, 300),
-      sourceId: BIORXIV_OAI_META.id,
-      sourceName: BIORXIV_OAI_META.name,
+      sourceId: this.meta.id,
+      sourceName: this.meta.name,
       publishedAt: paper.date?.slice(0, 10),
       score: 0,
-      license: paper.license ?? BIORXIV_OAI_META.license,
-      commercialUse: BIORXIV_OAI_META.commercialUse,
+      license: paper.license ?? this.meta.license,
+      commercialUse: this.meta.commercialUse,
     };
   }
 
   private toRawDocument(paper: BiorxivPaper): RawDocument {
     const doi = biorxivExternalId(paper.doi);
     return {
-      sourceId: BIORXIV_OAI_META.id,
+      sourceId: this.meta.id,
       externalId: doi,
       rawJson: {
         title: paper.title,
@@ -202,7 +204,7 @@ export class BiorxivOaiConnector extends BaseConnector {
         license: paper.license,
         server: paper.server ?? this.server,
         version: paper.version,
-        url: biorxivContentUrl(doi, paper.version),
+        url: biorxivContentUrl(doi, paper.version, this.server),
         type: "preprint",
       },
       fetchedAt: new Date(),

@@ -61,10 +61,18 @@ export function biorxivExternalId(doi: string): string {
   return doi.replace(/^https?:\/\/doi\.org\//i, "").trim();
 }
 
-export function biorxivContentUrl(doi: string, version?: string): string {
+export function biorxivContentUrl(
+  doi: string,
+  version?: string,
+  server = "biorxiv",
+): string {
   const id = biorxivExternalId(doi);
   const v = version?.trim() || "1";
-  return `https://www.biorxiv.org/content/${id}v${v}`;
+  const host =
+    resolveBiorxivServer({ server }) === "medrxiv"
+      ? "www.medrxiv.org"
+      : "www.biorxiv.org";
+  return `https://${host}/content/${id}v${v}`;
 }
 
 export function isoDateDaysAgo(days: number): string {
