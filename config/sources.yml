@@ -13,6 +13,11 @@
 #           fallback=主源缺全文再开 | analysis=离线 SQL/分析
 # cluster:  重叠簇名（见 §7.3 互斥规则）
 # 去重：dedup 仅 (source_id, external_id)；跨源 DOI 合并尚未实现
+#
+# Lane A（W-AGG，2026-05-21 落地）：
+#   W-AGG-1  openalex cron ON · semanticscholar cron OFF（二选一；S2 保留手动 collect）
+#   W-AGG-2  google_patents cron OFF（仅 pnpm cli collect 按需 BigQuery）
+#   W-AGG-3  core 保持 disabled（fallback）
 # ═══════════════════════════════════════════════════════════════
 
 version: "1.1"
@@ -91,7 +96,7 @@ interface_profiles:
 #   实时热点：hackernews 每 1 小时 → `0 */1 * * *`
 sources:
   # role: aggregator | collect: supplement | cluster: academic_metadata
-  # 与 semanticscholar 勿同 query 并行 cron（二选一作主图谱）
+  # W-AGG-1：主图谱 cron 保留 openalex；semanticscholar 已关 cron（可手动 collect）
   - id: openalex
     profile: rest_query_param_key
     name: OpenAlex
@@ -117,11 +122,11 @@ sources:
     description: "1.8亿+ DOI 元数据记录，覆盖学术出版物/会议/书籍"
 
   # role: aggregator | collect: supplement | cluster: academic_metadata
-  # 与 openalex 互斥：建议只启用其一的全量 cron
+  # W-AGG-1：cron 关闭；与 openalex 互斥。手动：pnpm cli collect --source semanticscholar
   - id: semanticscholar
     profile: rest_header_custom
     name: Semantic Scholar
-    enabled: true
+    enabled: false
     base_url: https://api.semanticscholar.org/graph/v1
     rate_limit: "10 RPS (authenticated)"
     license: "non-commercial free"
@@ -198,7 +203,7 @@ sources:
       server: medrxiv
 
   # role: aggregator | collect: fallback | cluster: academic_fulltext
-  # 默认关：全文索引与 arXiv/PMC 重叠；主源无全文时再开
+  # W-AGG-3：保持 disabled；主源无全文时再手动开启
   - id: core
     profile: rest_bearer
     name: CORE
@@ -256,11 +261,11 @@ sources:
       token_url: https://ops.epo.org/3.2/auth/accesstoken
 
   # role: mirror | collect: analysis | cluster: patent_global
-  # USPTO+EPO+WIPO 合并镜像；日常 RAG 用 patentsview/epo_ops，本源仅 BigQuery 分析
+  # W-AGG-2：cron 关闭；日常 RAG 用 patentsview/epo_ops。按需：pnpm cli collect --source google_patents
   - id: google_patents
     profile: bigquery_sql
     name: Google Patents Public Data
-    enabled: true
+    enabled: false
     base_url: https://console.cloud.google.com/marketplace/details/google_patents_public_datasets/google-patents-public-data
     rate_limit: "1 TB/month free query"
     license: CC BY 4.0
