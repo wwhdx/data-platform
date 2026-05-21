@@ -14,6 +14,10 @@
 # cluster:  重叠簇名（见 §7.3 互斥规则）
 # 去重：dedup 仅 (source_id, external_id)；跨源 DOI 合并尚未实现
 #
+# collect_max_items（collect --all 每信源抓取上限）：
+#   interface_profiles.*.collect_max_items → sources[].options.collect_max_items 覆盖
+#   设计依据与 enabled 对照表 → docs/data-sources.md 附录 B.5
+#
 # Lane A（W-AGG，2026-05-21 落地）：
 #   W-AGG-1  openalex cron ON · semanticscholar cron OFF（二选一；S2 保留手动 collect）
 #   W-AGG-2  google_patents cron OFF（仅 pnpm cli collect 按需 BigQuery）
@@ -26,17 +30,21 @@ defaults:
   user_agent: "WangyeDataPlatform/0.1 (mailto:dev@wangye.app)"
   request_timeout_ms: 30000
   max_retries: 5
+  # collect --all 兜底（优先 profile → sources[].options.collect_max_items）
+  collect_max_items: 100
 
 interface_profiles:
   rest_query_param_key:
     protocol: rest
     auth_type: query_param_key
+    collect_max_items: 150
 
   youtube_api:
     extends: rest_query_param_key
     base_url: https://www.googleapis.com/youtube/v3/
     env_key: YOUTUBE_API_KEY
     rate_limit: "10000 units/day (search=100 units)"
+    collect_max_items: 25
 
   ncbi_eutils:
     extends: rest_query_param_key
@@ -45,62 +53,75 @@ interface_profiles:
     rate_limit: "10/sec (with key)"
     pagination: webenv_history
     pipeline: [esearch, efetch]
+    collect_max_items: 200
 
   rest_header_custom:
     protocol: rest
     auth_type: header_custom
+    collect_max_items: 100
 
   rest_polite:
     protocol: rest
     auth_type: polite_id
+    collect_max_items: 200
 
   rest_none:
     protocol: rest
     auth_type: none
+    collect_max_items: 100
 
   firebase_rest:
     protocol: firebase_rest
     auth_type: none
     base_url: https://hacker-news.firebaseio.com/v0/
+    collect_max_items: 50
 
   rest_bearer:
     protocol: rest
     auth_type: header_bearer
+    collect_max_items: 100
 
   arxiv_legacy_rest:
     protocol: rest
     auth_type: none
     base_url: https://export.arxiv.org/api/query
+    collect_max_items: 100
 
   oai_pmh:
     protocol: oai-pmh
     auth_type: none
     base_url: https://oaipmh.arxiv.org/oai
+    collect_max_items: 100
 
   oauth2_rest:
     protocol: rest
     auth_type: oauth2
     base_url: https://ops.epo.org/rest-services/
+    collect_max_items: 100
 
   bigquery_sql:
     protocol: bigquery_sql
     auth_type: oauth2
+    collect_max_items: 50
 
   graphql_github:
     protocol: graphql
     auth_type: header_bearer
+    collect_max_items: 30
 
   sdmx_json:
     protocol: rest
     auth_type: none
     base_url: https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/
     rate_limit: "polite (~2/sec)"
+    collect_max_items: 5
 
   wipo_patentscope:
     protocol: rest
     auth_type: none
     base_url: https://patentscope.wipo.int/search/en/
     rate_limit: "polite (~1/sec; HTML search 10/page)"
+    collect_max_items: 50
 
 # schedule（cron「分 时 日 月 周」，服务器本地时区）：
 #   批处理：每日 03:00 → `0 3 * * *`
@@ -120,6 +141,8 @@ sources:
     commercial_use: true
     schedule: "0 3 * * *"
     description: "2.4亿+ 学术作品元数据，CC0 完全开放，含作者/机构/引用/主题"
+    options:
+      collect_max_items: 200
 
   # role: registry | collect: supplement | cluster: academic_metadata
   # DOI 元数据权威；正文在出版商，摘要覆盖率低
@@ -303,6 +326,8 @@ sources:
     commercial_use: true
     schedule: "0 3 * * *"
     description: "SEC 上市公司申报文件 (10-K, 10-Q, 8-K)，完全免费"
+    options:
+      collect_max_items: 10
 
   # role: secondary | collect: supplement | cluster: finance_market
   # 非官方 API；行情辅助，基本面以 sec_edgar 为准
@@ -320,6 +345,7 @@ sources:
       default_collect_query: SPY
       quotes_count: 10
       quote_type_filter: EQUITY
+      collect_max_items: 10
 
   # role: primary | collect: main | cluster: macro_indicator
   - id: fred
@@ -332,6 +358,8 @@ sources:
     commercial_use: false
     schedule: "0 3 * * *"
     description: "80万+ 经济时间序列"
+    options:
+      collect_max_items: 50
 
   # role: primary | collect: main | cluster: macro_indicator
   # 与 fred 部分指标概念重叠，按 series id 选型勿重复采
@@ -345,6 +373,8 @@ sources:
     commercial_use: true
     schedule: "0 3 * * 0"
     description: "16,000+ 时间序列，覆盖 200+ 国家"
+    options:
+      collect_max_items: 5
 
   # role: registry | collect: main | cluster: clinical（NCT 注册真源，低重叠）
   - id: clinicaltrials
@@ -372,6 +402,7 @@ sources:
     options:
       # 波次 9 GH-B：须 GITHUB_TOKEN；一次 GraphQL 取 repo + README
       use_graphql: false
+      collect_max_items: 30
 
   # role: primary | collect: main | cluster: community_tech
   - id: hackernews
@@ -462,6 +493,8 @@ sources:
     commercial_use: true
     schedule: "0 3 * * 0"
     description: "美国能源信息署官方能源时间序列"
+    options:
+      collect_max_items: 5
 
   # role: primary | collect: main | cluster: macro_indicator
   # 波次 8 · 默认 disabled；与 fred/worldbank 按 series 维度去重
@@ -477,6 +510,7 @@ sources:
     description: "欧盟官方统计 JSON-stat（GDP/人口/失业等 EU27 序列）"
     options:
       default_collect_query: gdp
+      collect_max_items: 3
 
   # role: primary | collect: main | cluster: macro_indicator
   # 波次 8 · 默认 disabled；与 fred/worldbank/eurostat 按 series 维度去重
@@ -492,6 +526,7 @@ sources:
     description: "OECD KEI 宏观序列（SDMX-JSON：GDP/失业/CPI）"
     options:
       default_collect_query: gdp
+      collect_max_items: 3
 
   # role: primary | collect: main | cluster: pharma_vertical
   # 波次 8+ · 默认 disabled；UniProt REST（与 pubchem 同属生物分子真源）

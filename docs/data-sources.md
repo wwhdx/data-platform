@@ -669,9 +669,53 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 ### B.3 运维建议
 
 1. **共享 Key**：`NCBI_API_KEY` 同时作用于 `pubmed` 与 `pubchem`——并发 collect 时合并计算 10/s 上限。
-2. **日配额型**：YouTube（units/天）、OpenAlex（$/天）、Google Patents（TB/月）、EPO OPS（GB/周）——在调度器错开高峰源，或降低 `COLLECT_ALL_MAX_ITEMS`。
+2. **日配额型**：YouTube（units/天）、OpenAlex（$/天）、Google Patents（TB/月）、EPO OPS（GB/周）——在调度器错开高峰源，或降低 `collect_max_items` / `COLLECT_ALL_MAX_ITEMS`。
 3. **响应头监控**：CrossRef `x-rate-limit-*`、OpenAlex `X-RateLimit-*`（[说明](https://developers.openalex.org/api-reference/authentication)）、GitHub `x-ratelimit-remaining`——429 时 `BaseConnector` 已有退避，但应记录到 collect log。
 4. **代码同步（2026-05-21）**：`openalex.ts` → 10k/天 List+Filter 预算；`semanticscholar.ts` → 1 RPS。提额后可在 Connector 内调整 `RateLimiter` 并更新本附录。
+
+### B.5 `collect_max_items` 默认上限（`collect --all` / cron）
+
+> **真源**：`config/sources.yml` → `interface_profiles.*.collect_max_items` + `sources[].options.collect_max_items`；运行时 [`src/collect/maxItems.ts`](../src/collect/maxItems.ts)；CLI `--max-items` 为**全局天花板**（与源上限取 `min`）。  
+> **设计依据**：下表「API 代价」列对齐 [B.2](#b2-分源举例典型-collect--富化路径)；重复扫描见 `.env.example` 中 `COLLECT_DUPLICATE_SCAN_*`。
+
+#### 分层规则
+
+| 档位 | 默认 `collect_max_items` | 适用 profile / 源类型 | 理由 |
+|------|--------------------------|------------------------|------|
+| **指标型** | **3–5** | `sdmx_json`；`worldbank` / `eia` | 一条 ≈ 一个 time series；B.2 各 1–2 次 GET |
+| **配额敏感** | **10–25** | `youtube_api`；`sec_edgar`；`yahoo_finance` | B.2：YouTube ~250 units/轮；SEC 10 filing ≈ 20–30 次 |
+| **OAI bulk** | **100** | `oai_pmh` | B.2：200 条 OAI ≥30s 限速；易重复扫描 |
+| **REST 学术** | **150–200** | `ncbi_eutils` / `rest_polite` / OpenAlex / CrossRef | B.2 200 条仍在 polite/RPS 内 |
+| **搜索/HTML** | **30–50** | `wipo_patentscope`；`firebase_rest`；GitHub | WIPO 50 条 = 5 页；GitHub Search 30/min |
+| **序列 macro** | **50** | `fred` | B.2：50 序列 ~100 请求 ~50s |
+| **兜底** | **100** | `defaults` / `COLLECT_ALL_MAX_ITEMS` | 未单独配置的源 |
+
+#### 当前 enabled 源对照（2026-05-21）
+
+| runtime `id` | profile | `collect_max_items` | B.2 对齐 / API 代价 | 重复扫描 |
+|---|---|---:|---|---|
+| `openalex` | rest_query_param_key | **200** | 200 条 ≈ 1 List+Filter | 中 |
+| `crossref` | rest_polite | **200** | 2 cursor 页 @ 5 RPS | 中 |
+| `pubmed` | ncbi_eutils | **200** | 12–20 E-utilities | 中 |
+| `arxiv_oai` | oai_pmh | **100** | OAI 多页 @ ≥3s | **高** |
+| `biorxiv_oai` / `medrxiv_oai` | oai_pmh | **100** | 2 页 @ 2s（200 条） | 中 |
+| `patentsview` | rest_header_custom | **100** | 8 POST（200 条） | 低 |
+| `epo_ops` | oauth2_rest | **100** | 5 页 biblio；4 GB/周 | 低 |
+| `sec_edgar` | rest_polite | **10** | 10 filing 全文 | 低 |
+| `yahoo_finance` | rest_none | **10** | 5 ticker 量级 | 低 |
+| `fred` | rest_query_param_key | **50** | 50 序列 ~50s | 低 |
+| `worldbank` | rest_none | **5** | 单指标 1–2 GET | 低 |
+| `clinicaltrials` | rest_none | **100** | 2 页 pageSize=100 | 中 |
+| `github` | rest_bearer | **30** | Search 30/min | 低 |
+| `hackernews` | firebase_rest | **50** | 51 Firebase 调用 | 低 |
+| `youtube` | youtube_api | **25** | ~250 units/轮 | 配额 |
+| `materials_project` | rest_header_custom | **100** | ~4 页 @ 25/页 | 低 |
+| `eia` | rest_query_param_key | **5** | 单 dataset | 低 |
+| `eurostat` / `oecd` | sdmx_json | **3** | 各 1 indicator GET | 低 |
+| `uniprot` | rest_none | **100** | `size=100` 单次 | 中 |
+| `wipo` | wipo_patentscope | **50** | 5 HTML 页 @ 1 RPS | 低 |
+
+**运维**：`pnpm cli collect --all` 用 YAML 逐源上限；临时放宽 `--max-items 500`（仍 min 源上限）。日配额型源优先压低 `collect_max_items`，勿仅靠 env。
 
 ### B.4 官方文档原始链接（按 runtime id）
 
@@ -759,4 +803,5 @@ RAG 质量优先（遗留增强）：
 > **A4 Semantic Scholar**：2026-05-19 落地 `semanticscholar.ts`；`SEMANTIC_SCHOLAR_API_KEY`；YAML 默认 `enabled: false`。  
 > **勘误（2026-05-20）**：§2.1–2.2 Google Patents / EPO OPS 对齐官方路径与限额；§5.3 Reddit 100 QPM。  
 > **配额评估（2026-05-21）**：新增 [附录 B](#附录-b已接入源配额与速率限制评估)（32 Connector + Unpaywall 富化；官方对照 + collect 举例 + [B.4 原始链接](#b4-官方文档原始链接按-runtime-id)）；§1.1 OpenAlex、§1.4 CrossRef 速率行更新；**代码同步** `openalex.ts`（10k/天）、`semanticscholar.ts`（1 RPS）；**DB** `001_init.sql` 种子 + 迁移 `023_rate_limit_openalex_s2.sql`。  
+> **collect 上限（2026-05-21）**：[附录 B.5](#b5-collect_max_items-默认上限collect---all--cron) + `config/sources.yml` `collect_max_items` + `src/collect/maxItems.ts`。  
 > **12 Connector 全景（2026-05-19）**：见 [实施进度总览 §2.1](./plans/实施进度总览.md#21-connector-运行时)。

@@ -1,4 +1,5 @@
 import { resetCollectLogSession, withCollectLogSink } from "../collect/logWriter";
+import { resolveCollectMaxItemsForSource } from "../collect/maxItems";
 import type { Scheduler } from "../scheduler";
 import type { CollectionJob } from "../types";
 import type {
@@ -27,9 +28,17 @@ function emit(
 
 export interface CollectRunOptions {
   skipSampleLimit?: number;
+  /** CLI/API 全局天花板；与 sources.yml collect_max_items 取 min */
   maxItems?: number;
   /** 覆盖 since 水位（YYYY-MM-DD）；未设则用 DB 水位或默认 1 天 */
   since?: string;
+}
+
+function effectiveMaxItems(
+  sourceId: string,
+  cliCeiling?: number,
+): number | undefined {
+  return resolveCollectMaxItemsForSource(sourceId, cliCeiling);
 }
 
 export async function runCollectOne(
@@ -49,7 +58,7 @@ export async function runCollectOne(
   const job = await scheduler.trigger(sourceId, searchQuery, {
     onProgress: report,
     skipSampleLimit: runOpts?.skipSampleLimit,
-    maxItems: runOpts?.maxItems,
+    maxItems: effectiveMaxItems(sourceId, runOpts?.maxItems),
     since: runOpts?.since,
   });
 
@@ -106,7 +115,7 @@ export async function runCollectAll(
       const job = await scheduler.trigger(sourceId, searchQuery, {
         onProgress: report,
         skipSampleLimit: runOpts?.skipSampleLimit,
-        maxItems: runOpts?.maxItems,
+        maxItems: effectiveMaxItems(sourceId, runOpts?.maxItems),
         since: runOpts?.since,
         collectIndex: index,
         collectTotal: total,

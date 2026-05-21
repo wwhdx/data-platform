@@ -40,6 +40,8 @@ export interface InterfaceProfile {
   header_name?: string;
   pipeline?: string[];
   connector_family?: string;
+  /** collect --all 默认每信源抓取上限（可被 sources[].options.collect_max_items 覆盖） */
+  collect_max_items?: number;
 }
 
 /** YAML sources[] 原始行（v1.1 可仅写 profile + 差异字段） */
@@ -74,6 +76,8 @@ export interface ConfigDefaults {
   user_agent: string;
   request_timeout_ms: number;
   max_retries: number;
+  /** 无 profile/源级 collect_max_items 时的兜底（通常不触发） */
+  collect_max_items?: number;
 }
 
 /** 解析后的配置文件（v1.0 平铺或 v1.1 分层） */

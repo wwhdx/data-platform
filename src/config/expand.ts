@@ -95,7 +95,12 @@ function expandOneSource(
     header_name: fromProfile.header_name,
     pipeline: fromProfile.pipeline,
     connector_family: fromProfile.connector_family,
-    options: raw.options,
+    options: {
+      ...(fromProfile.collect_max_items != null
+        ? { collect_max_items: fromProfile.collect_max_items }
+        : {}),
+      ...raw.options,
+    },
   };
 }
 

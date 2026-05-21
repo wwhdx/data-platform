@@ -22,10 +22,10 @@ export function collectLogSkipSampleLimit(): number {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-const DEFAULT_COLLECT_ALL_MAX_ITEMS = 200;
+const DEFAULT_COLLECT_ALL_MAX_ITEMS = 100;
 
 /**
- * `collect --all` 未指定 `--max-items` 时每信源上限。
+ * 无 YAML profile/源级 collect_max_items 时的 env 兜底。
  * `COLLECT_ALL_MAX_ITEMS=0|off` 表示不限制。
  */
 export function collectAllDefaultMaxItems(): number | undefined {

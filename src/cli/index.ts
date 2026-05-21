@@ -12,7 +12,7 @@
 
 import "../config/loadEnv";
 import { appendCollectLogEvent, getJobLogFilePath, resetCollectLogSession } from "../collect/logWriter";
-import { collectAllDefaultMaxItems, getCollectLogRoot } from "../collect/env";
+import { getCollectLogRoot } from "../collect/env";
 import * as fs from "fs";
 import * as path from "path";
 import type { CollectProgressEvent } from "../scheduler/progress";
@@ -496,7 +496,6 @@ function printCollectStartup(opts: {
   sourceId?: string;
   query?: string;
   maxItems?: number;
-  maxItemsDefault?: number;
   since?: string;
   stream: boolean;
   showProgress: boolean;
@@ -511,9 +510,9 @@ function printCollectStartup(opts: {
   const params: string[] = [];
   if (opts.query) params.push(`query="${opts.query}"`);
   if (opts.maxItems != null) {
-    params.push(`max-items=${opts.maxItems}`);
-  } else if (opts.all && opts.maxItemsDefault != null) {
-    params.push(`max-items=${opts.maxItemsDefault}（--all 默认，可 --max-items 覆盖）`);
+    params.push(`max-items=${opts.maxItems}（全局天花板）`);
+  } else if (opts.all) {
+    params.push("max-items=按 sources.yml 逐源（profile/options.collect_max_items）");
   }
   if (opts.since) params.push(`since=${opts.since}`);
   if (params.length > 0) console.log(`参数: ${params.join(", ")}`);
@@ -587,12 +586,10 @@ function parseSinceOpt(opts: Record<string, string>): string | undefined {
 
 function resolveCollectMaxItems(
   opts: Record<string, string>,
-  isAll: boolean,
+  _isAll: boolean,
 ): number | undefined {
-  const explicit = parseMaxItems(opts);
-  if (explicit != null) return explicit;
-  if (isAll) return collectAllDefaultMaxItems();
-  return undefined;
+  // 仅显式 --max-items 作为全局天花板；--all 未指定时由 API 按 sources.yml 逐源解析
+  return parseMaxItems(opts);
 }
 
 function buildCollectBody(
@@ -629,9 +626,6 @@ async function cmdCollect(args: string[]) {
   const isAll = opts.all === "true";
   const showProgress = opts.progress === "true" || isAll;
   const maxItems = resolveCollectMaxItems(opts, isAll);
-  const allDefaultMax = isAll && parseMaxItems(opts) == null
-    ? collectAllDefaultMaxItems()
-    : undefined;
   const since = parseSinceOpt(opts);
 
   if (isAll) {
@@ -641,7 +635,6 @@ async function cmdCollect(args: string[]) {
           all: true,
           query,
           maxItems,
-          maxItemsDefault: allDefaultMax,
           since,
           stream: false,
           showProgress,
@@ -664,7 +657,6 @@ async function cmdCollect(args: string[]) {
         all: true,
         query,
         maxItems,
-        maxItemsDefault: allDefaultMax,
         since,
         stream: true,
         showProgress,
@@ -1535,7 +1527,7 @@ function printHelp() {
     --source <id>            数据源 ID
     --all                    采集所有 active 数据源
     --query <文本>           搜索查询（可选）
-    --max-items <n>          本次每信源最多抓取条数（--all 默认 200，见 COLLECT_ALL_MAX_ITEMS）
+    --max-items <n>          全局抓取天花板（与 sources.yml 逐源上限取 min）
     --since <YYYY-MM-DD>     覆盖 since 水位（默认：DB 上次水位或昨天）
     --json                   JSON 行流式输出（NDJSON，含 progress 事件）
     --no-stream              关闭实时进度，等待结束后一次性 JSON
