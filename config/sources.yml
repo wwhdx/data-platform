@@ -153,13 +153,13 @@ sources:
   - id: biorxiv_oai
     profile: oai_pmh
     name: bioRxiv (OAI-PMH API)
-    enabled: false
+    enabled: true
     base_url: https://api.biorxiv.org
     rate_limit: ">=2s interval"
     license: "varies (per preprint; often CC-BY-NC)"
     commercial_use: false
     schedule: "0 3 * * *"
-    description: "bioRxiv 预印本；采集 api.biorxiv.org/details JSON；L2 冒烟后 enabled"
+    description: "bioRxiv 预印本；api.biorxiv.org/details JSON；L2 ✅ 2026-05-20"
     options:
       server: biorxiv
 

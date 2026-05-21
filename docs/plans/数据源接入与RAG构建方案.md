@@ -554,6 +554,8 @@ Layer 2 视图（`003_layer2_views.sql`）依赖 `source_id` 做类型分桶。�
 | pubmed | paper | papers |
 | crossref | paper | papers |
 | arxiv | paper | papers |
+| arxiv_oai | paper | papers |
+| biorxiv_oai | paper | papers |
 | patentsview | patent | patents |
 | epo_ops | patent | patents |
 | google_patents | patent | patents |
@@ -786,3 +788,4 @@ rawJson = { ...esummaryRecord, abstract: "<AbstractText>" }
 | v1.4 | 2026-05-19 | P2：A7 `arxiv_oai`、A8 `chunk.ts`、B8 `/health` 探活；`paginateResumptionToken`；迁移 `011` |
 | v1.5 | 2026-05-19 | P1 arXiv HTML 正文：`arxivFulltext.ts` + dedup 采集后同步；ENV `ARXIV_FULLTEXT_*` |
 | v1.6 | 2026-05-19 | 接入全景同步：§1.1 补全 12 Connector；覆盖 **12/13**、enabled **4**、D5 **4**；§1.3 去陈旧瓶颈；§7.2 arxiv_oai 标 fulltext ✅ |
+| v1.7 | 2026-05-20 | §5.2 补 `arxiv_oai` / `biorxiv_oai` → `paper` / `papers`（W5a `biorxiv_oai` ✅） |

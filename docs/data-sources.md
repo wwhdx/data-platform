@@ -111,7 +111,7 @@ GET  /recommendations/v1/papers/{id}     # 推荐
 | 许可 | 逐篇 `license` 字段（常见 CC-BY-NC）；Connector `commercial_use: false` |
 | **摘要** | ✅ API `abstract` |
 | **RAG** | ⭐⭐⭐⭐ |
-| YAML | `enabled: false`（L2 冒烟后开启） |
+| YAML | `enabled: true`（2026-05-20 L2 后） |
 | 代码 | `src/connectors/biorxivOai.ts` · `biorxivOaiHelpers.ts` · D5 `provenance/biorxivOai.ts` |
 
 ---
@@ -335,7 +335,7 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
   ✅ PubMed         ← 生物医学（2026-05-19 补 efetch 摘要 A10）
   ✅ Semantic Scholar ← abstract + tldr（A4；YAML 默认 disabled；`SEMANTIC_SCHOLAR_API_KEY`）
   ✅ arXiv OAI-PMH    ← `arxiv_oai` 采集 + Legacy Atom 搜索（A7；YAML enabled；可选 `ARXIV_FULLTEXT_*`）
-  ✅ bioRxiv OAI API  ← `biorxiv_oai`（api.biorxiv.org/details；YAML 默认 disabled）
+  ✅ bioRxiv OAI API  ← `biorxiv_oai`（api.biorxiv.org/details；YAML enabled）
 
   ✅ PatentsView       ← patentsview.ts（需 USPTO_ODP_API_KEY）
   ✅ ClinicalTrials   ← clinicaltrials.ts（无 Key）
