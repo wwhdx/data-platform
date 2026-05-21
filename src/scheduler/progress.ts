@@ -35,8 +35,20 @@ export type CollectProgressEvent =
       inserted: number;
       skippedDuplicate: number;
       batchIndex?: number;
-      /** streaming=逐条 yield；fetch_batch=等外网批次；dedup_batch=dedup 中 */
-      phase?: "streaming" | "fetch_batch" | "dedup_batch";
+      /** streaming=逐条 yield；fetch_batch=等外网；dedup_* / enrich / embed=后处理 */
+      phase?:
+        | "streaming"
+        | "fetch_batch"
+        | "dedup_batch"
+        | "dedup_insert"
+        | "fulltext_enrich"
+        | "unpaywall_enrich"
+        | "embed";
+      /** 子阶段人类可读标签（可选） */
+      phaseLabel?: string;
+      phaseCurrent?: number;
+      phaseTotal?: number;
+      phaseUnit?: "docs" | "chunks";
       /** 距上次 fetched++ 的秒数（心跳时有效） */
       waitSec?: number;
       /** skippedDuplicate / fetched */

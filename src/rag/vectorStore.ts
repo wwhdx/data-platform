@@ -25,10 +25,17 @@ export interface EmbedDocumentInput {
   rawJson?: Record<string, unknown>;
 }
 
+export interface EmbedDocumentsOptions {
+  onProgress?: (current: number, total: number) => void;
+}
+
 /**
  * 为一组文档按类型分块生成 embedding 并写入 document_chunks（A8）。
  */
-export async function embedDocuments(docs: EmbedDocumentInput[]): Promise<number> {
+export async function embedDocuments(
+  docs: EmbedDocumentInput[],
+  opts?: EmbedDocumentsOptions,
+): Promise<number> {
   if (docs.length === 0) return 0;
 
   const rows: Array<{ docId: number; chunkIndex: number; text: string }> = [];
@@ -49,6 +56,7 @@ export async function embedDocuments(docs: EmbedDocumentInput[]): Promise<number
   const results = await embedBatch(
     rows.map((r) => r.text),
     "document",
+    { onProgress: opts?.onProgress },
   );
 
   const values: string[] = [];

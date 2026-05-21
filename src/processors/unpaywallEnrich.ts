@@ -150,7 +150,10 @@ function shouldEnrichRow(row: InsertedRawRow): boolean {
  */
 export async function enrichUnpaywallInsertedRows(
   rows: InsertedRawRow[],
-  opts?: { jobId?: number },
+  opts?: {
+    jobId?: number;
+    onProgress?: (current: number, total: number) => void;
+  },
 ): Promise<InsertedRawRow[]> {
   const cfg = getUnpaywallEnrichConfig();
   if (!cfg.enabled || !cfg.email || rows.length === 0) return rows;
@@ -165,6 +168,8 @@ export async function enrichUnpaywallInsertedRows(
   const out = [...rows];
   let enriched = 0;
 
+  opts?.onProgress?.(0, cap);
+
   for (let i = 0; i < cap; i++) {
     const row = candidates[i]!;
     const doi = extractDoiFromRow(row);
@@ -173,6 +178,7 @@ export async function enrichUnpaywallInsertedRows(
     if (i > 0 && cfg.minIntervalMs > 0) await sleep(cfg.minIntervalMs);
 
     const body = await fetchUnpaywallByDoi(doi, cfg);
+    opts?.onProgress?.(i + 1, cap);
     if (!body) continue;
 
     const patch = mapUnpaywallToPatch(body);

@@ -16,6 +16,7 @@ import { getCollectLogRoot } from "../collect/env";
 import * as fs from "fs";
 import * as path from "path";
 import type { CollectProgressEvent } from "../scheduler/progress";
+import { formatCollectProgressLine } from "../collect/progressFormat";
 import type { CollectionJob, SearchRequest } from "../types";
 
 /** 控制流退出：由 run() 的 finally 统一 closePool，避免 process.exit 跳过清理 */
@@ -319,29 +320,6 @@ function clearProgressLine(): void {
     process.stdout.write("\n");
     progressLineActive = false;
   }
-}
-
-function formatCollectProgressLine(ev: Extract<CollectProgressEvent, { type: "progress" }>): string {
-  const inserted = ev.inserted ?? ev.itemsCollected ?? 0;
-  const skipped = ev.skippedDuplicate ?? 0;
-  const batch =
-    ev.batchIndex != null && ev.batchIndex > 0 ? `  批 ${ev.batchIndex}` : "";
-  const cap =
-    ev.maxItems != null && Number.isFinite(ev.maxItems)
-      ? `/${ev.maxItems}`
-      : "";
-  const ratio =
-    ev.duplicateRatio != null && ev.fetched > 0
-      ? `  重复率 ${Math.round(ev.duplicateRatio * 100)}%`
-      : "";
-  const phase =
-    ev.phase === "fetch_batch" && ev.waitSec != null && ev.waitSec >= 2
-      ? `  ⏳ 等外网 ${ev.waitSec}s`
-      : ev.phase === "dedup_batch"
-        ? "  dedup…"
-        : "";
-  const dupFlag = ev.duplicateScan ? "  ⚠️重复扫描" : "";
-  return `  · ${ev.sourceId}${batch}  已抓取 ${ev.fetched ?? 0}${cap}，新入库 ${inserted}，重复跳过 ${skipped}${ratio}${phase}${dupFlag}`;
 }
 
 function printCollectProgressEvent(

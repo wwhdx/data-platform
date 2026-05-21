@@ -245,7 +245,34 @@ export class Scheduler {
       let duplicateScanWarned = false;
       let stoppedReason: string | undefined;
       let progressPhase: "streaming" | "fetch_batch" | "dedup_batch" = "streaming";
+      let dedupInProgress = false;
       const abort = new AbortController();
+
+      const buildDedupOpts = () => ({
+        skipSampleLimit: sampleLimit,
+        progress: {
+          sourceId,
+          jobId: job.id,
+          fetched,
+          inserted,
+          skippedDuplicate,
+          batchCount,
+          maxItems,
+          onProgress: report,
+        },
+      });
+
+      const runDedup = async (batch: RawDocument[]) => {
+        dedupInProgress = true;
+        progressPhase = "dedup_batch";
+        try {
+          return await dedup(batch, buildDedupOpts());
+        } finally {
+          dedupInProgress = false;
+          progressPhase = "streaming";
+          lastFetchedAt = Date.now();
+        }
+      };
 
       const checkDuplicateScan = (action: "batch" | "heartbeat"): boolean => {
         const ratio = duplicateRatio(fetched, skippedDuplicate);
@@ -326,6 +353,7 @@ export class Scheduler {
 
       const PROGRESS_HEARTBEAT_MS = 5000;
       const heartbeat = setInterval(() => {
+        if (dedupInProgress) return;
         emitProgress();
         checkDuplicateScan("heartbeat");
       }, PROGRESS_HEARTBEAT_MS);
@@ -349,11 +377,8 @@ export class Scheduler {
           }
 
           if (buffer.length >= BUFFER_SIZE) {
-            progressPhase = "dedup_batch";
             const batchSize = buffer.length;
-            const { newDocs, skippedCount, skippedSampleIds } = await dedup(buffer, {
-              skipSampleLimit: sampleLimit,
-            });
+            const { newDocs, skippedCount, skippedSampleIds } = await runDedup(buffer);
             inserted += newDocs.length;
             skippedDuplicate += skippedCount;
             batchCount++;
@@ -366,44 +391,39 @@ export class Scheduler {
             recordBatch(batchCount, batchSize, newDocs.length, skippedCount, skippedSampleIds);
             buffer.length = 0;
             await updateCollectionJob(job.id, { itemsCollected: inserted });
-            progressPhase = "streaming";
-            lastFetchedAt = Date.now();
             emitProgress();
             if (checkDuplicateScan("batch")) break;
           }
         }
+
+        if (abort.signal.aborted && buffer.length === 0 && stoppedReason) {
+          const stats = buildStats({
+            duplicateScan: true,
+            stoppedReason,
+          });
+          await updateCollectionJob(job.id, {
+            status: "success",
+            itemsCollected: inserted,
+            stats,
+          });
+          job.status = "success";
+          job.itemsCollected = inserted;
+          job.stats = stats;
+          emitProgress();
+          report?.({ type: "source_done", job, stats });
+          return job;
+        }
+
+        if (buffer.length > 0) {
+          const batchSize = buffer.length;
+          const { newDocs, skippedCount, skippedSampleIds } = await runDedup(buffer);
+          inserted += newDocs.length;
+          skippedDuplicate += skippedCount;
+          batchCount++;
+          recordBatch(batchCount, batchSize, newDocs.length, skippedCount, skippedSampleIds);
+        }
       } finally {
         clearInterval(heartbeat);
-      }
-
-      if (abort.signal.aborted && buffer.length === 0 && stoppedReason) {
-        const stats = buildStats({
-          duplicateScan: true,
-          stoppedReason,
-        });
-        await updateCollectionJob(job.id, {
-          status: "success",
-          itemsCollected: inserted,
-          stats,
-        });
-        job.status = "success";
-        job.itemsCollected = inserted;
-        job.stats = stats;
-        emitProgress();
-        report?.({ type: "source_done", job, stats });
-        return job;
-      }
-
-      if (buffer.length > 0) {
-        progressPhase = "dedup_batch";
-        const batchSize = buffer.length;
-        const { newDocs, skippedCount, skippedSampleIds } = await dedup(buffer, {
-          skipSampleLimit: sampleLimit,
-        });
-        inserted += newDocs.length;
-        skippedDuplicate += skippedCount;
-        batchCount++;
-        recordBatch(batchCount, batchSize, newDocs.length, skippedCount, skippedSampleIds);
       }
 
       const stats = buildStats();

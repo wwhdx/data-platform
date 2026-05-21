@@ -92,27 +92,40 @@ export async function embedQuery(text: string): Promise<EmbedResult> {
   return embedSingle(text, "query");
 }
 
+export interface EmbedBatchOptions {
+  onProgress?: (current: number, total: number) => void;
+}
+
 export async function embedBatch(
   texts: string[],
   inputType: "document" | "query" = "document",
+  opts?: EmbedBatchOptions,
 ): Promise<EmbedResult[]> {
   if (texts.length === 0) return [];
 
   const cfg = getConfig();
+  const onProgress = opts?.onProgress;
 
   switch (cfg.backend) {
     case "mock":
+      onProgress?.(texts.length, texts.length);
       return texts.map((t) => ({
         embedding: mockDeterministicEmbedding(t, cfg.dimensions),
         model: cfg.model,
         dimensions: cfg.dimensions,
       }));
     case "ollama":
-      return embedBatchOllama(cfg, texts);
+      return embedBatchOllama(cfg, texts, onProgress);
     case "openai":
-      return embedBatchOpenAI(cfg, texts);
+      onProgress?.(0, texts.length);
+      const openaiResults = await embedBatchOpenAI(cfg, texts);
+      onProgress?.(texts.length, texts.length);
+      return openaiResults;
     case "voyage":
-      return embedBatchVoyage(cfg, texts, inputType);
+      onProgress?.(0, texts.length);
+      const voyageResults = await embedBatchVoyage(cfg, texts, inputType);
+      onProgress?.(texts.length, texts.length);
+      return voyageResults;
     default:
       throw new Error(`Unknown embed backend: ${cfg.backend}`);
   }
@@ -135,10 +148,14 @@ async function embedSingle(text: string, inputType: "document" | "query"): Promi
 
 // ── Ollama ────────────────────────────────────────────
 
-async function embedBatchOllama(cfg: BackendConfig, texts: string[]): Promise<EmbedResult[]> {
+async function embedBatchOllama(
+  cfg: BackendConfig,
+  texts: string[],
+  onProgress?: (current: number, total: number) => void,
+): Promise<EmbedResult[]> {
   const results: EmbedResult[] = [];
+  onProgress?.(0, texts.length);
 
-  // Ollama 不支持 batch，逐条发送（限并发 4）
   const concurrency = 4;
   for (let i = 0; i < texts.length; i += concurrency) {
     const batch = texts.slice(i, i + concurrency);
@@ -146,6 +163,7 @@ async function embedBatchOllama(cfg: BackendConfig, texts: string[]): Promise<Em
       batch.map(t => ollamaEmbed(cfg, t)),
     );
     results.push(...batchResults);
+    onProgress?.(Math.min(i + batch.length, texts.length), texts.length);
   }
 
   return results;

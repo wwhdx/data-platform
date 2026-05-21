@@ -124,7 +124,10 @@ function sleep(ms: number): Promise<void> {
  */
 export async function enrichArxivInsertedRows(
   rows: InsertedRawRow[],
-  opts?: { jobId?: number },
+  opts?: {
+    jobId?: number;
+    onProgress?: (current: number, total: number) => void;
+  },
 ): Promise<InsertedRawRow[]> {
   const cfg = getArxivFulltextConfig();
   if (!cfg.enabled || rows.length === 0) return rows;
@@ -132,6 +135,9 @@ export async function enrichArxivInsertedRows(
   const cap = cfg.maxPerJob > 0 ? Math.min(rows.length, cfg.maxPerJob) : rows.length;
   const out: InsertedRawRow[] = [...rows];
   let fetched = 0;
+  let attempted = 0;
+
+  opts?.onProgress?.(0, cap);
 
   for (let i = 0; i < cap; i++) {
     const row = rows[i]!;
@@ -147,7 +153,9 @@ export async function enrichArxivInsertedRows(
 
     if (i > 0 && cfg.minIntervalMs > 0) await sleep(cfg.minIntervalMs);
 
+    attempted++;
     const fulltext = await fetchArxivHtmlFulltext(arxivId, cfg);
+    opts?.onProgress?.(attempted, cap);
     if (!fulltext) continue;
 
     const patched = await patchRawDocumentJson(row.id, {
@@ -159,6 +167,8 @@ export async function enrichArxivInsertedRows(
     out[i] = patched;
     fetched++;
   }
+
+  if (attempted < cap) opts?.onProgress?.(cap, cap);
 
   if (fetched > 0) {
     logger.info(
