@@ -20,6 +20,7 @@
 | [待接入数据源清单与波次方案.md](./待接入数据源清单与波次方案.md) | **波次 5–8** 待接入清单（对照 [真实行业获取指南](../knowledge/真实行业获取指南.md)） |
 | [行业维度接入设计方案.md](./行业维度接入设计方案.md) | **G 轨**：`industry_tag` 字段 + `/api/search?industry=` + 主包行业同步接口（Phase 1–3） |
 | [EIA完备采集方案.md](./EIA完备采集方案.md) | **H 轨**：EIA API v2 目录 + 多 route 采集（✅ H0–H2 MVP） |
+| [树形API多源完备采集实施方案.md](./树形API多源完备采集实施方案.md) | **T 轨**：H3 EIA 扩 Tier + Eurostat/FRED/OECD/World Bank L0+L1（□ 待实施） |
 | [树形API数据源完备采集方法论.md](../knowledge/树形API数据源完备采集方法论.md) | 跨源方法论真源（EIA 样板）；见 [knowledge/](../knowledge/README.md) |
 
 **共识知识**（API 分类、协议原文）→ [`../knowledge/`](../knowledge/README.md)。
