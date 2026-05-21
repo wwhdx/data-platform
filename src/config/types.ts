@@ -123,6 +123,13 @@ export const IMPLEMENTED_CONNECTOR_IDS = [
   "yahoo_finance",
   "reddit",
   "youtube",
+  "chembl",
+  "pubchem",
+  "materials_project",
+  "eia",
+  "opencitations",
+  "eurostat",
+  "oecd",
 ] as const;
 
 export interface ValidationIssue {

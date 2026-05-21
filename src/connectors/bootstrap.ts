@@ -43,6 +43,8 @@ import {
   MATERIALS_PROJECT_META,
 } from "./materialsProject";
 import { EiaConnector, EIA_META } from "./eia";
+import { EurostatConnector, EUROSTAT_META } from "./eurostat";
+import { OecdConnector, OECD_META } from "./oecd";
 import { OPENALEX_META } from "./openalex";
 import { CROSSREF_META } from "./crossref";
 import { WORLD_BANK_META } from "./worldbank";
@@ -73,6 +75,8 @@ export {
   PUBCHEM_META,
   MATERIALS_PROJECT_META,
   EIA_META,
+  EUROSTAT_META,
+  OECD_META,
 };
 
 /** 运行时已 registerConnector 的源 id（与 scheduleReport / B14 对齐） */
@@ -102,6 +106,8 @@ export const REGISTERED_CONNECTOR_IDS = [
   "pubchem",
   "materials_project",
   "eia",
+  "eurostat",
+  "oecd",
 ] as const;
 
 export async function registerDefaultConnectors(
@@ -217,6 +223,12 @@ export async function registerDefaultConnectors(
       apiKey: process.env.EIA_API_KEY,
     }),
   );
+  const eurostat = new EurostatConnector(
+    await resolveConnectorConfig("eurostat", EUROSTAT_META),
+  );
+  const oecd = new OecdConnector(
+    await resolveConnectorConfig("oecd", OECD_META),
+  );
 
   scheduler.registerConnector({ id: "openalex", create: () => openalex });
   scheduler.registerConnector({ id: "crossref", create: () => crossref });
@@ -261,4 +273,6 @@ export async function registerDefaultConnectors(
     create: () => materialsProject,
   });
   scheduler.registerConnector({ id: "eia", create: () => eia });
+  scheduler.registerConnector({ id: "eurostat", create: () => eurostat });
+  scheduler.registerConnector({ id: "oecd", create: () => oecd });
 }

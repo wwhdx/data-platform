@@ -426,6 +426,28 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 | RAG | `indicator`（`indicatorChunks`） |
 | YAML | `enabled: false` |
 
+### 6.5 Eurostat
+
+| 字段 | 值 |
+|------|-----|
+| Base URL | `https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/` |
+| 认证 | 无 |
+| 端点 | `GET /data/{datasetCode}?format=JSON&lang=EN&lastTimePeriod=1&…` |
+| 代码 | `src/connectors/eurostat.ts` · `eurostatHelpers.ts` |
+| RAG | `indicator`（`indicatorChunks`；EU27 GDP/人口/失业核心序列） |
+| YAML | `enabled: false` |
+
+### 6.6 OECD
+
+| 字段 | 值 |
+|------|-----|
+| Base URL | `https://sdmx.oecd.org/public/rest/` |
+| 认证 | 无 |
+| 端点 | `GET /data/{agency},{flowId}/{seriesKey}?format=jsondata&dimensionAtObservation=AllDimensions&lastNObservations=1` |
+| 代码 | `src/connectors/oecd.ts` · `oecdHelpers.ts` |
+| RAG | `indicator`（`indicatorChunks`；KEI：OECD/USA GDP 增速、OECD 失业、CPI） |
+| YAML | `enabled: false` |
+
 ---
 
 ## 附录：Connector 优先实现顺序

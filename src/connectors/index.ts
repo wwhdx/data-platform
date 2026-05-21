@@ -41,5 +41,7 @@ export {
   MATERIALS_PROJECT_META,
 } from "./materialsProject";
 export { EiaConnector, EIA_META } from "./eia";
+export { EurostatConnector, EUROSTAT_META } from "./eurostat";
+export { OecdConnector, OECD_META } from "./oecd";
 export { resolveConnectorConfig } from "./factory";
 export { registerDefaultConnectors } from "./bootstrap";

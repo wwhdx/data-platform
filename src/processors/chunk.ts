@@ -16,7 +16,13 @@ const PAPER_SOURCES = new Set([
   "materials_project",
 ]);
 
-const INDICATOR_SOURCES = new Set(["worldbank", "fred", "eia"]);
+const INDICATOR_SOURCES = new Set([
+  "worldbank",
+  "fred",
+  "eia",
+  "eurostat",
+  "oecd",
+]);
 
 export function resolveContentType(sourceId: string): string {
   if (INDICATOR_SOURCES.has(sourceId)) return "indicator";

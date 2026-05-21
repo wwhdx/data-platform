@@ -68,6 +68,14 @@ const PROBE_TARGETS: Record<string, string | ((baseUrl: string) => string)> = {
     const ak = key ? `&api_key=${encodeURIComponent(key)}` : "";
     return `${root}/petroleum/pri/spt/data/?frequency=daily&data[0]=value&length=1${ak}`;
   },
+  eurostat: (base) => {
+    const root = base.replace(/\/$/, "");
+    return `${root}/data/nama_10_gdp?lang=EN&format=JSON&geo=EU27_2020&unit=CP_MEUR&na_item=B1GQ&lastTimePeriod=1`;
+  },
+  oecd: (base) => {
+    const root = base.replace(/\/$/, "");
+    return `${root}/data/OECD.SDD.STES,DSD_KEI@DF_KEI/OECD.A.B1GQ_Q.GR._T.Y.GY?dimensionAtObservation=AllDimensions&format=jsondata&lastNObservations=1`;
+  },
   arxiv: "https://export.arxiv.org/api/query?search_query=all:test&max_results=1",
 };
 
