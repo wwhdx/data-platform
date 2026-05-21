@@ -14,6 +14,18 @@ import {
   mapEftsHitToRawJson,
   type EftsSearchResponse,
 } from "./secEdgarHelpers";
+import { attachProvenance } from "./provenance/attach";
+import {
+  buildSecEdgarCanonicalUrl,
+  buildSecEdgarDocumentRequest,
+} from "./provenance/secEdgar";
+import {
+  buildSecFilingIndexUrl,
+  isSecEdgarFulltextEnabled,
+  parsePrimaryDocHref,
+  secEdgarFulltextMaxChars,
+  stripSecFilingHtml,
+} from "../processors/secFilingText";
 
 export const SEC_EDGAR_META: ConnectorMeta = {
   id: "sec_edgar",
@@ -23,7 +35,7 @@ export const SEC_EDGAR_META: ConnectorMeta = {
   commercialUse: true,
   authType: "polite_id",
   rateLimit: "10/sec",
-  description: "SEC 申报 EFTS 全文检索（Phase A 元数据）",
+  description: "SEC 申报 EFTS 检索 + 10-K/10-Q HTML 全文（Phase B）",
 };
 
 export class SecEdgarConnector extends BaseConnector {
@@ -107,20 +119,68 @@ export class SecEdgarConnector extends BaseConnector {
       if (hits.length === 0) break;
 
       const now = new Date();
+      const collectCtx = {
+        mode: "incremental" as const,
+        since,
+        query: params.query,
+      };
+
       for (const hit of hits) {
         const { externalId, rawJson } = mapEftsHitToRawJson(hit._source ?? {});
-        yield {
+        if (isSecEdgarFulltextEnabled() && rawJson.adsh && rawJson.url) {
+          const fulltext = await this.fetchFilingFulltext(
+            String(rawJson.url),
+            String(rawJson.adsh),
+          );
+          if (fulltext) rawJson.fulltext = fulltext;
+        }
+
+        const doc: RawDocument = {
           sourceId: SEC_EDGAR_META.id,
           externalId,
           rawJson,
           fetchedAt: now,
         };
+        yield attachProvenance(doc, SEC_EDGAR_META, {
+          documentRequest: buildSecEdgarDocumentRequest(
+            String(rawJson.url ?? ""),
+            this.userAgent,
+          ),
+          collect: collectCtx,
+          canonicalUrl: buildSecEdgarCanonicalUrl(rawJson),
+        });
         yielded++;
         if (yielded >= maxItems) break;
       }
 
       from += hits.length;
       if (hits.length < pageSize) break;
+    }
+  }
+
+  private async fetchFilingFulltext(
+    filingDirUrl: string,
+    adsh: string,
+  ): Promise<string> {
+    const indexUrl = buildSecFilingIndexUrl(filingDirUrl, adsh);
+    try {
+      const indexRes = await this.fetch(indexUrl, {
+        headers: { Accept: "text/html" },
+      });
+      if (!indexRes.ok) return "";
+      const indexHtml = await indexRes.text();
+      const docUrl = parsePrimaryDocHref(indexHtml, filingDirUrl);
+      if (!docUrl) return "";
+
+      const docRes = await this.fetch(docUrl, {
+        headers: { Accept: "text/html" },
+      });
+      if (!docRes.ok) return "";
+      const html = await docRes.text();
+      const text = stripSecFilingHtml(html, secEdgarFulltextMaxChars());
+      return text.length > 40 ? text : "";
+    } catch {
+      return "";
     }
   }
 }

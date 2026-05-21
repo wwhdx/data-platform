@@ -45,4 +45,15 @@ describe("chunkDocument", () => {
     expect(chunks.length).toBeGreaterThan(1);
     expect(chunks.some((c) => c.includes("Methods"))).toBe(true);
   });
+
+  it("company_filing uses fulltext for chunking", () => {
+    const body = "Item 1 Business. ".repeat(80);
+    const chunks = chunkDocument({
+      sourceId: "sec_edgar",
+      title: "Apple Inc. — 10-K",
+      abstract: "SEC filing 10-K",
+      rawJson: { fulltext: body },
+    });
+    expect(chunks.length).toBeGreaterThan(1);
+  });
 });

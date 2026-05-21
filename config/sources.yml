@@ -192,13 +192,13 @@ sources:
   - id: medrxiv_oai
     profile: oai_pmh
     name: medRxiv (OAI-PMH API)
-    enabled: false
+    enabled: true
     base_url: https://api.biorxiv.org
     rate_limit: ">=2s interval"
     license: "varies (per preprint; often CC-BY-NC)"
     commercial_use: false
     schedule: "0 3 * * *"
-    description: "medRxiv 预印本；api.biorxiv.org/details/medrxiv JSON；复用 BiorxivOaiConnector"
+    description: "medRxiv 预印本；api.biorxiv.org/details/medrxiv JSON；W6-001 enabled 2026-05-21"
     options:
       server: medrxiv
 

@@ -17,6 +17,11 @@ import {
   mapOdpRecordToRawJson,
   type OdpSearchResponse,
 } from "./patentsviewHelpers";
+import { attachProvenance } from "./provenance/attach";
+import {
+  buildPatentsviewCanonicalUrl,
+  buildPatentsviewDocumentRequest,
+} from "./provenance/patentsview";
 
 export const PATENTSVIEW_META: ConnectorMeta = {
   id: "patentsview",
@@ -126,14 +131,30 @@ export class PatentsViewConnector extends BaseConnector {
       if (records.length === 0) break;
 
       const now = new Date();
+      const collectCtx = {
+        mode: "incremental" as const,
+        since: params.since,
+        query: params.query,
+      };
+
       for (const record of records) {
         const { externalId, rawJson } = mapOdpRecordToRawJson(record);
-        yield {
+        const doc: RawDocument = {
           sourceId: PATENTSVIEW_META.id,
           externalId,
           rawJson,
           fetchedAt: now,
         };
+        yield attachProvenance(doc, PATENTSVIEW_META, {
+          documentRequest: buildPatentsviewDocumentRequest(
+            externalId,
+            this.runtimeBaseUrl,
+            this.userAgent,
+            this.apiKey,
+          ),
+          collect: collectCtx,
+          canonicalUrl: buildPatentsviewCanonicalUrl(rawJson),
+        });
         yielded++;
         if (yielded >= maxItems) break;
       }

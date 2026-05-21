@@ -15,6 +15,11 @@ import {
   type GhRepo,
   type GhSearchResponse,
 } from "./githubHelpers";
+import { attachProvenance } from "./provenance/attach";
+import {
+  buildGithubCanonicalUrl,
+  buildGithubDocumentRequest,
+} from "./provenance/github";
 
 export const GITHUB_META: ConnectorMeta = {
   id: "github",
@@ -121,15 +126,31 @@ export class GitHubConnector extends BaseConnector {
       if (repos.length === 0) break;
 
       const now = new Date();
+      const collectCtx = {
+        mode: "incremental" as const,
+        since: params.since,
+        query: params.query,
+      };
+
       for (const repo of repos) {
         const readme = await this.fetchReadmeExcerpt(repo.full_name);
         const { externalId, rawJson } = mapRepoToRawJson(repo, readme);
-        yield {
+        const doc: RawDocument = {
           sourceId: GITHUB_META.id,
           externalId,
           rawJson,
           fetchedAt: now,
         };
+        yield attachProvenance(doc, GITHUB_META, {
+          documentRequest: buildGithubDocumentRequest(
+            externalId,
+            this.runtimeBaseUrl,
+            this.userAgent,
+            this.apiKey,
+          ),
+          collect: collectCtx,
+          canonicalUrl: buildGithubCanonicalUrl(rawJson),
+        });
         yielded++;
         if (yielded >= maxItems) break;
       }

@@ -37,6 +37,7 @@ export function chunkDocument(input: ChunkInput): string[] {
   const type = resolveContentType(input.sourceId);
   if (type === "indicator") return indicatorChunks(input);
   if (type === "paper") return paperChunks(input);
+  if (type === "company_filing") return companyFilingChunks(input);
   return defaultChunks(input);
 }
 
@@ -61,6 +62,10 @@ function paperChunks(input: ChunkInput): string[] {
   }
 
   return dedupeChunks(chunks);
+}
+
+function companyFilingChunks(input: ChunkInput): string[] {
+  return paperChunks(input);
 }
 
 function indicatorChunks(input: ChunkInput): string[] {

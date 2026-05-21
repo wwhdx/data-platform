@@ -180,6 +180,10 @@ psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.
 | `ARXIV_FULLTEXT_ENABLED` | 否 | `1`/`true` 时 `arxiv_oai` 采集后同步拉 HTML 写入 `raw_json.fulltext`（`processors/arxivFulltext.ts`） |
 | `ARXIV_FULLTEXT_MAX_PER_JOB` | 否 | 每批 dedup 最多补全文篇数（默认 50） |
 | `ARXIV_FULLTEXT_MIN_INTERVAL_MS` | 否 | HTML 请求间隔（默认 3000） |
+| `PUBMED_PMC_FULLTEXT_ENABLED` | 否 | `0`/`false` 关闭 PMC 全文；默认开启（`pubmed` collect elink→efetch） |
+| `PUBMED_PMC_FULLTEXT_MAX_PER_JOB` | 否 | 每批 collect 最多拉 PMC 全文篇数（默认 50） |
+| `SEC_EDGAR_FULLTEXT_ENABLED` | 否 | `0`/`false` 关闭 10-K/10-Q HTML 全文；默认开启 |
+| `SEC_EDGAR_FULLTEXT_MAX_CHARS` | 否 | 单份 filing 全文上限字符（默认 500000） |
 | `DATA_PLATFORM_EXPORT_DIR` | 否 | D1 默认导出根（默认 `./data/export`），见 `docs/plans/原始数据本地导出与镜像方案.md` |
 | `DATA_PLATFORM_RAW_MIRROR` | 否 | D2 采集镜像根；未设置则关闭 |
 | `DATA_PLATFORM_RAW_MIRROR_OVERWRITE` | 否 | `1` 时镜像覆盖已存在文件（默认跳过） |

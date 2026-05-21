@@ -15,6 +15,11 @@ import {
   type FredSearchResponse,
   type FredSeries,
 } from "./fredHelpers";
+import { attachProvenance } from "./provenance/attach";
+import {
+  buildFredCanonicalUrl,
+  buildFredDocumentRequest,
+} from "./provenance/fred";
 
 export const FRED_META: ConnectorMeta = {
   id: "fred",
@@ -102,6 +107,11 @@ export class FredConnector extends BaseConnector {
     const term = params.query?.trim() || "gdp";
     const series = await this.searchSeries(term, Math.min(maxItems, 50));
     let yielded = 0;
+    const collectCtx = {
+      mode: "incremental" as const,
+      since: params.since,
+      query: params.query,
+    };
 
     for (const s of series) {
       if (params.signal?.aborted) break;
@@ -110,12 +120,22 @@ export class FredConnector extends BaseConnector {
       const obs = await this.latestObservation(s.id);
       const latest = obs?.observations?.[0];
       const { externalId, rawJson } = mapFredSeriesToRawJson(s, latest, obs?.units);
-      yield {
+      const doc: RawDocument = {
         sourceId: FRED_META.id,
         externalId,
         rawJson,
         fetchedAt: new Date(),
       };
+      yield attachProvenance(doc, FRED_META, {
+        documentRequest: buildFredDocumentRequest(
+          externalId,
+          this.runtimeBaseUrl,
+          this.userAgent,
+          this.apiKey,
+        ),
+        collect: collectCtx,
+        canonicalUrl: buildFredCanonicalUrl(externalId),
+      });
       yielded++;
     }
   }

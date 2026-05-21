@@ -15,6 +15,10 @@ import {
   normalizeEntrezBaseUrl,
   parseEsummaryRecord,
   parseEfetchAbstractXml,
+  parseElinkPmcJson,
+  parseEfetchPmcFulltextXml,
+  isPubmedPmcFulltextEnabled,
+  pubmedPmcFulltextMaxPerBatch,
   type ESummaryRecord,
 } from "./pubmedHelpers";
 import { attachProvenance } from "./provenance/attach";
@@ -32,7 +36,7 @@ export const PUBMED_META: ConnectorMeta = {
   commercialUse: true,
   authType: "query_param_key",
   rateLimit: "10/sec (with key)",
-  description: "生物医学文献，E-utilities esearch → esummary + efetch(abstract)",
+  description: "生物医学文献，E-utilities esearch → esummary + efetch(abstract) + PMC fulltext",
 };
 
 interface ESearchResult {
@@ -124,6 +128,7 @@ export class PubMedConnector extends BaseConnector {
       // 补充摘要：efetch 批量获取 AbstractText（esummary 不含摘要）
       const batchUids = records.map(r => r.uid);
       const abstracts = await this.efetchAbstracts(batchUids);
+      const fulltextByPmid = await this.resolvePmcFulltextForBatch(batchUids);
 
       const batchRequest: HttpRequestCapture & {
         batchIndex: number;
@@ -141,7 +146,8 @@ export class PubMedConnector extends BaseConnector {
         if (params.signal?.aborted) break;
 
         const abstract = abstracts.get(rec.uid);
-        const doc = this.toRawDocument(rec, abstract);
+        const fulltext = fulltextByPmid.get(rec.uid);
+        const doc = this.toRawDocument(rec, abstract, fulltext);
         yield attachProvenance(doc, PUBMED_META, {
           documentRequest: buildPubMedDocumentRequest(rec.uid, this.provCfg()),
           batchRequest: {
@@ -269,6 +275,62 @@ export class PubMedConnector extends BaseConnector {
     }
   }
 
+  private async elinkPmcIds(uids: string[]): Promise<Map<string, string>> {
+    if (uids.length === 0 || !isPubmedPmcFulltextEnabled()) return new Map();
+    const sp = new URLSearchParams({
+      dbfrom: this.entrezDb,
+      db: "pmc",
+      id: uids.join(","),
+      linkname: "pubmed_pmc",
+      retmode: "json",
+    });
+    const url = `${this.endpoint("elink")}?${sp.toString()}${this.toolParam()}${this.apiKeyParam()}`;
+    try {
+      const res = await this.fetch(url);
+      if (!res.ok) return new Map();
+      return parseElinkPmcJson(await res.json());
+    } catch {
+      return new Map();
+    }
+  }
+
+  private async efetchPmcFulltext(pmcIds: string[]): Promise<Map<string, string>> {
+    if (pmcIds.length === 0) return new Map();
+    const sp = new URLSearchParams({
+      db: "pmc",
+      id: pmcIds.join(","),
+      rettype: "full",
+      retmode: "xml",
+    });
+    const url = `${this.endpoint("efetch")}?${sp.toString()}${this.toolParam()}${this.apiKeyParam()}`;
+    try {
+      const res = await this.fetch(url);
+      if (!res.ok) return new Map();
+      return parseEfetchPmcFulltextXml(await res.text());
+    } catch {
+      return new Map();
+    }
+  }
+
+  private async resolvePmcFulltextForBatch(
+    batchUids: string[],
+  ): Promise<Map<string, string>> {
+    if (!isPubmedPmcFulltextEnabled()) return new Map();
+    const maxPerBatch = pubmedPmcFulltextMaxPerBatch();
+    const uids = maxPerBatch > 0 ? batchUids.slice(0, maxPerBatch) : batchUids;
+    const pmidToPmc = await this.elinkPmcIds(uids);
+    if (pmidToPmc.size === 0) return new Map();
+
+    const pmcIds = [...new Set(pmidToPmc.values())];
+    const textByPmc = await this.efetchPmcFulltext(pmcIds);
+    const out = new Map<string, string>();
+    for (const [pmid, pmcId] of pmidToPmc) {
+      const text = textByPmc.get(pmcId);
+      if (text) out.set(pmid, text);
+    }
+    return out;
+  }
+
   private toSearchResult(rec: ESummaryRecord): SearchResult {
     return {
       title: rec.title,
@@ -283,8 +345,15 @@ export class PubMedConnector extends BaseConnector {
     };
   }
 
-  private toRawDocument(rec: ESummaryRecord, abstract?: string): RawDocument {
-    const rawJson = abstract ? { ...rec.raw, abstract } : rec.raw;
+  private toRawDocument(
+    rec: ESummaryRecord,
+    abstract?: string,
+    fulltext?: string,
+  ): RawDocument {
+    const rawJson: Record<string, unknown> = abstract
+      ? { ...rec.raw, abstract }
+      : { ...rec.raw };
+    if (fulltext) rawJson.fulltext = fulltext;
     return {
       sourceId: PUBMED_META.id,
       externalId: rec.uid,

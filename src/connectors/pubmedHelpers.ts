@@ -89,3 +89,71 @@ export function parseEsummaryRecord(
     raw: rec,
   };
 }
+
+/** elink JSON：PubMed UID → PMC numeric id */
+export function parseElinkPmcJson(data: unknown): Map<string, string> {
+  const map = new Map<string, string>();
+  const root = data as {
+    linksets?: Array<{
+      ids?: string[];
+      linksetdbs?: Array<{ linkname?: string; links?: string[] }>;
+    }>;
+  };
+  for (const linkset of root.linksets ?? []) {
+    const pmids = linkset.ids ?? [];
+    const pmcDb = linkset.linksetdbs?.find((db) => db.linkname === "pubmed_pmc");
+    const links = pmcDb?.links ?? [];
+    for (let i = 0; i < pmids.length; i++) {
+      const pmcId = links[i] ?? links[0];
+      if (pmcId != null) map.set(pmids[i]!, String(pmcId));
+    }
+  }
+  return map;
+}
+
+function decodeXmlEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+}
+
+function stripXmlToPlainText(xml: string): string {
+  return decodeXmlEntities(
+    xml
+      .replace(/<\/(p|sec|title|abstract|paragraph|list-item)>/gi, "\n\n")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<[^>]+>/g, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim(),
+  );
+}
+
+/** efetch PMC full XML → pmc numeric id → plain text */
+export function parseEfetchPmcFulltextXml(xml: string): Map<string, string> {
+  const map = new Map<string, string>();
+  const articleRe = /<article[\s>][\s\S]*?<\/article>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = articleRe.exec(xml)) !== null) {
+    const article = match[0]!;
+    const pmcId =
+      /<article-id[^>]*pub-id-type="pmc"[^>]*>(?:PMC)?(\d+)/i.exec(article)?.[1] ??
+      /pub-id-type="pmcid"[^>]*>(?:PMC)?(\d+)/i.exec(article)?.[1];
+    if (!pmcId) continue;
+    const body = /<body[^>]*>([\s\S]*?)<\/body>/i.exec(article)?.[1] ?? article;
+    const text = stripXmlToPlainText(body);
+    if (text.length > 50) map.set(pmcId, text);
+  }
+  return map;
+}
+
+export function isPubmedPmcFulltextEnabled(): boolean {
+  const raw = (process.env.PUBMED_PMC_FULLTEXT_ENABLED ?? "1").toLowerCase();
+  return raw !== "0" && raw !== "false";
+}
+
+export function pubmedPmcFulltextMaxPerBatch(): number {
+  return Math.max(0, Number(process.env.PUBMED_PMC_FULLTEXT_MAX_PER_JOB ?? "50"));
+}

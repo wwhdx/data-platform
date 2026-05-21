@@ -4,6 +4,8 @@ import {
   normalizeEntrezBaseUrl,
   parseEsummaryRecord,
   parseEfetchAbstractXml,
+  parseElinkPmcJson,
+  parseEfetchPmcFulltextXml,
 } from "../../connectors/pubmedHelpers";
 import { PubMedConnector } from "../../connectors/pubmed";
 import { setExpandedSources } from "../../config/runtime";
@@ -51,10 +53,32 @@ describe("pubmedHelpers", () => {
     expect(rec?.title).toBe("Test Article");
     expect(rec?.snippet).toContain("Smith J");
   });
+
+  it("parseElinkPmcJson maps pmid to pmc id", () => {
+    const map = parseElinkPmcJson({
+      linksets: [
+        {
+          ids: ["42"],
+          linksetdbs: [{ linkname: "pubmed_pmc", links: ["987654"] }],
+        },
+      ],
+    });
+    expect(map.get("42")).toBe("987654");
+  });
+
+  it("parseEfetchPmcFulltextXml extracts body text", () => {
+    const xml = `<article>
+      <article-id pub-id-type="pmc">987654</article-id>
+      <body><p>PMC full text paragraph with enough length for validation.</p></body>
+    </article>`;
+    const map = parseEfetchPmcFulltextXml(xml);
+    expect(map.get("987654")).toContain("PMC full text");
+  });
 });
 
 describe("PubMedConnector", () => {
   beforeEach(() => {
+    process.env.PUBMED_PMC_FULLTEXT_ENABLED = "0";
     setExpandedSources([
       {
         id: "pubmed",

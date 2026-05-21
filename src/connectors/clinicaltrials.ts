@@ -14,6 +14,11 @@ import {
   type CtStudiesResponse,
   type CtStudy,
 } from "./clinicaltrialsHelpers";
+import { attachProvenance } from "./provenance/attach";
+import {
+  buildClinicalTrialsCanonicalUrl,
+  buildClinicalTrialsDocumentRequest,
+} from "./provenance/clinicaltrials";
 
 export const CLINICALTRIALS_META: ConnectorMeta = {
   id: "clinicaltrials",
@@ -82,14 +87,29 @@ export class ClinicalTrialsConnector extends BaseConnector {
       if (studies.length === 0) break;
 
       const now = new Date();
+      const collectCtx = {
+        mode: "incremental" as const,
+        since: params.since,
+        query: params.query,
+      };
+
       for (const study of studies) {
         const { externalId, rawJson } = mapStudyToRawJson(study);
-        yield {
+        const doc: RawDocument = {
           sourceId: CLINICALTRIALS_META.id,
           externalId,
           rawJson,
           fetchedAt: now,
         };
+        yield attachProvenance(doc, CLINICALTRIALS_META, {
+          documentRequest: buildClinicalTrialsDocumentRequest(
+            externalId,
+            this.runtimeBaseUrl,
+            this.userAgent,
+          ),
+          collect: collectCtx,
+          canonicalUrl: buildClinicalTrialsCanonicalUrl(externalId),
+        });
         yielded++;
         if (yielded >= maxItems) break;
       }

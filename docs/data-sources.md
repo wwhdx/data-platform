@@ -70,9 +70,10 @@ GET  /recommendations/v1/papers/{id}     # 推荐
 | **摘要可用性** | ✅ `efetch.fcgi?rettype=abstract&retmode=xml` → `<AbstractText>`（`esummary` 不含摘要，见注 2） |
 | **RAG 适用性** | ⭐⭐⭐⭐ |
 
-**Pipeline**：`esearch`（获取 UID 列表）→ `esummary`（书目元数据）→ `efetch`（摘要 XML）
+**Pipeline**：`esearch` → `esummary` → `efetch`（摘要）→ **`elink`+`efetch`（PMC 全文，W6 PMC-A ✅）**
 
-> **注 2（2026-05-19 修复 A10）**：`esummary.fcgi` 只返回书目元数据（标题/作者/期刊/日期），**不含摘要**。`pubmed.ts` 的 `collect()` 在每批 esummary 之后追加 `efetchAbstracts()` 调用，解析 `<AbstractText>` 并合并进 `rawJson.abstract`。`efetch` 与 `esummary` 共享同一 WebEnv，不额外消耗 esearch 配额。
+> **注 2（A10）**：`esummary` 不含摘要；`efetchAbstracts()` 补 `rawJson.abstract`。  
+> **注 3（W6 PMC-A）**：`elink.fcgi`（`linkname=pubmed_pmc`）→ `efetch`（`db=pmc&rettype=full`）→ `rawJson.fulltext`。ENV：`PUBMED_PMC_FULLTEXT_ENABLED`（默认开）、`PUBMED_PMC_FULLTEXT_MAX_PER_JOB`。
 
 ### 1.4 CrossRef
 
@@ -284,7 +285,8 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 | 速率 | 10 次/秒 |
 | 许可 | 完全免费，可商用 |
 | **摘要可用性** | ✅ 完整财报全文（10-K/10-Q HTML） |
-| **RAG 适用性** | ⭐⭐⭐⭐（需段落分块策略 A8） |
+| **RAG 适用性** | ⭐⭐⭐⭐（Phase B ✅：`secEdgar.ts` 拉 index.htm → primary HTML → `raw_json.fulltext`；`chunk.ts` `companyFilingChunks`） |
+| ENV | `SEC_EDGAR_USER_AGENT`（必填）· `SEC_EDGAR_FULLTEXT_ENABLED` · `SEC_EDGAR_FULLTEXT_MAX_CHARS` |
 
 ### 3.2 Yahoo Finance（非官方）
 
