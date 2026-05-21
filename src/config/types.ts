@@ -134,6 +134,8 @@ export const IMPLEMENTED_CONNECTOR_IDS = [
   "opencitations",
   "eurostat",
   "oecd",
+  "uniprot",
+  "wipo",
 ] as const;
 
 export interface ValidationIssue {
