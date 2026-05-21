@@ -13,9 +13,10 @@ import {
 import type { EiaRouteYamlEntry } from "./config";
 import type { EiaJsonFetcher } from "./api";
 import type { EiaApiResponse, EiaDiscoveredLeaf } from "./types";
+import { createEiaCatalogProgress } from "./catalogProgress";
 
 /** 目录 BFS 请求上限；触顶时顶层仍在队列内但未深入子树 */
-const MAX_CRAWL_REQUESTS = 2000;
+export const MAX_CRAWL_REQUESTS = 2000;
 
 export interface CatalogCrawlResult {
   discovered: number;
@@ -33,15 +34,28 @@ export async function crawlEiaCatalog(
   const topLevelsSeen = new Set<string>();
   let requests = 0;
   const queue: string[] = [""];
+  const skipProbe = process.env.EIA_CATALOG_SKIP_PROBE === "1";
+  const progress = createEiaCatalogProgress();
+  progress.logStart(MAX_CRAWL_REQUESTS, skipProbe);
 
   while (queue.length > 0 && requests < MAX_CRAWL_REQUESTS) {
     const path = queue.shift()!;
     requests++;
+    progress.maybeLog({
+      requests,
+      maxRequests: MAX_CRAWL_REQUESTS,
+      queueLen: queue.length,
+      leaves: leaves.length,
+      currentPath: path,
+    });
     let body: EiaApiResponse | null;
     try {
       body = await fetchMeta(path);
     } catch (err) {
-      console.warn(`[eia-catalog] skip ${path || "(root)"}: ${err instanceof Error ? err.message : err}`);
+      progress.bumpSkip();
+      console.warn(
+        `[eia-catalog] skip ${path || "(root)"}: ${err instanceof Error ? err.message : err}`,
+      );
       continue;
     }
     if (!body?.response) continue;
@@ -62,7 +76,6 @@ export async function crawlEiaCatalog(
 
     let lastTotal: number | null = null;
     let needsFacetPlan = false;
-    const skipProbe = process.env.EIA_CATALOG_SKIP_PROBE === "1";
     if (!skipProbe && requests < MAX_CRAWL_REQUESTS) {
       try {
         const probe = await fetchMeta(
@@ -97,11 +110,25 @@ export async function crawlEiaCatalog(
   }
 
   const hitRequestLimit = queue.length > 0 && requests >= MAX_CRAWL_REQUESTS;
+  progress.logCrawlDone(
+    {
+      requests,
+      maxRequests: MAX_CRAWL_REQUESTS,
+      queueLen: queue.length,
+      leaves: leaves.length,
+      currentPath: "",
+    },
+    hitRequestLimit,
+  );
 
   const yamlByPath = new Map(yamlRoutes.map((r) => [eiaDataRoute(r.path), r]));
   let skipped = 0;
+  const upsertStarted = Date.now();
+  progress.logUpsertStart(leaves.length);
 
-  for (const leaf of leaves) {
+  for (let i = 0; i < leaves.length; i++) {
+    const leaf = leaves[i]!;
+    progress.logUpsertProgress(i + 1, leaves.length);
     const yaml = yamlByPath.get(leaf.path);
     const tier = yaml?.tier?.toUpperCase() ?? "C";
     const collectEnabled =
@@ -126,6 +153,7 @@ export async function crawlEiaCatalog(
     });
     if (!yaml) skipped++;
   }
+  progress.logUpsertDone(leaves.length, Date.now() - upsertStarted);
 
   await applyYamlTiersToCatalog(
     yamlRoutes.map((r) => ({

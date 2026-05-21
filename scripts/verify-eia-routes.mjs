@@ -7,6 +7,10 @@ import fs from "fs";
 import path from "path";
 import yaml from "js-yaml";
 
+const RETRYABLE = new Set([429, 502, 503, 504]);
+const MAX_RETRIES = 4;
+const INTER_ROUTE_MS = 800;
+
 const envPath = path.resolve(process.cwd(), ".env");
 if (fs.existsSync(envPath)) {
   for (const line of fs.readFileSync(envPath, "utf8").split("\n")) {
@@ -18,6 +22,28 @@ const key = process.env.EIA_API_KEY;
 if (!key) {
   console.error("缺少 EIA_API_KEY");
   process.exit(1);
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function fetchWithRetry(url) {
+  let lastStatus = 0;
+  let lastBody = {};
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const res = await fetch(url);
+    lastStatus = res.status;
+    lastBody = await res.json().catch(() => ({}));
+    if (res.ok && !lastBody.error) {
+      return { ok: true, status: res.status, body: lastBody, attempts: attempt + 1 };
+    }
+    if (!RETRYABLE.has(res.status) || attempt >= MAX_RETRIES) {
+      return { ok: false, status: res.status, body: lastBody, attempts: attempt + 1 };
+    }
+    await sleep(1000 * 2 ** attempt);
+  }
+  return { ok: false, status: lastStatus, body: lastBody, attempts: MAX_RETRIES + 1 };
 }
 
 const rootUrl = `https://api.eia.gov/v2/?api_key=${encodeURIComponent(key)}`;
@@ -44,13 +70,21 @@ for (const r of routes) {
   const cols = r.data?.length ? r.data : ["value"];
   cols.forEach((c, i) => sp.set(`data[${i}]`, c));
   const url = `https://api.eia.gov/v2/${route}?${sp}`;
-  const res = await fetch(url);
-  const body = await res.json().catch(() => ({}));
+  const { ok: passed, status, body, attempts } = await fetchWithRetry(url);
   const rows = body.response?.data?.length ?? 0;
-  const status = res.ok && !body.error ? "OK" : "FAIL";
-  if (status === "OK") ok++;
+  if (passed) ok++;
   else fail++;
-  console.log(`  ${status} ${res.status} ${route} rows=${rows}${body.error ? ` err=${body.error.code}` : ""}`);
+  const retryNote = attempts > 1 ? ` (${attempts} 次请求)` : "";
+  const errNote = body.error?.code ? ` err=${body.error.code}` : "";
+  console.log(
+    `  ${passed ? "OK" : "FAIL"} ${status} ${route} rows=${rows}${errNote}${retryNote}`,
+  );
+  await sleep(INTER_ROUTE_MS);
 }
 console.log(`\nYAML: ${ok} OK, ${fail} FAIL`);
+if (fail > 0) {
+  console.log(
+    "提示：503/502 多为 EIA 临时过载；catalog sync 后请间隔 1–2 分钟再验证，或稍后重试。",
+  );
+}
 process.exit(fail > 0 ? 1 : 0);

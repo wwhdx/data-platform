@@ -1315,6 +1315,43 @@ async function cmdExport(args: string[]) {
   }
 }
 
+function printSourceClearPreview(p: {
+  sourceId: string;
+  raw_documents: number;
+  document_chunks: number;
+  collection_jobs: number;
+  collection_job_events: number;
+  config_audit_log: number;
+  extensions: Record<string, number>;
+  data_sources?: number;
+  collection_schedules?: number;
+}): number {
+  console.log(`按源清空: ${p.sourceId}（不删除 data/export 等本地目录）\n`);
+  const rows: [string, number][] = [
+    ["raw_documents", p.raw_documents],
+    ["document_chunks", p.document_chunks],
+    ["collection_jobs", p.collection_jobs],
+    ["collection_job_events", p.collection_job_events],
+    ["config_audit_log", p.config_audit_log],
+  ];
+  for (const [table, count] of Object.entries(p.extensions)) {
+    rows.push([table, count]);
+  }
+  if (p.collection_schedules != null) {
+    rows.push(["collection_schedules", p.collection_schedules]);
+  }
+  if (p.data_sources != null) {
+    rows.push(["data_sources", p.data_sources]);
+  }
+  let total = 0;
+  for (const [label, count] of rows) {
+    console.log(`  ${label.padEnd(28)} ${count} 行`);
+    total += count;
+  }
+  console.log(`\n  合计 ${total} 行`);
+  return total;
+}
+
 async function cmdDbClear(args: string[]) {
   const opts = parseArgs(args);
   const dbUrl = process.env.DATA_PLATFORM_DATABASE_URL;
@@ -1327,10 +1364,40 @@ async function cmdDbClear(args: string[]) {
     opts.config === "true" || opts["include-config"] === "true";
   const dryRun = opts["dry-run"] === "true";
   const yes = opts.yes === "true" || opts.y === "true";
+  const sourceId = opts.source?.trim();
 
-  const { clearPlatformData, countTableRows, tablesToClear } = await import(
-    "../storage/clearData"
-  );
+  const clearMod = await import("../storage/clearData");
+
+  if (sourceId) {
+    const { clearSourceData, previewSourceClear } = clearMod;
+    let preview;
+    try {
+      preview = await previewSourceClear(sourceId, { includeConfig });
+    } catch (err) {
+      console.error(`❌ ${err instanceof Error ? err.message : String(err)}`);
+      throw new CliExit(1);
+    }
+    printSourceClearPreview(preview);
+
+    if (dryRun) {
+      console.log("\n（--dry-run：未写入数据库）");
+      return;
+    }
+    if (!yes) {
+      console.log(
+        "\n确认按源清空请加 --yes；若同时删除该源注册与调度请加 --include-config",
+      );
+      throw new CliExit(1);
+    }
+    await clearSourceData(sourceId, { includeConfig });
+    console.log(`\n✅ 已清空信源 ${sourceId} 的数据库业务数据`);
+    if (includeConfig) {
+      console.log("提示: 运行 pnpm cli config sync 从 sources.yml 恢复该源配置");
+    }
+    return;
+  }
+
+  const { clearPlatformData, countTableRows, tablesToClear } = clearMod;
   const tables = tablesToClear({ includeConfig });
   const counts = await countTableRows(tables);
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
@@ -1485,7 +1552,7 @@ function printHelp() {
 
 命令（直连数据库 / 本地文件）:
   migrate   执行数据库迁移
-  db-clear  清空业务数据（TRUNCATE，保留表结构；须 --yes）
+  db-clear  清空业务数据（全库 TRUNCATE 或 --source 按源 DELETE；须 --yes）
   export    原始 JSON 导出到本地目录（见 docs/plans/原始数据本地导出与镜像方案.md）
   serve     启动 API 服务
   schedules 查看 cron 调度计划（需 API；不可达时 exit 1）
@@ -1527,8 +1594,9 @@ function printHelp() {
 
   db-clear:
     --yes                    确认执行（无此参数仅预览行数并 exit 1）
-    --dry-run                仅统计行数，不 TRUNCATE
-    --include-config         同时清空 data_sources、collection_schedules
+    --dry-run                仅统计行数，不写入
+    --source <id>            仅清空该信源（含扩展表如 eia_catalog_routes；不删 export 目录）
+    --include-config         全库：TRUNCATE 配置表；按源：删除该源 data_sources / schedules 行
 
   export:
     --out <dir>              输出根 (默认 DATA_PLATFORM_EXPORT_DIR 或 ./data/export)
@@ -1573,6 +1641,8 @@ function printHelp() {
   data-platform migrate
   data-platform db-clear --dry-run
   data-platform db-clear --yes
+  data-platform db-clear --source eia --dry-run
+  data-platform db-clear --source eia --yes
   data-platform export --source openalex --since 2026-05-01 --out ./data/raw
   data-platform eia catalog sync
   data-platform eia catalog list --top petroleum

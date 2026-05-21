@@ -128,7 +128,7 @@ export class EiaConnector extends BaseConnector {
       );
       for await (const { row } of collectRouteRows(plan, this.routeCollectOpts())) {
         if (!eiaRowMatchesQuery(row, q)) continue;
-        results.push(this.toSearchResult(row));
+        results.push(this.toSearchResult(row, plan.route));
         if (results.length >= maxResults) break;
       }
     }
@@ -168,7 +168,7 @@ export class EiaConnector extends BaseConnector {
 
       for (const plan of plans) {
         if (params.signal?.aborted) break;
-        for await (const { row, plan: p } of collectRouteRows(
+        for await (const { row, plan: p, fetchUrl } of collectRouteRows(
           plan,
           this.routeCollectOpts(),
         )) {
@@ -177,6 +177,7 @@ export class EiaConnector extends BaseConnector {
             facetSignature: p.facetSignature,
             frequency: p.frequency,
             dataColumns: p.dataColumns,
+            fetchUrl,
           });
           const doc: RawDocument = {
             sourceId: EIA_META.id,
@@ -186,14 +187,11 @@ export class EiaConnector extends BaseConnector {
           };
           yield attachProvenance(doc, EIA_META, {
             documentRequest: buildEiaDocumentRequest(
-              route,
-              this.runtimeBaseUrl,
+              fetchUrl,
               this.userAgent,
-              this.apiKey,
-              externalId,
             ),
             collect: collectCtx,
-            canonicalUrl: buildEiaCanonicalUrl(),
+            canonicalUrl: buildEiaCanonicalUrl(route, fetchUrl),
           });
           yielded++;
           if (yielded >= maxItems) return;
@@ -228,11 +226,11 @@ export class EiaConnector extends BaseConnector {
     };
   }
 
-  private toSearchResult(row: EiaDataRow): SearchResult {
+  private toSearchResult(row: EiaDataRow, route: string): SearchResult {
     const abstract = buildEiaAbstract(row);
     return {
       title: pickEiaTitle(row),
-      url: "https://www.eia.gov/opendata/",
+      url: buildEiaCanonicalUrl(route),
       snippet: abstract.slice(0, 300),
       sourceId: EIA_META.id,
       sourceName: EIA_META.name,

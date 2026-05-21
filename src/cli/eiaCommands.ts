@@ -49,6 +49,9 @@ async function cmdEiaCatalogSync(): Promise<void> {
   const rootIds = (root?.response?.routes ?? []).map((r) => r.id).sort();
   console.log("EIA 目录同步开始…");
   console.log(`API 顶层 route（${rootIds.length}）: ${rootIds.join(", ")}`);
+  console.error(
+    "目录 BFS 进度见 stderr（[eia-catalog]）；完整同步约需数分钟至十余分钟",
+  );
   const result = await connector.syncCatalog();
   console.log(
     `✅ 发现 ${result.discovered} 条叶子 route，HTTP ${result.requests} 次`,

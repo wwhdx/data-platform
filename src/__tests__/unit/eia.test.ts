@@ -66,5 +66,9 @@ describe("EiaConnector", () => {
     expect(docs.length).toBeGreaterThan(0);
     expect(docs[0]?.rawJson.type).toBe("energy_indicator");
     expect(docs[0]?.externalId).toMatch(/^eia\//);
+    const provUrl = docs[0]?.fetchProvenance?.documentRequest?.url ?? "";
+    expect(provUrl).toContain("petroleum/pri/spt/data");
+    expect(provUrl).toContain("frequency=daily");
+    expect(provUrl).toContain("api_key=REDACTED");
   });
 });

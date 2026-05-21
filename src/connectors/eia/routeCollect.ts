@@ -1,7 +1,7 @@
 import type { EiaDataRow } from "../eiaHelpers";
 import {
-  appendApiKey,
   buildEiaApiUrl,
+  buildEiaDataParams,
   extractDataRows,
   parseEiaTotal,
 } from "./api";
@@ -21,6 +21,8 @@ export interface RouteCollectRow {
   row: EiaDataRow;
   plan: EiaRequestPlan;
   total: number | null;
+  /** 拉取本页数据时使用的完整 API URL（含 api_key） */
+  fetchUrl: string;
 }
 
 export async function* collectRouteRows(
@@ -35,15 +37,15 @@ export async function* collectRouteRows(
       : opts.observationsPerSeries * 50;
 
   while (rowsForPlan < maxRows) {
-    const params = buildDataParams(plan, opts.pageSize, offset, opts.apiKey);
-    const url = buildEiaApiUrl(opts.baseUrl, plan.route, params);
-    const body = await opts.fetchJson(url);
+    const params = buildEiaDataParams(plan, opts.pageSize, offset, opts.apiKey);
+    const fetchUrl = buildEiaApiUrl(opts.baseUrl, plan.route, params);
+    const body = await opts.fetchJson(fetchUrl);
     const rows = body ? extractDataRows(body) : [];
     const total = body ? parseEiaTotal(body) : null;
     if (rows.length === 0) break;
 
     for (const row of rows) {
-      yield { row, plan, total };
+      yield { row, plan, total, fetchUrl };
       rowsForPlan++;
       if (opts.mode === "snapshot" && rowsForPlan >= opts.observationsPerSeries) {
         return;
@@ -55,27 +57,4 @@ export async function* collectRouteRows(
     if (rows.length < opts.pageSize) break;
     if (total != null && offset >= total) break;
   }
-}
-
-function buildDataParams(
-  plan: EiaRequestPlan,
-  length: number,
-  offset: number,
-  apiKey?: string,
-): URLSearchParams {
-  const sp = new URLSearchParams({
-    frequency: plan.frequency,
-    length: String(length),
-    offset: String(offset),
-    "sort[0][column]": "period",
-    "sort[0][direction]": "desc",
-  });
-  plan.dataColumns.forEach((col, i) => {
-    sp.set(`data[${i}]`, col);
-  });
-  for (const [k, v] of Object.entries(plan.facets)) {
-    sp.set(`facets[${k}][]`, v);
-  }
-  appendApiKey(sp, apiKey);
-  return sp;
 }

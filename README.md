@@ -125,7 +125,9 @@ pnpm cli export --dry-run
 # 运维
 pnpm cli migrate           # 执行数据库迁移（需 DATA_PLATFORM_DATABASE_URL）
 pnpm cli db-clear --dry-run   # 预览将清空的表与行数
-pnpm cli db-clear --yes       # TRUNCATE 业务数据（保留表结构）
+pnpm cli db-clear --yes       # TRUNCATE 全库业务数据（保留表结构）
+pnpm cli db-clear --source eia --dry-run  # 预览单源行数（含 eia_catalog_routes）
+pnpm cli db-clear --source eia --yes        # 按源 DELETE（不删 data/export）
 pnpm cli serve --port 3400 # 启动 API 服务
 
 # 配置（YAML ↔ DB，无需 API）

@@ -96,6 +96,7 @@ while queue not empty and requests < MAX:
 | route 路径漂移 | YAML 404（如 `electricity-power` vs `electric-power`） | `scripts/verify-eia-routes.mjs` 对照 live API |
 | `data[0]=value` 硬编码 | 400/空数据（煤价用 `sales`、电力用 `generation`） | 每 route 在 YAML 声明 `data: [...]` |
 | probe 卡死 | catalog sync 约 4min 后 abort | 默认 `EIA_CATALOG_SKIP_PROBE=1`；probe 失败不阻断 |
+| 长时间无输出 | BFS 可达 2000 次 HTTP（约 2 rps） | stderr 见 `[eia-catalog]` 进度；`EIA_CATALOG_VERBOSE=1` 逐请求 |
 
 ### 4.4 目录表字段（可复用到其他源）
 

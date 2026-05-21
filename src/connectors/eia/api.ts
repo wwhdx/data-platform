@@ -1,5 +1,5 @@
 import type { EiaDataRow } from "../eiaHelpers";
-import type { EiaApiResponse as MetaResponse } from "./types";
+import type { EiaApiResponse as MetaResponse, EiaRequestPlan } from "./types";
 
 export type EiaJsonFetcher = (
   route: string,
@@ -33,6 +33,50 @@ export function buildEiaApiUrl(
 
 export function appendApiKey(params: URLSearchParams, apiKey?: string): void {
   if (apiKey?.trim()) params.set("api_key", apiKey.trim());
+}
+
+/** 与 routeCollect 一致的 data 请求 query（可复现采集） */
+export function buildEiaDataParams(
+  plan: EiaRequestPlan,
+  length: number,
+  offset: number,
+  apiKey?: string,
+): URLSearchParams {
+  const sp = new URLSearchParams({
+    frequency: plan.frequency,
+    length: String(length),
+    offset: String(offset),
+    "sort[0][column]": "period",
+    "sort[0][direction]": "desc",
+  });
+  plan.dataColumns.forEach((col, i) => {
+    sp.set(`data[${i}]`, col);
+  });
+  for (const [k, v] of Object.entries(plan.facets)) {
+    sp.set(`facets[${k}][]`, v);
+  }
+  appendApiKey(sp, apiKey);
+  return sp;
+}
+
+export function buildEiaDataRequestUrl(
+  baseUrl: string,
+  plan: EiaRequestPlan,
+  opts: { length?: number; offset?: number; apiKey?: string } = {},
+): string {
+  const params = buildEiaDataParams(
+    plan,
+    opts.length ?? 1,
+    opts.offset ?? 0,
+    opts.apiKey,
+  );
+  return buildEiaApiUrl(baseUrl, plan.route, params);
+}
+
+/** Open Data Browser 人类可读页（去掉末尾 /data） */
+export function buildEiaBrowserUrl(route: string): string {
+  const p = normalizeEiaPath(route).replace(/\/data$/, "");
+  return `https://www.eia.gov/opendata/browser/${p}`;
 }
 
 export function parseEiaTotal(body: MetaResponse): number | null {
