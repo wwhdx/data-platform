@@ -16,19 +16,37 @@ export interface EiaDataRow {
 
 export interface EiaDataResponse {
   response?: {
-    total?: string;
+    total?: string | number;
     data?: EiaDataRow[];
   };
 }
 
 export const EIA_DEFAULT_ROUTE = "petroleum/pri/spt/data";
 
+export function rowSeriesKey(row: EiaDataRow): string {
+  if (row.series?.trim()) return row.series.trim();
+  const parts = [
+    row.product ?? row["product-name"],
+    row.duoarea ?? row["area-name"],
+    row.process ?? row["process-name"],
+  ].filter((p): p is string => Boolean(p));
+  return parts.length ? parts.join("|") : "series";
+}
+
+export function buildEiaExternalId(
+  row: EiaDataRow,
+  route: string,
+  facetSignature: string,
+): string {
+  const period = (row.period ?? "unknown").replace(/\s+/g, "_");
+  const sig = facetSignature || "_default";
+  const seriesKey = rowSeriesKey(row).replace(/\s+/g, "_");
+  return `eia/${route}/${sig}/${seriesKey}/${period}`;
+}
+
+/** @deprecated 使用 buildEiaExternalId */
 export function eiaExternalId(row: EiaDataRow, route: string): string {
-  const period = row.period ?? "unknown";
-  const area = row.duoarea ?? row["area-name"] ?? "NA";
-  const product = row.product ?? row["product-name"] ?? "NA";
-  const process = row.process ?? row["process-name"] ?? "NA";
-  return `${route}/${period}/${area}/${product}/${process}`.replace(/\s+/g, "_");
+  return buildEiaExternalId(row, route, "_default");
 }
 
 export function pickEiaTitle(row: EiaDataRow): string {
@@ -53,12 +71,21 @@ export function buildEiaAbstract(row: EiaDataRow): string {
   return parts.join("\n");
 }
 
+export interface EiaRowMapContext {
+  facetSignature?: string;
+  frequency?: string;
+  dataColumns?: string[];
+}
+
 export function mapEiaRowToRawJson(
   row: EiaDataRow,
   route: string,
+  ctx: EiaRowMapContext = {},
 ): { externalId: string; rawJson: Record<string, unknown> } {
-  const externalId = eiaExternalId(row, route);
+  const facetSignature = ctx.facetSignature ?? "_default";
+  const externalId = buildEiaExternalId(row, route, facetSignature);
   const title = pickEiaTitle(row);
+  const topLevel = route.split("/")[0] ?? route;
   return {
     externalId,
     rawJson: {
@@ -71,6 +98,12 @@ export function mapEiaRowToRawJson(
       unit: row.units,
       date: row.period,
       route,
+      catalog_path: route,
+      top_level: topLevel,
+      energy_subsector: topLevel,
+      facet_signature: facetSignature,
+      frequency: ctx.frequency,
+      data_columns: ctx.dataColumns,
       url: "https://www.eia.gov/opendata/",
     },
   };

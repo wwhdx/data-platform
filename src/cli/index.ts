@@ -1574,6 +1574,8 @@ function printHelp() {
   data-platform db-clear --dry-run
   data-platform db-clear --yes
   data-platform export --source openalex --since 2026-05-01 --out ./data/raw
+  data-platform eia catalog sync
+  data-platform eia catalog list --top petroleum
   data-platform serve --port 3400
   data-platform config validate
   data-platform config sync
@@ -1630,6 +1632,9 @@ async function main(): Promise<void> {
       break;
     case "export":
       await cmdExport(rest);
+      break;
+    case "eia":
+      await (await import("./eiaCommands")).cmdEia(rest);
       break;
     case "serve":
       await cmdServe(rest);

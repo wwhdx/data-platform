@@ -1,0 +1,6 @@
+routes:
+  - path: petroleum/pri/spt/data
+    tier: A
+    collect_enabled: true
+    frequency: daily
+    observations: 5

@@ -178,7 +178,10 @@ psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.
 | `HACKERNEWS_URL_FULLTEXT_MAX_CHARS` | 否 | 单篇外链正文上限字符（默认 50000） |
 | `CORE_API_KEY` | 是（core） | [CORE API](https://core.ac.uk/services/api) 注册；Bearer 头；导出须保留 `core_attribution` |
 | `MATERIALS_PROJECT_API_KEY` | 是（materials_project） | [materialsproject.org](https://materialsproject.org) Dashboard → Header `X-API-KEY` |
-| `EIA_API_KEY` | 是（eia） | [EIA Open Data](https://www.eia.gov/opendata/) 注册；Query `api_key=` |
+| `EIA_API_KEY` | 是（eia） | [EIA Open Data](https://www.eia.gov/opendata/) 注册；Query `api_key=`；多 route 见 `config/eia-routes.yml` · `pnpm cli eia catalog sync` |
+| `EIA_COLLECT_MODE` | 否 | `snapshot`（默认）或 `backfill` |
+| `EIA_TIER_FILTER` | 否 | 逗号分隔 Tier，如 `A,B` |
+| `EIA_BACKFILL_ROUTE` | 否 | 手动 backfill 单 route（CLI/调试） |
 | （无） | — | `chembl` 无需 Key |
 | `NCBI_API_KEY` | 否（推荐 pubchem） | 与 `pubmed` 共用；3 rps 无 Key / 10 rps 有 Key |
 | `OPENCITATIONS_ACCESS_TOKEN` | 否（opencitations） | [OpenCitations Access Token](https://opencitations.net/accesstoken)；`authorization` 头 |

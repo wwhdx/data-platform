@@ -1,0 +1,40 @@
+# EIA Tier A/B 采集清单（Git 真源）
+# 路径须与 L0 目录同步结果一致；运行 pnpm cli eia catalog sync 校验
+routes:
+  - path: petroleum/pri/spt/data
+    tier: A
+    collect_enabled: true
+    frequency: daily
+    observations: 30
+    data: [value]
+
+  - path: electricity/retail-sales/data
+    tier: A
+    collect_enabled: true
+    frequency: monthly
+    observations: 12
+    data: [price, sales]
+    facets:
+      sectorid: [RES, COM, IND]
+      stateid: [CA, TX, NY, CO]
+
+  - path: electricity/electric-power-operational-data/data
+    tier: A
+    collect_enabled: true
+    frequency: monthly
+    observations: 12
+    data: [generation]
+
+  - path: natural-gas/pri/sum/data
+    tier: B
+    collect_enabled: true
+    frequency: monthly
+    observations: 12
+    data: [value]
+
+  - path: coal/market-sales-price/data
+    tier: B
+    collect_enabled: true
+    frequency: annual
+    observations: 12
+    data: [sales]

@@ -444,10 +444,12 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 |------|-----|
 | Base URL | `https://api.eia.gov/v2` |
 | 认证 | Query `api_key=`（`EIA_API_KEY`） |
-| 端点 | `GET /petroleum/pri/spt/data/?data[0]=value&length=&offset=` |
+| 端点（当前） | `GET /petroleum/pri/spt/data/?data[0]=value&length=&offset=`（单路由 PoC） |
+| 完备采集设计 | [EIA完备采集方案.md](./plans/EIA完备采集方案.md) · 方法论 [树形API数据源完备采集方法论.md](./knowledge/树形API数据源完备采集方法论.md) |
+| 验证脚本 | `scripts/verify-eia-routes.mjs` · `pnpm cli eia catalog sync\|list` |
 | 代码 | `src/connectors/eia.ts` · `eiaHelpers.ts` |
 | RAG | `indicator`（`indicatorChunks`） |
-| YAML | `enabled: false` |
+| YAML | `enabled: true`；`collect_max_items: 5`（待 H 轨改造） |
 
 ### 6.5 Eurostat
 

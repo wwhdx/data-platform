@@ -492,9 +492,15 @@ sources:
     license: "public domain (US gov)"
     commercial_use: true
     schedule: "0 3 * * 0"
-    description: "美国能源信息署官方能源时间序列"
+    description: "美国能源信息署官方能源时间序列（多 route 完备采集）"
     options:
-      collect_max_items: 5
+      eia_collect_mode: snapshot
+      eia_routes_file: config/eia-routes.yml
+      eia_tier_filter: "A,B"
+      eia_default_frequency: monthly
+      eia_observations_per_series: 12
+      eia_max_facet_combos_per_route: 64
+      collect_max_items: 500
 
   # role: primary | collect: main | cluster: macro_indicator
   # 波次 8 · 默认 disabled；与 fred/worldbank 按 series 维度去重
