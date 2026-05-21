@@ -1,0 +1,88 @@
+# FRED Tier A/B 采集清单（Git 真源）
+# 运行 pnpm cli fred catalog sync 后登记目录；node scripts/verify-fred-series.mjs
+series:
+  # industry_tag: 国民经济
+  - series_id: GDP
+    tier: A
+    collect_enabled: true
+    title: Gross Domestic Product
+    category_id: 106
+
+  - series_id: GDPC1
+    tier: A
+    collect_enabled: true
+    title: Real Gross Domestic Product
+    category_id: 106
+
+  # industry_tag: 劳动
+  - series_id: UNRATE
+    tier: A
+    collect_enabled: true
+    title: Unemployment Rate
+    category_id: 10
+
+  - series_id: PAYEMS
+    tier: A
+    collect_enabled: true
+    title: All Employees Total Nonfarm
+    category_id: 10
+
+  # industry_tag: 价格
+  - series_id: CPIAUCSL
+    tier: A
+    collect_enabled: true
+    title: Consumer Price Index for All Urban Consumers
+    category_id: 9
+
+  - series_id: CPILFESL
+    tier: A
+    collect_enabled: true
+    title: Core CPI Less Food and Energy
+    category_id: 9
+
+  # industry_tag: 金融
+  - series_id: FEDFUNDS
+    tier: A
+    collect_enabled: true
+    title: Federal Funds Effective Rate
+    category_id: 32991
+
+  - series_id: DGS10
+    tier: A
+    collect_enabled: true
+    title: Market Yield on 10-Year Treasury
+    category_id: 32991
+
+  # industry_tag: 生产
+  - series_id: INDPRO
+    tier: A
+    collect_enabled: true
+    title: Industrial Production Index
+    category_id: 1
+
+  - series_id: RSXFS
+    tier: A
+    collect_enabled: true
+    title: Advance Retail Sales
+    category_id: 1
+
+  # industry_tag: 房地产
+  - series_id: HOUST
+    tier: A
+    collect_enabled: true
+    title: Housing Starts
+    category_id: 97
+
+  # industry_tag: 货币
+  - series_id: M2SL
+    tier: A
+    collect_enabled: true
+    title: M2 Money Stock
+    category_id: 32991
+
+  # industry_tag: 国际
+  - series_id: DTWEXBGS
+    tier: A
+    collect_enabled: true
+    title: Trade Weighted U.S. Dollar Index
+    category_id: 13

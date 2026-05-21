@@ -322,8 +322,15 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 | 字段 | 值 |
 |------|-----|
 | Base URL | `https://api.stlouisfed.org/fred/` |
+| 目录（L0） | `GET …/category/children?category_id=0` BFS → `fred_catalog_categories` |
 | 认证 | Query `api_key=`（免费注册） |
 | 速率 | **2 req/s**（[FRED API Errors](https://fred.stlouisfed.org/docs/api/fred/v2/errors.html)）→ 详 [附录 B](#附录-b已接入源配额与速率限制评估) |
+| 端点 | `GET /series/observations?series_id=…` · `GET /series/search`（补充） |
+| 代码 | `src/connectors/fred.ts` · `fred/` · `fredHelpers.ts` |
+| L1 清单 | `config/fred-series.yml`（Tier A/B；`FRED_TIER_FILTER` / `sources.yml` `fred_tier_filter`） |
+| CLI | `pnpm cli fred catalog sync` · `catalog list [--top]` |
+| 验证 | `node scripts/verify-fred-series.mjs`（须 `FRED_API_KEY`） |
+| ENV | `FRED_CATALOG_MAX_REQUESTS`（默认 10000）· `FRED_CATALOG_MAX_DEPTH`（可选） |
 | 响应 | JSON / XML |
 | **摘要可用性** | ❌ 时序数值数据，无文本摘要 |
 | **RAG 适用性** | ⭐（不适合向量检索） |

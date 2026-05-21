@@ -35,12 +35,12 @@ describe("FredConnector", () => {
     }).rejects.toThrow(/FRED_API_KEY/);
   });
 
-  it("collect 解析 series", async () => {
+  it("collect YAML Tier A 序列", async () => {
     vi.mocked(global.fetch)
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          seriess: [{ id: "GDP", title: "GDP", notes: "US GDP" }],
+          seriess: [{ id: "GDP", title: "Gross Domestic Product", notes: "US GDP" }],
         }),
       } as Response)
       .mockResolvedValueOnce({
@@ -51,12 +51,16 @@ describe("FredConnector", () => {
         }),
       } as Response);
 
-    const c = new FredConnector({ apiKey: "fred-test-key" });
+    const c = new FredConnector({
+      apiKey: "fred-test-key",
+      sourceOptions: { fred_series_file: "config/fred-series.yml", fred_tier_filter: "A" },
+    });
     const docs = [];
-    for await (const d of c.collect({ query: "gdp", maxItems: 2 })) {
+    for await (const d of c.collect({ maxItems: 1 })) {
       docs.push(d);
     }
     expect(docs).toHaveLength(1);
     expect(docs[0]?.externalId).toBe("GDP");
+    expect(docs[0]?.rawJson.collect_tier).toBe("A");
   });
 });

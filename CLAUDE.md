@@ -165,6 +165,9 @@ psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.
 | `SEC_EDGAR_USER_AGENT` | 是（sec_edgar 采集） | `CompanyName email@domain.com` |
 | `GITHUB_TOKEN` | 否 | GitHub REST/GraphQL Bearer；GH-B 启用 `sources.yml` `use_graphql: true` 时必填 |
 | `FRED_API_KEY` | 是（fred 采集） | FRED `api_key` 查询参数 |
+| `FRED_TIER_FILTER` | 否 | 逗号分隔 Tier，如 `A,B`（默认读 YAML / `sources.yml` `fred_tier_filter`） |
+| `FRED_CATALOG_MAX_REQUESTS` | 否 | 目录 BFS 请求上限（默认 10000） |
+| `FRED_CATALOG_MAX_DEPTH` | 否 | category 树最大深度（未设置则不限制） |
 | （无） | — | `yahoo_finance` 使用 npm `yahoo-finance2`，无需 env；非官方 API |
 | `REDDIT_CLIENT_ID` | —（**reddit ⏸ 冻结**） | 产品不支持；代码保留，勿配置 |
 | `REDDIT_CLIENT_SECRET` | —（**reddit ⏸ 冻结**） | 同上 |

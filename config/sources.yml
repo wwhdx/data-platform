@@ -357,9 +357,11 @@ sources:
     license: "free (verify commercial)"
     commercial_use: false
     schedule: "0 3 * * *"
-    description: "80万+ 经济时间序列"
+    description: "80万+ 经济时间序列（L0 category 目录 + YAML Tier A series）"
     options:
       collect_max_items: 50
+      fred_series_file: config/fred-series.yml
+      fred_tier_filter: "A,B"
 
   # role: primary | collect: main | cluster: macro_indicator
   # 与 fred 部分指标概念重叠，按 series id 选型勿重复采

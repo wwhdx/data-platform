@@ -1,0 +1,6 @@
+{
+  "categories": [
+    { "id": 10, "name": "Population, Employment, & Labor Markets", "parent_id": 0 },
+    { "id": 9, "name": "Prices", "parent_id": 0 }
+  ]
+}
