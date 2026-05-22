@@ -18,7 +18,8 @@
 | [父仓对接集成测试闭环方案.md](./父仓对接集成测试闭环方案.md) | **P 轨**：`DataPlatformClient` + 父仓 HTTP 契约（✅ P1–P4） |
 | [剩余数据源接入实施方案.md](./剩余数据源接入实施方案.md) | 波次 0–4 ✅；SEC Phase B 等待加深 |
 | [待接入数据源清单与波次方案.md](./待接入数据源清单与波次方案.md) | **波次 5–8** 待接入清单（对照 [真实行业获取指南](../knowledge/真实行业获取指南.md)） |
-| [行业维度接入设计方案.md](./行业维度接入设计方案.md) | **G 轨**：`industry_tag` 字段 + `/api/search?industry=` + 主包行业同步接口（Phase 1–3） |
+| [行业维度接入设计方案.md](./行业维度接入设计方案.md) | **G 轨**：`industry_tag` 读 ✅ / 写 □（G1-5）· sync · Phase 2–3 |
+| [UODE-L1行业数据采集前置方案.md](./UODE-L1行业数据采集前置方案.md) | **U-L1**：行业 macro/text 采集 + coverage 验收（依赖 G1-5） |
 | [UODE机会评分与主动学习设计方案.md](./UODE机会评分与主动学习设计方案.md) | **U 轨**：三仓库索引（跨仓库常量、依赖 G1→U1→U2）|
 | [UODE-data-platform-L2信号与机会向量设计方案.md](./UODE-data-platform-L2信号与机会向量设计方案.md) | **U 轨 · data-platform 详案**：domainSignal、034–036 迁移、L5 校准（v1.2 勘误）|
 | [EIA完备采集方案.md](./EIA完备采集方案.md) | **H 轨**：EIA API v2 目录 + 多 route 采集（✅ H0–H2 MVP） |

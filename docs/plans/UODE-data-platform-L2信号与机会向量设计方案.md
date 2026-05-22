@@ -1,7 +1,7 @@
 # UODE · data-platform — L2 认知信号、机会向量与 L5 权重校准设计方案
 
-> **状态**：部分落地（G1/U1/U2 ✅；跨仓 E1/E3/P1/P2 待实施）  
-> **版本**：v1.4.1（2026-05-22）  
+> **状态**：部分落地（G1 读 ✅ / **G1-5·U-L1 □** · U1/U2 ✅；跨仓 E1/E3/P1/P2 待实施）  
+> **版本**：v1.4.2（2026-05-22）  
 > **仓库**：`packages/data-platform`  
 > **职责层**：UODE L1（现有）+ **L2 认知信号**（本方案）+ **L5 权重校准**（本方案）  
 > **进度真源**：[实施进度总览.md](./实施进度总览.md)（落地后追加 U1/U2 条目）  
@@ -51,6 +51,8 @@ L3/L4/L6/L7   不涉及
 | 行业标签 | G1：`raw_documents.industry_tag` 已写入 | 否则趋势/N 仅全局 |
 
 详见 [树形API数据源完备采集方法论.md](../knowledge/树形API数据源完备采集方法论.md) Tier 策略。
+
+**U-L1 实施详案**（G1-5 写路径 + 按行业 collect + 验收）：[UODE-L1行业数据采集前置方案.md](./UODE-L1行业数据采集前置方案.md)。实施进度 → [§2.8](./实施进度总览.md#28-g-轨行业维度--g1) · [§2.7 U-L1](./实施进度总览.md#27-uodeu1--u2--data-platform-侧)。
 
 **职责摘要**：data-platform 是 UODE 的**数据与智能层**。engine-core 消费信号计算 S(h)，并经 **UODE 编排代理**写入 outcome / 向量；wangye 仅做人审决策，**不持** `DATA_PLATFORM_ADMIN_KEY`。三方**无循环依赖**，数据流单向：
 
@@ -657,3 +659,4 @@ curl http://localhost:3400/api/opportunity-weights/医疗 \
 | v1.2 | 2026-05-22 | **勘误**：迁移 **035–037**（034=G1）（避开已占用 025–027）；`vector(1024)` + `embedding_model`；`fetched_at`/`raw_json` 趋势 SQL；冷启动 **N=50**；G1 前置；`weight_snapshots` + history API；outcome UPSERT；校准触发改 `calibrated_at` 窗口；行业样本 ≥50；adapter/`types` 透传 `domainSignal`；§1.1 L1 前置 |
 | v1.4 | 2026-05-22 | **职责再划**：调用方改为 engine-core 代理；§5.4 鉴权分级；`ADMIN_KEY` 不进入 wangye；U2-0 权重 GET 内网可读；闭环依赖 E3 非 P1 权重注入 |
 | v1.4.1 | 2026-05-22 | **U2-0 落地**：`GET /opportunity-weights/:tag` 去掉 Admin Key；实施进度 §2.7 同步 |
+| v1.4.2 | 2026-05-22 | §1.1 链 [UODE-L1行业数据采集前置方案.md](./UODE-L1行业数据采集前置方案.md)；G1-5 缺口勘误 |

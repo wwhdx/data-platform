@@ -1028,6 +1028,7 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-05-22 | v0.3.2 | U-L1 / G1-5 链至 `plans/UODE-L1行业数据采集前置方案.md`；实施进度 §2.8 |
 | 2026-05-22 | v0.3.1 | §七 增补 G1/UODE HTTP 路由、`domainSignal` 响应字段；链 UODE 详案 |
 | 2026-05-21 | v0.3 | 新增 **§零 设计大纲**（六层/模块地图/横切轨/Phase）；修正 Qdrant→pgvector、Prisma→pg 池、Connector 29、Phase 4 勾选 |
 | 2026-05-19 | v0.2.8 | `patentsview` 迁至 ODP（`api.uspto.gov` + `USPTO_ODP_API_KEY`）；废弃 PatentSearch / `PATENTSVIEW_API_KEY` |
@@ -1045,7 +1046,7 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 >
 > 相关文档：
 > - 实施进度总览：`docs/plans/实施进度总览.md`
-> - 集成测试最小闭环（I 轨）：`docs/plans/集成测试最小闭环方案.md`
+> - UODE L1 前置：`docs/plans/UODE-L1行业数据采集前置方案.md`
 > - 下一阶段排期：`docs/plans/下一阶段实施方案.md`
 > - Agent 工作流：`docs/agent-workflow.md`
 > - engine-core 接口协议：`../engine-core/ENGINE_CONTRACTS.md`

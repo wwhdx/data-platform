@@ -11,6 +11,7 @@
 | 仓库 | 文档 | UODE 层 | 核心内容 |
 |------|------|---------|---------|
 | **data-platform** | [UODE-data-platform-L2信号与机会向量设计方案.md](./UODE-data-platform-L2信号与机会向量设计方案.md) | L1+**L2**+**L5** | domainSignal、opportunity_vectors、opportunity_outcomes、逻辑回归校准、权重 API |
+| | [UODE-L1行业数据采集前置方案.md](./UODE-L1行业数据采集前置方案.md) | **L1 前置** | G1-5 写 tag、按行业 macro/text collect、coverage 验收 |
 | **engine-core** | `packages/engine-core/docs/02-workflows/UODE-score-opportunity节点与S(h)评分设计.md` | L3+**L4**+**UODE 代理** | score_opportunity、权重拉取、生成时 pending 向量、审核后 finalizeReview |
 | **wangye 平台** | `docs/02-ai-opportunity/UODE-平台主动学习闭环与机会仪表盘设计方案.md` | L6+**L7** | 人工审核 UI、Article 真源、调 engine-core finalize；**不持** `DATA_PLATFORM_ADMIN_KEY` |
 
@@ -115,9 +116,11 @@ calibrateWeights() → opportunity_weights
 ## 实施依赖顺序
 
 ```
-data-platform G1（industry_tag + Admin Bearer + /search?industry=）
+data-platform G1 读路径（034 + search + sync）✅
     │
-data-platform U1（034 迁移 + domainSignal + /distance + adapter 透传）
+data-platform G1-5 写 industry_tag + U-L1 行业 collect  ← 本子包下一优先
+    │
+data-platform U1（domainSignal + 向量）✅
     │
     ├─ 并行 → engine-core E1（score_opportunity + 自拉权重 + pending upsert）
     │              │
@@ -145,3 +148,4 @@ data-platform U2（035–037 迁移 + /report + /weights 鉴权分级 + 校准�
 | v1.2 | 2026-05-22 | **架构重构**：L5 校准移入 data-platform；多 Agent 评审团升为 engine-core Phase 2；wangye 平台收窄为薄 Shell |
 | v1.3 | 2026-05-22 | **勘误**：链 L2 详案；跨仓库常量表；依赖图增 **G1**；迁移 **034–036**；冷启动 N=50；校准触发与样本门槛 |
 | v1.4 | 2026-05-22 | **职责再划**：UODE 写路径与 `DATA_PLATFORM_ADMIN_KEY` 收敛至 engine-core；wangye 仅 L6 决策 + 调 `finalizeOpportunityReview`；闭环图与依赖顺序同步 |
+| v1.5 | 2026-05-22 | 依赖图增 **G1-5 + U-L1**；三仓库表增 L1 前置专篇 |
