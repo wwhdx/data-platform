@@ -1,7 +1,7 @@
 # UODE · data-platform — L2 认知信号、机会向量与 L5 权重校准设计方案
 
-> **状态**：部分落地（G1 读 ✅ / **G1-5·U-L1 □** · U1/U2 ✅；跨仓 E1/E3/P1/P2 待实施）  
-> **版本**：v1.4.2（2026-05-22）  
+> **状态**：部分落地（G1 读 ✅ · **G1-5 ✅** · **U-L1 🟡**（macro 灌库 ✅ / text 验收中）· U1/U2 ✅；跨仓 E1/E3/P1/P2 待实施）  
+> **版本**：v1.4.3（2026-05-22）  
 > **仓库**：`packages/data-platform`  
 > **职责层**：UODE L1（现有）+ **L2 认知信号**（本方案）+ **L5 权重校准**（本方案）  
 > **进度真源**：[实施进度总览.md](./实施进度总览.md)（落地后追加 U1/U2 条目）  
@@ -34,7 +34,7 @@
 ```
 UODE 七层栈          data-platform 职责
 ────────────────────────────────────────────────────────────
-L1 数据层      ✅ 现有：29+ Connector，pgvector；🟡 `industry_tag` 见 G 轨
+L1 数据层      ✅ 现有：29+ Connector，pgvector；`industry_tag` G1-5 ✅ · U-L1 灌库 🟡
 L2 认知层      ⬅ U1：domainSignal（趋势、引用热度）+ opportunity_vectors
 L5 闭环层      ⬅ U2：opportunity_outcomes 表 + calibrateWeights() + 权重 API
 L3/L4/L6/L7   不涉及
@@ -660,3 +660,4 @@ curl http://localhost:3400/api/opportunity-weights/医疗 \
 | v1.4 | 2026-05-22 | **职责再划**：调用方改为 engine-core 代理；§5.4 鉴权分级；`ADMIN_KEY` 不进入 wangye；U2-0 权重 GET 内网可读；闭环依赖 E3 非 P1 权重注入 |
 | v1.4.1 | 2026-05-22 | **U2-0 落地**：`GET /opportunity-weights/:tag` 去掉 Admin Key；实施进度 §2.7 同步 |
 | v1.4.2 | 2026-05-22 | §1.1 链 [UODE-L1行业数据采集前置方案.md](./UODE-L1行业数据采集前置方案.md)；G1-5 缺口勘误 |
+| v1.4.3 | 2026-05-22 | **U-L1-A1** 宏观虚拟源落地；§状态 U-L1 🟡（macro ✅ / text 待验收） |

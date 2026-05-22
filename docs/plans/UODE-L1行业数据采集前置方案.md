@@ -1,7 +1,7 @@
 # UODE · L1 行业数据采集前置方案
 
-> **状态**：部分落地（试点 医疗/能源；待 collect 灌库验收）  
-> **版本**：v1.0（2026-05-22）  
+> **状态**：部分落地（宏观灌库 ✅ · text collect 验收中）  
+> **版本**：v1.2（2026-05-22）  
 > **进度真源**：[实施进度总览.md](./实施进度总览.md) §2.8（G1-5）· §2.7（U-L1）  
 > **关联**：[UODE-data-platform-L2信号与机会向量设计方案.md](./UODE-data-platform-L2信号与机会向量设计方案.md) §1.1 · [行业维度接入设计方案.md](./行业维度接入设计方案.md) · [树形API数据源完备采集方法论.md](../knowledge/树形API数据源完备采集方法论.md)  
 > **文档地图** → [README.md](../README.md)
@@ -14,7 +14,7 @@
 
 UODE L2 的 `domainSignal.trendScore` / `recentDocCount` 与 `/api/search?industry=` 过滤，均依赖 `raw_documents.industry_tag` 与非空行业语料密度。**L0 目录完备 ≠ L1 有信号**（见 L2 详案 §1.1）。
 
-当前 HEAD（2026-05-22）：
+当前 HEAD（2026-05-22，`pnpm cli industry coverage`）：
 
 | 能力 | 状态 |
 |------|------|
@@ -23,9 +23,12 @@ UODE L2 的 `domainSignal.trendScore` / `recentDocCount` 与 `/api/search?indust
 | `POST /api/admin/industry-tags/sync` | ✅ |
 | 采集入库写 `industry_tag` | ✅ G1-5：`rawDocument.ts` · `types.ts` · `chunk` 继承 |
 | `sources.yml` / 树形 YAML `industry_tag` 消费 | ✅ G1-5d/e：`config/expand` · `collect/industryTag` · 树形 connector |
-| 按行业 query 的弱信号 collect | ✅ U-L1-5：`pubmed_医疗` · `openalex_能源` + `schedule.query` |
+| 弱信号虚拟源 + query collect | ✅ U-L1-5：`pubmed_医疗` · `openalex_能源` |
+| 宏观虚拟源 + indicator 白名单 | ✅ **U-L1-A1**：`worldbank_医疗` · `worldbank_indicator_codes` |
+| 试点 macro 灌库 | ✅ 医疗 56/10 · 能源 298/10 |
+| 试点 text 灌库 | 🟡 医疗 20/50 · 能源 0/50 |
 
-**后果**：对任意 `industry=医疗` 请求，库内 tagged 文档≈0 → 行业 trend 无效、检索空、engine-core D(h) 只能降级全局。
+**剩余缺口**：弱信号 text 未达 50 条/行业 → 行业 strict 检索与 trend 仍偏弱；完成 A2/A3 collect 后跑 §四 完成定义。
 
 ### 1.2 目标（U-L1）
 
@@ -48,7 +51,7 @@ UODE L2 的 `domainSignal.trendScore` / `recentDocCount` 与 `/api/search?indust
 
 ## 二、前置依赖：G1-5 写路径
 
-U-L1 **硬依赖** [行业维度方案](./行业维度接入设计方案.md) Phase 1 中尚未落地的打标链路（实施进度 **G1-5**）。
+U-L1 **硬依赖** [行业维度方案](./行业维度接入设计方案.md) Phase 1 打标链路（实施进度 **G1-5** ✅）。
 
 | 任务 | 文件 | 说明 |
 |------|------|------|
@@ -77,8 +80,9 @@ defaults:
 industries:
   医疗:
     macro:
-      source: worldbank          # 二选一
-      tier: A                    # 仅 collect_enabled Tier A 且 YAML 行含 industry_tag: 医疗
+      source: worldbank          # coverage 计数用 connector id
+      virtual_source_id: worldbank_医疗   # 宏观虚拟源（勿用全库 worldbank cron）
+      tier: A                    # worldbank_indicator_codes 白名单 + industry_tag
     text:
       source: pubmed
       queries:
@@ -102,7 +106,7 @@ industries:
 
 1. 仅对 `industry_tags` 中 `is_active=true` 且本文件有条目的行业注册 collect。
 2. 行业名字符串与 wangye `SourceCategory` / `syncIndustryTags` payload **逐字一致**（实施前拉对照表）。
-3. `macro.source` 每行业唯一；树形 YAML 行上填 `industry_tag`（取消注释），由 G1-5e 写入文档。
+3. `macro.source` 每行业唯一；**医疗**须用 `worldbank_医疗` 虚拟源（`worldbank_indicator_codes`），避免全库 cron 被 GDP 指标占满 `collect_max_items`。
 
 ---
 
@@ -125,7 +129,7 @@ industries:
 | ID | 任务 | 落点 |
 |----|------|------|
 | U-L1-4 | 新增 `config/industry-l1.yml` + `loadIndustryL1Config()` | `src/config/industryL1.ts` |
-| U-L1-5 | **方案 A（推荐）**：`sources.yml` 增虚拟源实例，如 `openalex_医疗`（`connector: openalex` + `industry_tag` + `schedule.query`） | `config/sources.yml` + B13 bootstrap |
+| U-L1-5 | **方案 A（推荐）**：`sources.yml` 增虚拟源（text：`pubmed_医疗`/`openalex_能源`；macro：**`worldbank_医疗`**） | `config/sources.yml` + B13 bootstrap |
 | U-L1-6 | **方案 B（备选）**：scheduler job `industry-l1-text-collect` 读 YAML 调 `collect` | `src/scheduler/industryL1Schedule.ts` |
 | U-L1-7 | 禁止将现有全库 `openalex` cron 当作 U-L1；必须 query + tag 双约束 | 文档 + YAML 审查 |
 
@@ -165,9 +169,10 @@ curl -s -X POST localhost:3400/api/search \
 | 源级 tag | `config/sources.yml` · `config/expand.ts` | ✅ G1-5d |
 | 树形 catalog tag | `worldbank`/`fred`/`eia`/`imf`/`ecb`/`eurostat`/`oecd` | ✅ G1-5e（YAML 行取消注释即生效） |
 | 行业 L1 策略 | `config/industry-l1.yml` · `src/config/industryL1.ts` | ✅ U-L1-4 |
-| 弱信号虚拟源 | `config/sources.yml` · `registerVirtualConnectors` | ✅ U-L1-5 |
+| 宏观虚拟源 | `worldbank_医疗` · `worldbank_indicator_codes` | ✅ **U-L1-A1** |
+| 弱信号虚拟源 | `pubmed_医疗`/`openalex_能源` · `registerVirtualConnectors` | ✅ U-L1-5 |
 | 覆盖率 | `pnpm cli industry coverage` · `GET /api/admin/industry-coverage` | ✅ U-L1-8 |
-| backfill 子集 | `pnpm cli industry backfill` | 🟡 U-L1-9 |
+| backfill 子集 | `pnpm cli industry backfill` | 🟡 U-L1-9（不含 worldbank catalog 映射） |
 
 ---
 
@@ -178,6 +183,7 @@ curl -s -X POST localhost:3400/api/search \
 | 行业名与 wangye 不一致 | sync 前对照表；coverage CLI 暴露「active 但 YAML 缺失」 |
 | 宏观 JSON 全文索引弱，trend 分偏低 | U-L1 验收以 **text 通道**为主；宏观主要供过滤与结构化背景 |
 | 存量文档无 tag | 试点行业 targeted collect + 可选 backfill |
+| 全库 worldbank cron 采不到 health 指标 | **U-L1-A1**：`worldbank_医疗` + `worldbank_indicator_codes` 白名单 |
 | 重复采集五宏观源 | `industry-l1.yml` 强制每行业 `macro.source` 单选 |
 
 ---
@@ -205,3 +211,4 @@ U-L1 coverage 验收（0.5d）        ← E1 行业联调前建议完成
 | v1.0 | 2026-05-22 | 初稿：G1-5 缺口评估、四阶段 U-L1、`industry-l1.yml` schema、任务 U-L1-1～10 |
 | v1.0.1 | 2026-05-22 | **G1-5** 代码落地，§一/§五 状态同步 |
 | v1.1 | 2026-05-22 | **U-L1-1～10** 试点落地：industry-l1.yml、虚拟源、coverage CLI/API、单测 |
+| v1.2 | 2026-05-22 | **U-L1-A1** `worldbank_医疗` 宏观虚拟源 + `worldbank_indicator_codes`；§一 coverage 快照；医疗 macro 灌库 56/10 |

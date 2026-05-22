@@ -118,11 +118,13 @@ calibrateWeights() → opportunity_weights
 ```
 data-platform G1 读路径（034 + search + sync）✅
     │
-data-platform G1-5 写 industry_tag + U-L1 行业 collect  ← 本子包下一优先
+data-platform G1-5 + U-L1 代码 ✅（macro 灌库 ✅ · text 验收中）
+    │
+    ├─ 待 A2/A3 text collect → coverage `l1Ready`
     │
 data-platform U1（domainSignal + 向量）✅
     │
-    ├─ 并行 → engine-core E1（score_opportunity + 自拉权重 + pending upsert）
+    ├─ 并行 → engine-core E1（score_opportunity + 自拉权重 + pending upsert）← **U-L1 text 达标后联调**
     │              │
     │         engine-core E2（多 Agent 评审团）
     │              │
@@ -149,3 +151,4 @@ data-platform U2（035–037 迁移 + /report + /weights 鉴权分级 + 校准�
 | v1.3 | 2026-05-22 | **勘误**：链 L2 详案；跨仓库常量表；依赖图增 **G1**；迁移 **034–036**；冷启动 N=50；校准触发与样本门槛 |
 | v1.4 | 2026-05-22 | **职责再划**：UODE 写路径与 `DATA_PLATFORM_ADMIN_KEY` 收敛至 engine-core；wangye 仅 L6 决策 + 调 `finalizeOpportunityReview`；闭环图与依赖顺序同步 |
 | v1.5 | 2026-05-22 | 依赖图增 **G1-5 + U-L1**；三仓库表增 L1 前置专篇 |
+| v1.6 | 2026-05-22 | 依赖图：**U-L1-A1** macro ✅；E1 联调门闸改为 text coverage 达标 |
