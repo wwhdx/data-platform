@@ -20,6 +20,10 @@ export interface SearchProviderResult {
 export interface SearchProviderOptions {
   maxResults?: number;
   timeRange?: "day" | "week" | "month" | "year";
+  /** 望野行业标签，透传 POST /api/search（L2 D(h) 上游） */
+  industry?: string;
+  /** 为 true 时仅检索该行业语料 */
+  industryStrict?: boolean;
   signal?: AbortSignal;
 }
 
@@ -36,9 +40,12 @@ export function createDataPlatformSearchProvider(
   return {
     id: "data-platform",
     search: async (query, opts) => {
+      const industry = opts?.industry?.trim();
       const results = await client.search({
         query,
         maxResults: opts?.maxResults,
+        ...(industry ? { industry } : {}),
+        ...(opts?.industryStrict === true ? { industryStrict: true } : {}),
         signal: opts?.signal,
       });
       return results.map((r) => ({
