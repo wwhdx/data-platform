@@ -134,6 +134,8 @@ export const IMPLEMENTED_CONNECTOR_IDS = [
   "opencitations",
   "eurostat",
   "oecd",
+  "imf",
+  "ecb",
   "uniprot",
   "wipo",
 ] as const;

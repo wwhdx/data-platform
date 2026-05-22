@@ -1,0 +1,17 @@
+{
+  "data": {
+    "dataflows": [
+      {
+        "id": "WEO",
+        "agencyID": "IMF.RES",
+        "name": "World Economic Outlook (WEO)",
+        "description": "WEO macro projections"
+      },
+      {
+        "id": "CPI",
+        "agencyID": "IMF.STA",
+        "name": "Consumer Price Index (CPI)"
+      }
+    ]
+  }
+}

@@ -505,6 +505,38 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 | 增量 | **`--since` 不参与 API 过滤**（仅写入 provenance；蛋白库无日期增量语义） |
 | YAML | `enabled: false` |
 
+### 6.8 IMF（轨 T+）
+
+| 字段 | 值 |
+|------|-----|
+| Base URL | `https://api.imf.org/external/sdmx/3.0/` |
+| 认证 | 无（**10 req/5s/IP**） |
+| 目录 | `GET /structure/dataflow?references=none`（`Accept: application/json`，约 **193** dataflow） |
+| 数据 | `GET /data/dataflow/{agency}/{flowId}/+/{key}?dimensionAtObservation=TIME_PERIOD&includeHistory=false` |
+| 代码 | `src/connectors/imf.ts` · `imf/` · `imfHelpers.ts` |
+| L1 清单 | `config/imf-series.yml`（Tier A：**6** 条 WEO；`IMF_TIER_FILTER`） |
+| CLI | `pnpm cli imf catalog sync` · `catalog list [--agency IMF]` |
+| ENV | `IMF_CATALOG_SYNC_ENABLED` · `IMF_CATALOG_CRON`（默认 `0 9 * * 0`） |
+| 验证 | `node scripts/verify-imf-series.mjs` |
+| RAG | `indicator`（WEO GDP/CPI/失业等；与 `fred`/`worldbank` 显式去重） |
+| YAML | `enabled: true`（`collect_max_items: 10`） |
+
+### 6.9 ECB（轨 T+）
+
+| 字段 | 值 |
+|------|-----|
+| Base URL | `https://data-api.ecb.europa.eu/service/` |
+| 认证 | 无 |
+| 目录 | `GET /dataflow/ECB?references=none`（SDMX structure XML，约 **103** dataflow） |
+| 数据 | `GET /data/{flowId}/{seriesKey}?format=jsondata&detail=dataonly&lastNObservations=1` |
+| 代码 | `src/connectors/ecb.ts` · `ecb/` · `ecbHelpers.ts` |
+| L1 清单 | `config/ecb-series.yml`（Tier A：**5** 条 EXR；`ECB_TIER_FILTER`） |
+| CLI | `pnpm cli ecb catalog sync` · `catalog list` |
+| ENV | `ECB_CATALOG_SYNC_ENABLED` · `ECB_CATALOG_CRON`（默认 `0 10 * * 0`） |
+| 验证 | `node scripts/verify-ecb-series.mjs` |
+| RAG | `indicator`（汇率 EXR 等） |
+| YAML | `enabled: true`（`collect_max_items: 10`） |
+
 ---
 
 ## 附录 B：已接入源配额与速率限制评估

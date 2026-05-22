@@ -555,6 +555,46 @@ sources:
       oecd_catalog_sync_enabled: true
       oecd_catalog_cron: "0 7 * * 0"
 
+  # role: primary | collect: main | cluster: macro_indicator
+  # 轨 T+ P1 · SDMX 3.0（与 fred/worldbank/oecd 按 series 显式去重）
+  - id: imf
+    profile: sdmx_json
+    name: IMF
+    enabled: true
+    base_url: https://api.imf.org/external/sdmx/3.0/
+    rate_limit: "10 req/5s per IP"
+    license: "IMF Terms of Use"
+    commercial_use: true
+    schedule: "0 3 * * 0"
+    description: "IMF WEO/CPI/BOP 等（SDMX 3.0 L0+L1）"
+    options:
+      default_collect_query: gdp
+      collect_max_items: 10
+      imf_series_file: config/imf-series.yml
+      imf_tier_filter: "A,B"
+      imf_catalog_sync_enabled: true
+      imf_catalog_cron: "0 9 * * 0"
+
+  # role: primary | collect: main | cluster: macro_indicator
+  # 轨 T+ P1 · ECB SDMX（EXR 等）
+  - id: ecb
+    profile: sdmx_json
+    name: ECB
+    enabled: true
+    base_url: https://data-api.ecb.europa.eu/service/
+    rate_limit: "polite (~2/sec)"
+    license: "ECB Data Policy"
+    commercial_use: true
+    schedule: "0 3 * * 0"
+    description: "欧洲央行 SDMX 序列（L0 dataflow + YAML Tier A）"
+    options:
+      default_collect_query: exchange
+      collect_max_items: 10
+      ecb_series_file: config/ecb-series.yml
+      ecb_tier_filter: "A,B"
+      ecb_catalog_sync_enabled: true
+      ecb_catalog_cron: "0 10 * * 0"
+
   # role: primary | collect: main | cluster: pharma_vertical
   # 波次 8+ · 默认 disabled；UniProt REST（与 pubchem 同属生物分子真源）
   - id: uniprot

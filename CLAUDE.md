@@ -192,6 +192,12 @@ psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.
 | `OECD_CATALOG_CRON` | 否 | 默认 `0 7 * * 0` |
 | `WORLDBANK_CATALOG_SYNC_ENABLED` | 否 | `1`/`true` 时注册 `worldbank-catalog-sync`（YAML `worldbank_catalog_sync_enabled`） |
 | `WORLDBANK_CATALOG_CRON` | 否 | 默认 `0 8 * * 0` |
+| `IMF_CATALOG_SYNC_ENABLED` | 否 | `1`/`true` 时注册 `imf-catalog-sync`（YAML `imf_catalog_sync_enabled`） |
+| `IMF_CATALOG_CRON` | 否 | 默认 `0 9 * * 0` |
+| `IMF_TIER_FILTER` | 否 | 逗号分隔 Tier，如 `A,B` |
+| `ECB_CATALOG_SYNC_ENABLED` | 否 | `1`/`true` 时注册 `ecb-catalog-sync`（YAML `ecb_catalog_sync_enabled`） |
+| `ECB_CATALOG_CRON` | 否 | 默认 `0 10 * * 0` |
+| `ECB_TIER_FILTER` | 否 | 逗号分隔 Tier，如 `A,B` |
 | `EIA_COLLECT_MODE` | 否 | `snapshot`（默认）或 `backfill` |
 | `EIA_TIER_FILTER` | 否 | 逗号分隔 Tier，如 `A,B` |
 | `EIA_BACKFILL_ROUTE` | 否 | 手动 backfill 单 route（CLI/调试） |

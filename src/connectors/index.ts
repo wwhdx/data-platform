@@ -43,6 +43,8 @@ export {
 export { EiaConnector, EIA_META } from "./eia";
 export { EurostatConnector, EUROSTAT_META } from "./eurostat";
 export { OecdConnector, OECD_META } from "./oecd";
+export { ImfConnector, IMF_META } from "./imf";
+export { EcbConnector, ECB_META } from "./ecb";
 export { UniprotConnector, UNIPROT_META } from "./uniprot";
 export { WipoConnector, WIPO_META } from "./wipo";
 export { resolveConnectorConfig } from "./factory";

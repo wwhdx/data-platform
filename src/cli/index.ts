@@ -1660,6 +1660,10 @@ function printHelp() {
   data-platform fred catalog list --top Money
   data-platform oecd catalog sync
   data-platform oecd catalog list --agency OECD.SDD
+  data-platform imf catalog sync
+  data-platform imf catalog list --agency IMF
+  data-platform ecb catalog sync
+  data-platform ecb catalog list
   data-platform worldbank catalog sync
   data-platform worldbank catalog list --topic 3
   data-platform serve --port 3400
@@ -1730,6 +1734,12 @@ async function main(): Promise<void> {
       break;
     case "oecd":
       await (await import("./oecdCommands")).cmdOecd(rest);
+      break;
+    case "imf":
+      await (await import("./imfCommands")).cmdImf(rest);
+      break;
+    case "ecb":
+      await (await import("./ecbCommands")).cmdEcb(rest);
       break;
     case "worldbank":
       await (await import("./worldbankCommands")).cmdWorldbank(rest);

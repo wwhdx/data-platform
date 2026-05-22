@@ -3,6 +3,8 @@ import { EiaConnector, EIA_META } from "../connectors/eia";
 import { EurostatConnector, EUROSTAT_META } from "../connectors/eurostat";
 import { FredConnector, FRED_META } from "../connectors/fred";
 import { OecdConnector, OECD_META } from "../connectors/oecd";
+import { ImfConnector, IMF_META } from "../connectors/imf";
+import { EcbConnector, ECB_META } from "../connectors/ecb";
 import { WorldBankConnector, WORLD_BANK_META } from "../connectors/worldbank";
 import { resolveConnectorConfig } from "../connectors/factory";
 import type { ConnectorConfig, ConnectorMeta } from "../types";
@@ -104,6 +106,32 @@ const TREE_CATALOG_SPECS: TreeCatalogSourceSpec[] = [
     createConnector: (cfg) => new WorldBankConnector(cfg),
     formatDone: (r) =>
       `${r.indicators} indicators, topics=${r.topics}, yamlMissing=${r.yamlMissing}`,
+  },
+  {
+    sourceId: "imf",
+    taskId: "imf-catalog-sync",
+    meta: IMF_META,
+    envEnabled: "IMF_CATALOG_SYNC_ENABLED",
+    yamlEnabledKey: "imf_catalog_sync_enabled",
+    envCron: "IMF_CATALOG_CRON",
+    yamlCronKey: "imf_catalog_cron",
+    defaultCron: "0 9 * * 0",
+    createConnector: (cfg) => new ImfConnector(cfg),
+    formatDone: (r) =>
+      `${r.dataflows} dataflows, imfAgency=${r.imfAgency}, yamlMissing=${r.yamlMissing}`,
+  },
+  {
+    sourceId: "ecb",
+    taskId: "ecb-catalog-sync",
+    meta: ECB_META,
+    envEnabled: "ECB_CATALOG_SYNC_ENABLED",
+    yamlEnabledKey: "ecb_catalog_sync_enabled",
+    envCron: "ECB_CATALOG_CRON",
+    yamlCronKey: "ecb_catalog_cron",
+    defaultCron: "0 10 * * 0",
+    createConnector: (cfg) => new EcbConnector(cfg),
+    formatDone: (r) =>
+      `${r.dataflows} dataflows, yamlMissing=${r.yamlMissing}`,
   },
 ];
 

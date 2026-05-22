@@ -45,6 +45,8 @@ import {
 import { EiaConnector, EIA_META } from "./eia";
 import { EurostatConnector, EUROSTAT_META } from "./eurostat";
 import { OecdConnector, OECD_META } from "./oecd";
+import { ImfConnector, IMF_META } from "./imf";
+import { EcbConnector, ECB_META } from "./ecb";
 import { UniprotConnector, UNIPROT_META } from "./uniprot";
 import { WipoConnector, WIPO_META } from "./wipo";
 import { OPENALEX_META } from "./openalex";
@@ -79,6 +81,8 @@ export {
   EIA_META,
   EUROSTAT_META,
   OECD_META,
+  IMF_META,
+  ECB_META,
   UNIPROT_META,
   WIPO_META,
 };
@@ -112,6 +116,8 @@ export const REGISTERED_CONNECTOR_IDS = [
   "eia",
   "eurostat",
   "oecd",
+  "imf",
+  "ecb",
   "uniprot",
   "wipo",
 ] as const;
@@ -235,6 +241,12 @@ export async function registerDefaultConnectors(
   const oecd = new OecdConnector(
     await resolveConnectorConfig("oecd", OECD_META),
   );
+  const imf = new ImfConnector(
+    await resolveConnectorConfig("imf", IMF_META),
+  );
+  const ecb = new EcbConnector(
+    await resolveConnectorConfig("ecb", ECB_META),
+  );
   const uniprot = new UniprotConnector(
     await resolveConnectorConfig("uniprot", UNIPROT_META),
   );
@@ -287,6 +299,8 @@ export async function registerDefaultConnectors(
   scheduler.registerConnector({ id: "eia", create: () => eia });
   scheduler.registerConnector({ id: "eurostat", create: () => eurostat });
   scheduler.registerConnector({ id: "oecd", create: () => oecd });
+  scheduler.registerConnector({ id: "imf", create: () => imf });
+  scheduler.registerConnector({ id: "ecb", create: () => ecb });
   scheduler.registerConnector({ id: "uniprot", create: () => uniprot });
   scheduler.registerConnector({ id: "wipo", create: () => wipo });
 }

@@ -1,0 +1,33 @@
+# ECB Tier A/B 采集清单（SDMX jsondata；Git 真源）
+# 运行 pnpm cli ecb catalog sync；node scripts/verify-ecb-series.mjs
+series:
+  - flowId: EXR
+    key: D.USD.EUR.SP00.A
+    tier: A
+    collect_enabled: true
+    title: USD/EUR daily exchange rate
+    # industry_tag: 汇率
+
+  - flowId: EXR
+    key: M.USD.EUR.SP00.A
+    tier: A
+    collect_enabled: true
+    title: USD/EUR monthly exchange rate
+
+  - flowId: EXR
+    key: D.GBP.EUR.SP00.A
+    tier: A
+    collect_enabled: true
+    title: GBP/EUR daily exchange rate
+
+  - flowId: EXR
+    key: D.JPY.EUR.SP00.A
+    tier: A
+    collect_enabled: true
+    title: JPY/EUR daily exchange rate
+
+  - flowId: EXR
+    key: D.CHF.EUR.SP00.A
+    tier: B
+    collect_enabled: true
+    title: CHF/EUR daily exchange rate

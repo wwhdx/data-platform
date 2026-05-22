@@ -1,0 +1,47 @@
+# IMF Tier A/B 采集清单（SDMX 3.0；Git 真源）
+# 运行 pnpm cli imf catalog sync 后用 L0 校验；node scripts/verify-imf-series.mjs
+series:
+  - agency: IMF.RES
+    flowId: WEO
+    key: USA.NGDP_RPCH.A
+    tier: A
+    collect_enabled: true
+    title: US Real GDP growth (WEO)
+    # industry_tag: 国民经济
+
+  - agency: IMF.RES
+    flowId: WEO
+    key: CHN.NGDP_RPCH.A
+    tier: A
+    collect_enabled: true
+    title: China Real GDP growth (WEO)
+
+  - agency: IMF.RES
+    flowId: WEO
+    key: DEU.NGDP_RPCH.A
+    tier: A
+    collect_enabled: true
+    title: Germany Real GDP growth (WEO)
+
+  - agency: IMF.RES
+    flowId: WEO
+    key: USA.PCPIPCH.A
+    tier: A
+    collect_enabled: true
+    title: US CPI inflation (WEO)
+    # industry_tag: 价格
+
+  - agency: IMF.RES
+    flowId: WEO
+    key: USA.LUR.A
+    tier: A
+    collect_enabled: true
+    title: US unemployment rate (WEO)
+    # industry_tag: 劳动
+
+  - agency: IMF.RES
+    flowId: WEO
+    key: JPN.NGDP_RPCH.A
+    tier: B
+    collect_enabled: true
+    title: Japan Real GDP growth (WEO)
