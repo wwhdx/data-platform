@@ -220,7 +220,7 @@ psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.
 | `UNPAYWALL_MAX_PER_JOB` | 否 | 每批 dedup 最多富化篇数（默认 50） |
 | `UNPAYWALL_MIN_INTERVAL_MS` | 否 | Unpaywall 请求间隔（默认 200） |
 | `PORT` | 否 | 服务端口（默认 3400） |
-| `DATA_PLATFORM_ADMIN_KEY` | 是（UODE/G 轨 Admin API） | Bearer 鉴权：`/api/opportunity-*`、`/api/admin/industry-tags/sync` |
+| `DATA_PLATFORM_ADMIN_KEY` | 是（data-platform 服务端 + engine-core UODE runtime） | Bearer 鉴权 Admin 写路由；**wangye 主平台不配置**（UODE 闭环经 engine-core） |
 | `OPPORTUNITY_WEIGHTS_CRON` | 否 | S(h) 权重周校准 cron（默认 `0 2 * * 0`） |
 | `ARXIV_FULLTEXT_ENABLED` | 否 | `1`/`true` 时 `arxiv_oai` 采集后同步拉 HTML 写入 `raw_json.fulltext`（`processors/arxivFulltext.ts`） |
 | `ARXIV_FULLTEXT_MAX_PER_JOB` | 否 | 每批 dedup 最多补全文篇数（默认 50） |

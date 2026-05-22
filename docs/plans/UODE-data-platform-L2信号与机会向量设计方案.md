@@ -1,7 +1,7 @@
 # UODE · data-platform — L2 认知信号、机会向量与 L5 权重校准设计方案
 
 > **状态**：设计草案（待实施）  
-> **版本**：v1.2（2026-05-22，勘误）  
+> **版本**：v1.4（2026-05-22）  
 > **仓库**：`packages/data-platform`  
 > **职责层**：UODE L1（现有）+ **L2 认知信号**（本方案）+ **L5 权重校准**（本方案）  
 > **进度真源**：[实施进度总览.md](./实施进度总览.md)（落地后追加 U1/U2 条目）  
@@ -52,15 +52,16 @@ L3/L4/L6/L7   不涉及
 
 详见 [树形API数据源完备采集方法论.md](../knowledge/树形API数据源完备采集方法论.md) Tier 策略。
 
-**职责摘要**：data-platform 是 UODE 的**数据与智能层**。engine-core 消费它的信号计算 S(h)，wangye 平台向它上报审核结果，它完成校准后对外提供最新权重。三方之间**无循环依赖**，所有数据流单向：
+**职责摘要**：data-platform 是 UODE 的**数据与智能层**。engine-core 消费信号计算 S(h)，并经 **UODE 编排代理**写入 outcome / 向量；wangye 仅做人审决策，**不持** `DATA_PLATFORM_ADMIN_KEY`。三方**无循环依赖**，数据流单向：
 
 ```
 data-platform (L1+L2+L5)
-    ↑ POST /api/opportunity-outcomes/report  ← 平台上报审核结果
-    ↓ GET  /api/opportunity-weights/{tag}    → 平台读取最新权重
-    ↓ GET  /api/search                       → engine-core 消费（含 domainSignal）
-    ↓ POST /api/opportunity-vectors/distance → engine-core 查 N(h)
-    ↑ POST /api/opportunity-vectors/upsert   ← 平台推送已验证向量
+    ↑ POST /api/opportunity-outcomes/report      ← engine-core（审核 finalize）
+    ↑ POST /api/opportunity-vectors/upsert       ← engine-core（生成 pending；finalize validated）
+    ↓ GET  /api/opportunity-weights/{tag}        → engine-core（score_opportunity 自拉）
+    ↓ GET  /api/search                           → engine-core（含 domainSignal）
+    ↓ POST /api/opportunity-vectors/distance     → engine-core 查 N(h)（无 Admin Key）
+    ↑ POST /api/admin/industry-tags/sync         ← engine-core 代理（可选，主包触发）
 ```
 
 ---
@@ -472,15 +473,15 @@ if (rows[0].n >= threshold) {
 
 | 接口 | 方法 | 用途 |
 |------|------|------|
-| `/api/opportunity-vectors/distance` | POST | N(h) 新颖性查询（engine-core 消费）|
-| `/api/opportunity-vectors/upsert`   | POST | 写入已验证机会向量（平台推送）|
-| `/api/opportunity-vectors/stats`    | GET  | 向量库统计（管理用）|
+| `/api/opportunity-vectors/distance` | POST | N(h) 新颖性查询（engine-core；**无 Admin Key**）|
+| `/api/opportunity-vectors/upsert`   | POST | 写入机会向量（engine-core；生成 `pending`，finalize `validated`）|
+| `/api/opportunity-vectors/stats`    | GET  | 向量库统计（运维；Admin Key）|
 
 ### 5.2 新增接口（U2，校准层）
 
 #### POST /api/opportunity-outcomes/report
 
-**调用方**：wangye 平台（审核操作后异步调用）
+**调用方**：**engine-core**（`finalizeOpportunityReview`；wangye 审核后仅调 engine-core，不直连本接口）
 
 ```
 POST /api/opportunity-outcomes/report
@@ -503,11 +504,11 @@ Response 200:
 
 #### GET /api/opportunity-weights/:industryTag
 
-**调用方**：wangye 平台（构造 EngineEnv 时读取）
+**调用方**：**engine-core**（`score_opportunity` 节点启动时自拉；见 §5.4 鉴权分级）
 
 ```
 GET /api/opportunity-weights/医疗
-Authorization: Bearer ${DATA_PLATFORM_ADMIN_KEY}
+Authorization: （内网可读，或 Bearer ${DATA_PLATFORM_ADMIN_KEY} — 见 §5.4）
 
 Response 200:
 {
@@ -542,7 +543,20 @@ Response 200:
 }
 ```
 
-### 5.3 路由注册
+### 5.4 鉴权分级（v1.4）
+
+| 路由 | Admin Key | 调用方 | 说明 |
+|------|-----------|--------|------|
+| `POST /distance` | 否 | engine-core | 内网或 Docker 隔离即可 |
+| `GET /opportunity-weights/:tag` | **否**（内网可读）| engine-core | 只读默认/校准权重；history 仍要 Key |
+| `POST /vectors/upsert` | 是 | **仅 engine-core** | 生成 `pending` + finalize 改 status |
+| `POST /outcomes/report` | 是 | **仅 engine-core** | 审核闭环；payload 含生成时已存的五分量 |
+| `GET /vectors/stats`、`/weights/.../history` | 是 | 运维 / CLI | — |
+| `POST /admin/industry-tags/sync` | 是 | engine-core 代理 | wangye 调 `syncIndustryTags()`，不持 Key |
+
+**密钥归属**：`DATA_PLATFORM_ADMIN_KEY` 配置在 **data-platform 服务端**与 **engine-core runtime**（同进程注入 wangye 服务端亦可，但 **wangye `.env` 不再声明此变量**）。
+
+### 5.5 路由注册
 
 **文件**：`src/api/server.ts`
 
@@ -574,7 +588,7 @@ app.register(opportunityWeightsRoutes,  { prefix: "/api/opportunity-weights" });
 
 | 变量 | 用途 | 状态 |
 |------|------|------|
-| `DATA_PLATFORM_ADMIN_KEY` | Bearer 鉴权 UODE 新路由 | **G1 同批落地**（当前 `admin` 路由无 key 校验）|
+| `DATA_PLATFORM_ADMIN_KEY` | Bearer 鉴权 Admin 写路由 | **G1 已落地**；持有方：**data-platform + engine-core runtime**（wangye 主平台不配置）|
 | `EMBED_BACKEND` / `EMBED_MODEL` | 向量维度须与表一致（默认 ollama **1024**）| 现有；改 openai 须同步 migration 维度 |
 | `OPENAI_API_KEY` | 仅当 `EMBED_BACKEND=openai` | 可选 |
 
@@ -601,10 +615,11 @@ app.register(opportunityWeightsRoutes,  { prefix: "/api/opportunity-weights" });
 | U1-5 | `src/api/server.ts` 路由注册 |
 | U1-6 | `packages/engine-core/ENGINE_CONTRACTS.md`（`domainSignal` 可选字段）|
 
-### U2 阶段：L5 校准层（依赖平台 P1 开始上报 outcome）
+### U2 阶段：L5 校准层（依赖 engine-core E3 开始上报 outcome）
 
-| 任务 | 文件 |
+| 任务 | 文件 / 说明 |
 |------|------|
+| U2-0 | `opportunityWeights.ts`：`GET /:tag` 改为内网可读（去掉 Admin Key）|
 | U2-1 | `036_opportunity_outcomes.sql` |
 | U2-2 | `037_opportunity_weights.sql` |
 | U2-3 | `src/api/routes/opportunityOutcomes.ts` |
@@ -640,3 +655,4 @@ curl http://localhost:3400/api/opportunity-weights/医疗 \
 | v1.1 | 2026-05-22 | 新增 **L5 权重校准层**（U2）：`opportunity_outcomes` 表、`opportunity_weights` 表、逻辑回归校准算法（`calibrateOpportunityWeights.ts`）、`/report` + `/weights` 接口；对应架构决策：权重校准从 wangye 平台移入 data-platform |
 | v1.3 | 2026-05-22 | **落地**：代码迁移 **034 G1 + 035–037 U 轨**（与 v1.2 勘误对齐） |
 | v1.2 | 2026-05-22 | **勘误**：迁移 **035–037**（034=G1）（避开已占用 025–027）；`vector(1024)` + `embedding_model`；`fetched_at`/`raw_json` 趋势 SQL；冷启动 **N=50**；G1 前置；`weight_snapshots` + history API；outcome UPSERT；校准触发改 `calibrated_at` 窗口；行业样本 ≥50；adapter/`types` 透传 `domainSignal`；§1.1 L1 前置 |
+| v1.4 | 2026-05-22 | **职责再划**：调用方改为 engine-core 代理；§5.4 鉴权分级；`ADMIN_KEY` 不进入 wangye；U2-0 权重 GET 内网可读；闭环依赖 E3 非 P1 权重注入 |
