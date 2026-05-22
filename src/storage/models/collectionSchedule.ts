@@ -88,11 +88,12 @@ export async function syncSchedulesToDb(
 
     await query(
       `INSERT INTO collection_schedules (source_id, cron_expr, query, enabled)
-       VALUES ($1, $2, '', $3)
+       VALUES ($1, $2, $3, $4)
        ON CONFLICT (source_id) DO UPDATE SET
          cron_expr = EXCLUDED.cron_expr,
+         query = EXCLUDED.query,
          enabled = EXCLUDED.enabled`,
-      [s.id, cron, s.enabled],
+      [s.id, cron, s.schedule_query?.trim() ?? "", s.enabled],
     );
     upserted++;
   }

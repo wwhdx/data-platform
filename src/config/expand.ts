@@ -12,6 +12,24 @@ import {
 
 export type { ValidationIssue };
 
+function parseSourceSchedule(raw: SourceConfigRaw): {
+  cron: string;
+  query: string;
+} {
+  const fallbackQuery = raw.schedule_query?.trim() ?? "";
+  if (typeof raw.schedule === "string") {
+    return { cron: raw.schedule.trim(), query: fallbackQuery };
+  }
+  if (raw.schedule && typeof raw.schedule === "object") {
+    const obj = raw.schedule as { cron?: string; query?: string };
+    return {
+      cron: (obj.cron ?? "").trim(),
+      query: (obj.query ?? fallbackQuery).trim(),
+    };
+  }
+  return { cron: "", query: fallbackQuery };
+}
+
 function isV11(file: DataPlatformConfigFile): boolean {
   return (
     file.version === "1.1" ||
@@ -78,17 +96,21 @@ function expandOneSource(
   }
 
   const industryTag = raw.industry_tag?.trim();
+  const connector = raw.connector?.trim();
+  const { cron, query: scheduleQuery } = parseSourceSchedule(raw);
   return {
     id: raw.id,
     name: raw.name,
     enabled: raw.enabled,
     ...(industryTag ? { industry_tag: industryTag } : {}),
+    ...(connector ? { connector } : {}),
     base_url,
     auth_type,
     rate_limit,
     license: raw.license,
     commercial_use: raw.commercial_use,
-    schedule: raw.schedule,
+    schedule: cron,
+    ...(scheduleQuery ? { schedule_query: scheduleQuery } : {}),
     description: raw.description,
     profile: raw.profile,
     protocol: fromProfile.protocol,
@@ -126,6 +148,9 @@ export function toFlatSourceConfig(expanded: ExpandedSourceConfig): SourceConfig
     license: expanded.license,
     commercial_use: expanded.commercial_use,
     schedule: expanded.schedule,
+    ...(expanded.schedule_query
+      ? { schedule_query: expanded.schedule_query }
+      : {}),
     description: expanded.description,
   };
 }
@@ -155,6 +180,8 @@ export function validateExpanded(
     }
   }
 
+  const rawById = new Map(file.sources.map((r) => [r.id, r]));
+
   for (const s of expanded) {
     if (!s.id) {
       issues.push({ level: "error", message: "source 缺少 id" });
@@ -164,6 +191,8 @@ export function validateExpanded(
       issues.push({ level: "error", message: `重复的 source id: ${s.id}` });
     }
     seen.add(s.id);
+    const raw = rawById.get(s.id);
+    const baseConnector = raw?.connector?.trim() || s.id;
 
     if (!s.name) {
       issues.push({ level: "error", message: `${s.id}: 缺少 name` });
@@ -188,12 +217,18 @@ export function validateExpanded(
     }
     if (
       !IMPLEMENTED_CONNECTOR_IDS.includes(
-        s.id as (typeof IMPLEMENTED_CONNECTOR_IDS)[number],
+        baseConnector as (typeof IMPLEMENTED_CONNECTOR_IDS)[number],
       )
     ) {
       issues.push({
         level: "warn",
-        message: `${s.id}: Connector 尚未实现（允许 disabled）`,
+        message: `${s.id}: Connector 尚未实现（base=${baseConnector}，允许 disabled）`,
+      });
+    }
+    if (raw?.connector && raw.connector === raw.id) {
+      issues.push({
+        level: "error",
+        message: `${s.id}: connector 不能与 id 相同`,
       });
     }
   }

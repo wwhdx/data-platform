@@ -1499,7 +1499,7 @@ async function cmdServe(args: string[]) {
     formatMaintenanceSummary,
     registerCatalogSchedules,
   } = await import("../scheduler/catalogSchedules");
-  const { registerDefaultConnectors } = await import("../connectors/bootstrap");
+  const { registerDefaultConnectors, registerVirtualConnectors } = await import("../connectors/bootstrap");
   const { loadConfig } = await import("../config/loader");
   const { syncToDb } = await import("../config/sync");
 
@@ -1511,6 +1511,12 @@ async function cmdServe(args: string[]) {
 
   const scheduler = new Scheduler();
   await registerDefaultConnectors(scheduler);
+  if (config?.file) {
+    const virtual = await registerVirtualConnectors(scheduler, config.file);
+    if (virtual.length > 0) {
+      console.log(`Virtual connectors: ${virtual.join(", ")}`);
+    }
+  }
 
   const schedules = config
     ? registerSchedulesFromConfig(scheduler, config)
@@ -1671,7 +1677,9 @@ function printHelp() {
   data-platform faostat catalog sync
   data-platform faostat catalog list
   data-platform worldbank catalog sync
-  data-platform worldbank catalog list --topic 3
+  data-platform   worldbank catalog list --topic 3
+  data-platform industry coverage --tag 医疗
+  data-platform industry validate
   data-platform serve --port 3400
   data-platform config validate
   data-platform config sync
@@ -1758,6 +1766,9 @@ async function main(): Promise<void> {
       break;
     case "worldbank":
       await (await import("./worldbankCommands")).cmdWorldbank(rest);
+      break;
+    case "industry":
+      await (await import("./industryCommands")).cmdIndustry(rest);
       break;
     case "serve":
       await cmdServe(rest);

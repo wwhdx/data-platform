@@ -1,4 +1,4 @@
-import { getSourceIndustryTag, resolveRuntimeConfig } from "../config/runtime";
+import { getSourceConnectorId, getSourceIndustryTag, resolveRuntimeConfig } from "../config/runtime";
 import type { ConnectorConfig, ConnectorMeta } from "../types";
 
 /** 合并 env > DB > YAML options，供 Connector 构造使用 */
@@ -8,8 +8,9 @@ export async function resolveConnectorConfig(
   overrides: ConnectorConfig = {},
 ): Promise<ConnectorConfig> {
   const rt = await resolveRuntimeConfig(sourceId, meta);
-  const envKey = rt.apiKeyEnv ?? guessApiKeyEnv(sourceId);
-  const secretEnv = guessApiSecretEnv(sourceId);
+  const baseId = getSourceConnectorId(sourceId);
+  const envKey = rt.apiKeyEnv ?? guessApiKeyEnv(baseId);
+  const secretEnv = guessApiSecretEnv(baseId);
   const apiKey =
     overrides.apiKey ??
     (envKey ? process.env[envKey] : undefined);

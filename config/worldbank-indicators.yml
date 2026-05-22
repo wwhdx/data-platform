@@ -32,18 +32,20 @@ indicators:
     topic_id: "11"
     # industry_tag: 社会
 
-  # topic 8 — Health
+  # topic 8 — Health（U-L1 医疗宏观锚 · worldbank）
   - code: SP.DYN.LE00.IN
     tier: A
     collect_enabled: true
     title: Life expectancy at birth
     topic_id: "8"
+    industry_tag: 医疗
 
   - code: SH.XPD.CHEX.GD.ZS
     tier: A
     collect_enabled: true
     title: Current health expenditure % of GDP
     topic_id: "8"
+    industry_tag: 医疗
 
   # topic 4 — Education
   - code: SE.ADT.LITR.ZS

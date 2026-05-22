@@ -14,6 +14,14 @@ export type Pagination =
   | "resumption_token"
   | "none";
 
+/** cron 或 cron + 默认 collect query（U-L1 弱信号） */
+export type SourceSchedule =
+  | string
+  | {
+      cron: string;
+      query?: string;
+    };
+
 /** 写入 DB / sync 的扁平源配置 */
 export interface SourceConfig {
   id: string;
@@ -25,6 +33,7 @@ export interface SourceConfig {
   license: string;
   commercial_use: boolean;
   schedule: string;
+  schedule_query?: string;
   description?: string;
 }
 
@@ -48,6 +57,8 @@ export interface InterfaceProfile {
 export interface SourceConfigRaw {
   id: string;
   profile?: string;
+  /** 复用已注册 Connector 实现（U-L1 虚拟源实例） */
+  connector?: string;
   /** 源实例级行业标签（G1-5，覆盖 connector 默认） */
   industry_tag?: string;
   name: string;
@@ -57,7 +68,9 @@ export interface SourceConfigRaw {
   rate_limit?: string;
   license: string;
   commercial_use: boolean;
-  schedule: string;
+  schedule: SourceSchedule;
+  /** schedule 为字符串时的 collect query 补充字段 */
+  schedule_query?: string;
   description?: string;
   options?: Record<string, unknown>;
 }
@@ -65,6 +78,7 @@ export interface SourceConfigRaw {
 /** 展开后完整配置（含 options / profile 元数据） */
 export interface ExpandedSourceConfig extends SourceConfig {
   industry_tag?: string;
+  connector?: string;
   profile?: string;
   protocol?: Protocol;
   pagination?: Pagination;

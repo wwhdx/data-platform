@@ -329,3 +329,41 @@ export async function registerDefaultConnectors(
   scheduler.registerConnector({ id: "uniprot", create: () => uniprot });
   scheduler.registerConnector({ id: "wipo", create: () => wipo });
 }
+
+/** U-L1 虚拟源：connector 字段指向已注册实现，独立 industry_tag / schedule.query */
+export async function registerVirtualConnectors(
+  scheduler: Scheduler,
+  file: import("../config/types").DataPlatformConfigFile,
+): Promise<string[]> {
+  const registered: string[] = [];
+
+  for (const raw of file.sources) {
+    const base = raw.connector?.trim();
+    if (!base || base === raw.id || !raw.enabled) continue;
+    if (scheduler.hasConnector(raw.id)) continue;
+
+    if (base === "pubmed") {
+      const c = new PubMedConnector(
+        await resolveConnectorConfig(raw.id, PUBMED_META, {
+          apiKey: process.env.NCBI_API_KEY,
+        }),
+      );
+      scheduler.registerConnector({ id: raw.id, create: () => c });
+      registered.push(raw.id);
+    } else if (base === "openalex") {
+      const c = new OpenAlexConnector(
+        await resolveConnectorConfig(raw.id, OPENALEX_META, {
+          apiKey: process.env.OPENALEX_API_KEY,
+        }),
+      );
+      scheduler.registerConnector({ id: raw.id, create: () => c });
+      registered.push(raw.id);
+    } else {
+      console.warn(
+        `[bootstrap] 虚拟源 ${raw.id} 未支持 connector=${base}，跳过注册`,
+      );
+    }
+  }
+
+  return registered;
+}

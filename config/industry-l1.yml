@@ -1,0 +1,32 @@
+# U-L1 行业最小语料策略（Git 真源）
+# 仅对 industry_tags.is_active=true 且本文件有条目的行业注册弱信号 collect
+# 宏观锚：树形 YAML 行 industry_tag + 每行业单一 macro.source
+defaults:
+  text_collect_max_items: 200
+  macro_min_docs: 10
+  text_min_docs: 50
+
+industries:
+  医疗:
+    macro:
+      source: worldbank
+      tier: A
+    text:
+      source: pubmed
+      virtual_source_id: pubmed_医疗
+      queries:
+        - "diabetes artificial intelligence"
+        - "clinical trial machine learning"
+      schedule: "0 6 * * 1"
+
+  能源:
+    macro:
+      source: eia
+      tier: A
+    text:
+      source: openalex
+      virtual_source_id: openalex_能源
+      queries:
+        - "renewable energy storage"
+        - "grid decarbonization"
+      schedule: "0 7 * * 1"

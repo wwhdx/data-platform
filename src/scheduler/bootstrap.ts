@@ -10,6 +10,7 @@ export function isValidCronSchedule(expr: string): boolean {
 export interface RegisteredSchedule {
   sourceId: string;
   cronExpr: string;
+  query?: string;
 }
 
 /**
@@ -29,8 +30,9 @@ export function registerSchedulesFromConfig(
     const cron = s.schedule?.trim() ?? "";
     if (!cron || !isValidCronSchedule(cron)) continue;
 
-    scheduler.schedule(s.id, cron, "");
-    registered.push({ sourceId: s.id, cronExpr: cron });
+    const collectQuery = s.schedule_query?.trim() ?? "";
+    scheduler.schedule(s.id, cron, collectQuery);
+    registered.push({ sourceId: s.id, cronExpr: cron, query: collectQuery });
   }
 
   return registered;

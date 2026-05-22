@@ -6,6 +6,7 @@ import { opportunityVectorsRoutes } from "./routes/opportunityVectors";
 import { opportunityOutcomesRoutes } from "./routes/opportunityOutcomes";
 import { opportunityWeightsRoutes } from "./routes/opportunityWeights";
 import { industryTagsRoutes } from "./routes/industryTags";
+import { industryCoverageRoutes } from "./routes/industryCoverage";
 import type { Scheduler } from "../scheduler";
 
 export interface ServerOptions {
@@ -31,6 +32,7 @@ export async function buildApp(opts: ServerOptions = {}): Promise<FastifyInstanc
   await app.register(opportunityOutcomesRoutes, { prefix: "/api/opportunity-outcomes" });
   await app.register(opportunityWeightsRoutes, { prefix: "/api/opportunity-weights" });
   await app.register(industryTagsRoutes, { prefix: "/api/admin/industry-tags" });
+  await app.register(industryCoverageRoutes, { prefix: "/api/admin" });
 
   return app;
 }

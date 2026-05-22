@@ -10,7 +10,7 @@ import {
   registerCatalogSchedules,
 } from "./scheduler/catalogSchedules";
 import { registerOpportunityWeightsSchedule } from "./scheduler/opportunityWeightsSchedule";
-import { registerDefaultConnectors } from "./connectors/bootstrap";
+import { registerDefaultConnectors, registerVirtualConnectors } from "./connectors/bootstrap";
 import { getPool, closePool } from "./storage/db";
 import { loadConfig } from "./config/loader";
 import { syncToDb } from "./config/sync";
@@ -40,6 +40,12 @@ async function main() {
 
   const scheduler = new Scheduler();
   await registerDefaultConnectors(scheduler);
+  if (config?.file) {
+    const virtual = await registerVirtualConnectors(scheduler, config.file);
+    if (virtual.length > 0) {
+      console.log(`Virtual connectors: ${virtual.join(", ")}`);
+    }
+  }
 
   const schedules = config
     ? registerSchedulesFromConfig(scheduler, config)

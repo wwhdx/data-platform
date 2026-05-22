@@ -1,6 +1,6 @@
 # UODE · L1 行业数据采集前置方案
 
-> **状态**：设计定稿（待实施）  
+> **状态**：部分落地（试点 医疗/能源；待 collect 灌库验收）  
 > **版本**：v1.0（2026-05-22）  
 > **进度真源**：[实施进度总览.md](./实施进度总览.md) §2.8（G1-5）· §2.7（U-L1）  
 > **关联**：[UODE-data-platform-L2信号与机会向量设计方案.md](./UODE-data-platform-L2信号与机会向量设计方案.md) §1.1 · [行业维度接入设计方案.md](./行业维度接入设计方案.md) · [树形API数据源完备采集方法论.md](../knowledge/树形API数据源完备采集方法论.md)  
@@ -23,7 +23,7 @@ UODE L2 的 `domainSignal.trendScore` / `recentDocCount` 与 `/api/search?indust
 | `POST /api/admin/industry-tags/sync` | ✅ |
 | 采集入库写 `industry_tag` | ✅ G1-5：`rawDocument.ts` · `types.ts` · `chunk` 继承 |
 | `sources.yml` / 树形 YAML `industry_tag` 消费 | ✅ G1-5d/e：`config/expand` · `collect/industryTag` · 树形 connector |
-| 按行业 query 的弱信号 collect | ❌ 无配置与调度 |
+| 按行业 query 的弱信号 collect | ✅ U-L1-5：`pubmed_医疗` · `openalex_能源` + `schedule.query` |
 
 **后果**：对任意 `industry=医疗` 请求，库内 tagged 文档≈0 → 行业 trend 无效、检索空、engine-core D(h) 只能降级全局。
 
@@ -164,8 +164,10 @@ curl -s -X POST localhost:3400/api/search \
 | 入库打标 | `rawDocument.ts` · `types.ts` | ✅ G1-5 |
 | 源级 tag | `config/sources.yml` · `config/expand.ts` | ✅ G1-5d |
 | 树形 catalog tag | `worldbank`/`fred`/`eia`/`imf`/`ecb`/`eurostat`/`oecd` | ✅ G1-5e（YAML 行取消注释即生效） |
-| 行业 L1 策略 | `config/industry-l1.yml` | □ U-L1-4 |
-| 覆盖率 | CLI / admin route | □ U-L1-8 |
+| 行业 L1 策略 | `config/industry-l1.yml` · `src/config/industryL1.ts` | ✅ U-L1-4 |
+| 弱信号虚拟源 | `config/sources.yml` · `registerVirtualConnectors` | ✅ U-L1-5 |
+| 覆盖率 | `pnpm cli industry coverage` · `GET /api/admin/industry-coverage` | ✅ U-L1-8 |
+| backfill 子集 | `pnpm cli industry backfill` | 🟡 U-L1-9 |
 
 ---
 
@@ -202,3 +204,4 @@ U-L1 coverage 验收（0.5d）        ← E1 行业联调前建议完成
 |------|------|------|
 | v1.0 | 2026-05-22 | 初稿：G1-5 缺口评估、四阶段 U-L1、`industry-l1.yml` schema、任务 U-L1-1～10 |
 | v1.0.1 | 2026-05-22 | **G1-5** 代码落地，§一/§五 状态同步 |
+| v1.1 | 2026-05-22 | **U-L1-1～10** 试点落地：industry-l1.yml、虚拟源、coverage CLI/API、单测 |

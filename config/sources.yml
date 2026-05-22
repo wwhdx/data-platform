@@ -702,3 +702,38 @@ sources:
       token_url: https://www.reddit.com/api/v1/access_token
       subreddits: [MachineLearning, technology, science]
       listing: hot
+
+  # ── U-L1 弱信号文本（query + industry_tag；勿与全库 openalex cron 混为 L1 验收）──
+  - id: pubmed_医疗
+    connector: pubmed
+    profile: ncbi_eutils
+    name: PubMed 医疗 L1
+    enabled: true
+    industry_tag: "医疗"
+    base_url: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/
+    rate_limit: "10/sec (with key)"
+    license: Public Domain
+    commercial_use: true
+    schedule:
+      cron: "0 6 * * 1"
+      query: "(diabetes artificial intelligence) OR (clinical trial machine learning)"
+    description: "U-L1 医疗弱信号；策略见 config/industry-l1.yml"
+    options:
+      collect_max_items: 200
+
+  - id: openalex_能源
+    connector: openalex
+    profile: rest_query_param_key
+    name: OpenAlex 能源 L1
+    enabled: true
+    industry_tag: "能源"
+    base_url: https://api.openalex.org
+    rate_limit: "freemium ~10k list+filter/day ($1 free)"
+    license: CC0
+    commercial_use: true
+    schedule:
+      cron: "0 7 * * 1"
+      query: "(renewable energy storage) OR (grid decarbonization)"
+    description: "U-L1 能源弱信号；策略见 config/industry-l1.yml"
+    options:
+      collect_max_items: 200

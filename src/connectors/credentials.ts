@@ -2,6 +2,8 @@
  * 数据源凭证策略：YAML enabled 可与缺 Key 并存；采集时显式失败并写入 job.error_message。
  */
 
+import { getSourceConnectorId } from "../config/runtime";
+
 export interface SourceCredentialSpec {
   /** 环境变量名（与 factory guessApiKeyEnv 对齐） */
   envVar: string;
@@ -59,33 +61,34 @@ export function validateCredentialsForCollect(
   injectedKey?: string,
   injectedSecret?: string,
 ): string | null {
-  const spec = SOURCE_CREDENTIAL_SPECS[sourceId];
+  const effectiveId = getSourceConnectorId(sourceId);
+  const spec = SOURCE_CREDENTIAL_SPECS[effectiveId];
   if (!spec?.required) return null;
 
-  if (sourceId === "sec_edgar") {
+  if (effectiveId === "sec_edgar") {
     const ua =
       injectedKey?.trim() || process.env.SEC_EDGAR_USER_AGENT?.trim();
     if (ua) return null;
-  } else if (sourceId === "reddit") {
-    const key = resolveApiKeyForSource(sourceId, injectedKey);
+  } else if (effectiveId === "reddit") {
+    const key = resolveApiKeyForSource(effectiveId, injectedKey);
     const secret =
       injectedSecret?.trim() || process.env.REDDIT_CLIENT_SECRET?.trim();
     const ua = process.env.REDDIT_USER_AGENT?.trim();
     if (key && secret && ua) return null;
   } else if (spec.secretEnvVar) {
-    const key = resolveApiKeyForSource(sourceId, injectedKey);
+    const key = resolveApiKeyForSource(effectiveId, injectedKey);
     const secret =
       injectedSecret?.trim() || process.env[spec.secretEnvVar]?.trim();
     if (key && secret) return null;
   } else {
-    const key = resolveApiKeyForSource(sourceId, injectedKey);
+    const key = resolveApiKeyForSource(effectiveId, injectedKey);
     if (key) return null;
   }
 
   const secretHint = spec.secretEnvVar
     ? ` 与 ${spec.secretEnvVar}`
     : "";
-  const uaHint = sourceId === "reddit" ? " 与 REDDIT_USER_AGENT" : "";
+  const uaHint = effectiveId === "reddit" ? " 与 REDDIT_USER_AGENT" : "";
   return (
     `${spec.envVar}${secretHint}${uaHint} 未配置：数据源「${sourceId}」在 sources.yml 中可为 enabled: true，` +
     `本次采集不调用外网并已记录失败；配置凭证后重试。`

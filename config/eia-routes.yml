@@ -6,6 +6,7 @@ routes:
   - path: petroleum/pri/spt/data
     tier: A
     collect_enabled: true
+    industry_tag: 能源
     frequency: daily
     observations: 30
     data: [value]
@@ -13,6 +14,7 @@ routes:
   - path: petroleum/stoc/wstk/data
     tier: A
     collect_enabled: true
+    industry_tag: 能源
     frequency: weekly
     observations: 12
     data: [value]
@@ -20,6 +22,7 @@ routes:
   - path: petroleum/move/wkly/data
     tier: A
     collect_enabled: true
+    industry_tag: 能源
     frequency: weekly
     observations: 12
     data: [value]
@@ -27,6 +30,7 @@ routes:
   - path: petroleum/pri/dist/data
     tier: A
     collect_enabled: true
+    industry_tag: 能源
     frequency: monthly
     observations: 12
     data: [value]
@@ -34,6 +38,7 @@ routes:
   - path: petroleum/crd/crpdn/data
     tier: A
     collect_enabled: true
+    industry_tag: 能源
     frequency: monthly
     observations: 12
     data: [value]
@@ -42,6 +47,7 @@ routes:
   - path: electricity/retail-sales/data
     tier: A
     collect_enabled: true
+    industry_tag: 能源
     frequency: monthly
     observations: 12
     data: [price, sales]
@@ -52,6 +58,7 @@ routes:
   - path: electricity/electric-power-operational-data/data
     tier: A
     collect_enabled: true
+    industry_tag: 能源
     frequency: monthly
     observations: 12
     data: [generation]
@@ -60,6 +67,7 @@ routes:
   - path: electricity/operating-generator-capacity/data
     tier: A
     collect_enabled: true
+    industry_tag: 能源
     frequency: monthly
     observations: 12
     data: [nameplate-capacity-mw]
@@ -75,6 +83,7 @@ routes:
   - path: natural-gas/pri/sum/data
     tier: A
     collect_enabled: true
+    industry_tag: 能源
     frequency: monthly
     observations: 12
     data: [value]
@@ -89,6 +98,7 @@ routes:
   - path: natural-gas/prod/sum/data
     tier: A
     collect_enabled: true
+    industry_tag: 能源
     frequency: monthly
     observations: 12
     data: [value]
@@ -103,6 +113,7 @@ routes:
   - path: natural-gas/cons/sum/data
     tier: A
     collect_enabled: true
+    industry_tag: 能源
     frequency: monthly
     observations: 12
     data: [value]
@@ -125,6 +136,7 @@ routes:
   - path: coal/aggregate-production/data
     tier: A
     collect_enabled: true
+    industry_tag: 能源
     frequency: annual
     observations: 12
     data: [production]
@@ -133,6 +145,7 @@ routes:
   - path: crude-oil-imports/data
     tier: A
     collect_enabled: true
+    industry_tag: 能源
     frequency: monthly
     observations: 12
     data: [quantity]
@@ -140,6 +153,7 @@ routes:
   - path: steo/data
     tier: A
     collect_enabled: true
+    industry_tag: 能源
     frequency: monthly
     observations: 12
     data: [value]
@@ -147,6 +161,7 @@ routes:
   - path: total-energy/data
     tier: A
     collect_enabled: true
+    industry_tag: 能源
     frequency: monthly
     observations: 12
     data: [value]

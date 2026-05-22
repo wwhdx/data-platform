@@ -26,6 +26,20 @@ export function getSourceIndustryTag(sourceId: string): string | null {
   return t.length > 0 ? t : null;
 }
 
+/** 虚拟源 → 底层 Connector id（U-L1） */
+export function getSourceConnectorId(sourceId: string): string {
+  const entry = expandedCache.find((s) => s.id === sourceId);
+  const base = entry?.connector?.trim();
+  return base && base.length > 0 ? base : sourceId;
+}
+
+export function getSourceScheduleQuery(sourceId: string): string {
+  const q = expandedCache.find((s) => s.id === sourceId)?.schedule_query;
+  if (!q) return "";
+  const t = q.trim();
+  return t.length > 0 ? t : "";
+}
+
 function envBaseUrl(sourceId: string): string | undefined {
   const key = `${sourceId.toUpperCase().replace(/-/g, "_")}_BASE_URL`;
   return process.env[key];
