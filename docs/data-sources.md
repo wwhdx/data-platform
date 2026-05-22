@@ -486,7 +486,7 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 | 目录 | `GET /dataflow?references=none`（SDMX-JSON，约 1.5k dataflow） |
 | 数据 | `GET /data/{agency},{flowId}/{seriesKey}?format=jsondata&dimensionAtObservation=AllDimensions&lastNObservations=1` |
 | 代码 | `src/connectors/oecd.ts` · `oecd/` · `oecdHelpers.ts` |
-| L1 清单 | `config/oecd-series.yml`（Tier A：**5** 条 KEI×4 + AEA GHG；`OECD_TIER_FILTER` / `sources.yml` `oecd_tier_filter`） |
+| L1 清单 | `config/oecd-series.yml`（Tier A：**7** 条 KEI×6 + AEA GHG；`OECD_TIER_FILTER` / `sources.yml` `oecd_tier_filter`） |
 | CLI | `pnpm cli oecd catalog sync` · `catalog list [--agency]` |
 | ENV | `OECD_CATALOG_FETCH_MODE=agency` 跳过分批前全量；`OECD_CATALOG_AGENCY_INTERVAL_MS`（默认 2000）分批间隔 |
 | 验证 | `node scripts/verify-oecd-series.mjs` |

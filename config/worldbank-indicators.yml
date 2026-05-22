@@ -107,3 +107,45 @@ indicators:
     collect_enabled: true
     title: Population total
     topic_id: "3"
+
+  # topic 1 — Agriculture & Rural Development
+  - code: AG.LND.AGRI.K2
+    tier: A
+    collect_enabled: true
+    title: Agricultural land (sq. km)
+    topic_id: "1"
+    # industry_tag: 农业
+
+  - code: AG.PRD.CROP.XD
+    tier: A
+    collect_enabled: true
+    title: Crop production index (2014-2016 = 100)
+    topic_id: "1"
+
+  - code: SL.AGR.EMPL.ZS
+    tier: A
+    collect_enabled: true
+    title: Employment in agriculture % of total employment
+    topic_id: "1"
+
+  # topic 16 — Urban Development
+  - code: SP.URB.TOTL.IN.ZS
+    tier: A
+    collect_enabled: true
+    title: Urban population % of total
+    topic_id: "16"
+    # industry_tag: 城建
+
+  # topic 3 — Economy（GNI，与 GDP 互补）
+  - code: NY.GNP.MKTP.CD
+    tier: A
+    collect_enabled: true
+    title: GNI (current US$)
+    topic_id: "3"
+
+  # topic 5 — Energy & Mining
+  - code: EG.IMP.CONS.ZS
+    tier: A
+    collect_enabled: true
+    title: Energy imports net % of energy use
+    topic_id: "5"

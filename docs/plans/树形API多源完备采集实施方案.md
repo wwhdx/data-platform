@@ -1,7 +1,7 @@
 # 树形 API 多源完备采集实施方案
 
-> **状态**：已落地（H3 ✅ · T1–T4 ✅）  
-> **版本**：v1.7（2026-05-22）  
+> **状态**：已落地（H3 ✅ · T1–T4 ✅ · **L1 深化 v1.8**）  
+> **版本**：v1.8（2026-05-22）  
 > **进度真源**：[实施进度总览.md](./实施进度总览.md) §4.11（轨 T）  
 > **方法论**：[树形API数据源完备采集方法论.md](../knowledge/树形API数据源完备采集方法论.md)  
 > **样板**：[EIA完备采集方案.md](./EIA完备采集方案.md)（✅ H0–H2 MVP）  
@@ -48,11 +48,11 @@
 
 | 源 | 官方子方向规模（官网） | L0 | L1 代码真源 | 子方向数据是否覆盖 |
 |----|------------------------|-----|-------------|-------------------|
-| EIA | 14 顶层 / **232** 叶子 | ✅ `pnpm cli eia catalog sync` | `config/eia-routes.yml` **5** 条 Tier A/B | 🟡 目录全、数据抽样 |
-| Eurostat | TOC **~5 466** dataset | ✅ `pnpm cli eurostat catalog sync` | `config/eurostat-datasets.yml` **6** 条 Tier A | 🟡 目录全、数据 Tier A |
-| FRED | Category 树 + **80 万+** series | ✅ `pnpm cli fred catalog sync` | `config/fred-series.yml` **13** 条 Tier A | 🟡 目录 BFS、数据 Tier A |
-| OECD | 多 agency **dataflow** ~1.5k | ✅ `pnpm cli oecd catalog sync` | `config/oecd-series.yml` **5** 条 Tier A | 🟡 目录全、数据 Tier A |
-| World Bank | **16 000+** indicator × topic | ✅ `pnpm cli worldbank catalog sync` | `config/worldbank-indicators.yml` **15** 条 Tier A | 🟡 目录全、数据 Tier A |
+| EIA | 14 顶层 / **232** 叶子 | ✅ `pnpm cli eia catalog sync` | `config/eia-routes.yml` **19** 条（+3 油气 route） | 🟡 目录全、L1 加深 |
+| Eurostat | TOC **~5 466** dataset | ✅ `pnpm cli eurostat catalog sync` | `config/eurostat-datasets.yml` **9** 条 Tier A | 🟡 目录全、L1 加深 |
+| FRED | Category 树 + **80 万+** series | ✅ `pnpm cli fred catalog sync` | `config/fred-series.yml` **18** 条 Tier A | 🟡 目录 BFS、L1 加深 |
+| OECD | 多 agency **dataflow** ~1.5k | ✅ `pnpm cli oecd catalog sync` | `config/oecd-series.yml` **7** 条 Tier A（+DEU/JPN KEI） | 🟡 目录全；API 拥塞时需重验 |
+| World Bank | **16 000+** indicator × topic | ✅ `pnpm cli worldbank catalog sync` | `config/worldbank-indicators.yml` **21** 条 Tier A | 🟡 目录全、L1 加深 |
 
 **EIA 路由内 facet**：仅 `electricity/retail-sales` 声明 `sectorid`×`stateid` 白名单；其余已采 route 多为无 facet 默认页。
 
@@ -270,6 +270,7 @@ flowchart TB
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| v1.8 | 2026-05-22 | **L1 深化**：EIA 19 · Eurostat 9 · FRED 18 · OECD 7 · World Bank 21 条；verify 除 OECD API 拥塞外通过 |
 | v1.7 | 2026-05-22 | T4 落地：World Bank L0 `worldbank_catalog_indicators` · CLI · YAML 15 条 · 可配置 `countries` · verify |
 | v1.6 | 2026-05-22 | T3 收尾：`catalogFetch` JSON/XML 全量 + agency 分批 · XML 解析 · 目录 sync 验收 1516 条 |
 | v1.5 | 2026-05-21 | T3 落地：OECD L0 `oecd_catalog_dataflows` · CLI · YAML 5 条（KEI×4 + AEA GHG）· verify |

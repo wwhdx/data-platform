@@ -86,3 +86,37 @@ series:
     collect_enabled: true
     title: Trade Weighted U.S. Dollar Index
     category_id: 13
+
+  # industry_tag: 能源
+  - series_id: DCOILWTICO
+    tier: A
+    collect_enabled: true
+    title: Crude Oil WTI Spot Price
+    category_id: 32217
+
+  - series_id: GASREGW
+    tier: A
+    collect_enabled: true
+    title: U.S. Regular All Formulations Gas Price
+    category_id: 32217
+
+  # industry_tag: 消费
+  - series_id: PCE
+    tier: A
+    collect_enabled: true
+    title: Personal Consumption Expenditures
+    category_id: 106
+
+  # industry_tag: 景气
+  - series_id: UMCSENT
+    tier: A
+    collect_enabled: true
+    title: University of Michigan Consumer Sentiment
+    category_id: 33039
+
+  # industry_tag: 劳动
+  - series_id: CCSA
+    tier: A
+    collect_enabled: true
+    title: Continued Claims (Insured Unemployment)
+    category_id: 10

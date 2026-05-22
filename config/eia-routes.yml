@@ -17,6 +17,13 @@ routes:
     observations: 12
     data: [value]
 
+  - path: petroleum/move/wkly/data
+    tier: A
+    collect_enabled: true
+    frequency: weekly
+    observations: 12
+    data: [value]
+
   # ── electricity ──
   - path: electricity/retail-sales/data
     tier: A
@@ -59,6 +66,20 @@ routes:
     data: [value]
 
   - path: natural-gas/sum/snd/data
+    tier: B
+    collect_enabled: true
+    frequency: monthly
+    observations: 12
+    data: [value]
+
+  - path: natural-gas/prod/sum/data
+    tier: A
+    collect_enabled: true
+    frequency: monthly
+    observations: 12
+    data: [value]
+
+  - path: natural-gas/prod/whv/data
     tier: B
     collect_enabled: true
     frequency: monthly

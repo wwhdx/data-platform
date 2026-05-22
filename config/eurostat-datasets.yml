@@ -66,3 +66,32 @@ datasets:
       geo: EU27_2020
       indic: BS-ESI-I
       lastTimePeriod: "1"
+
+  - code: gov_10dd_edpt1
+    tier: A
+    collect_enabled: true
+    title: Government deficit/surplus % of GDP EU27
+    # industry_tag: 财政
+    params:
+      geo: EU27_2020
+      unit: PC_GDP
+      sector: S13
+      lastTimePeriod: "1"
+
+  - code: tec00001
+    tier: A
+    collect_enabled: true
+    title: Industrial production index EU27
+    # industry_tag: 生产
+    params:
+      geo: EU27_2020
+      lastTimePeriod: "1"
+
+  - code: tin00028
+    tier: A
+    collect_enabled: true
+    title: ICT sector share of value added EU27
+    # industry_tag: 科技
+    params:
+      geo: EU27_2020
+      lastTimePeriod: "1"

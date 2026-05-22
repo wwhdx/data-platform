@@ -39,3 +39,18 @@ series:
     collect_enabled: true
     title: GHG emissions OECD (Air Emissions Accounts)
     # industry_tag: 环境
+
+  - agency: OECD.SDD.STES
+    flowId: DSD_KEI@DF_KEI
+    key: DEU.A.B1GQ_Q.GR._T.Y.GY
+    tier: A
+    collect_enabled: true
+    title: GDP growth Germany
+    # industry_tag: 国民经济
+
+  - agency: OECD.SDD.STES
+    flowId: DSD_KEI@DF_KEI
+    key: JPN.A.B1GQ_Q.GR._T.Y.GY
+    tier: A
+    collect_enabled: true
+    title: GDP growth Japan
