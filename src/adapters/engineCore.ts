@@ -1,9 +1,9 @@
 /**
  * engine-core SearchProvider 适配器（C3 子包侧）。
  *
- * 用法（engine-core 侧）：
- *   import { createDataPlatformSearchProvider } from "@wangye/data-platform";
- *   const searchProvider = createDataPlatformSearchProvider(process.env.DATA_PLATFORM_URL);
+ * 用法（engine-core / wangye 侧，经 npm 包 @wangye/engine-core，禁止主包 import 本子包）：
+ *   import { createDataPlatformSearchProvider } from "@wangye/engine-core";
+ *   const searchProvider = createDataPlatformSearchProvider(process.env.DATA_PLATFORM_URL!);
  */
 import { createDataPlatformClient } from "../client/dataPlatformClient";
 import type { DomainSignal } from "../types";
