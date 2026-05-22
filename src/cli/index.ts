@@ -1497,8 +1497,8 @@ async function cmdServe(args: string[]) {
   } = await import("../scheduler/bootstrap");
   const {
     formatMaintenanceSummary,
-    registerEiaCatalogSchedule,
-  } = await import("../scheduler/eiaCatalogSchedule");
+    registerCatalogSchedules,
+  } = await import("../scheduler/catalogSchedules");
   const { registerDefaultConnectors } = await import("../connectors/bootstrap");
   const { loadConfig } = await import("../config/loader");
   const { syncToDb } = await import("../config/sync");
@@ -1515,7 +1515,7 @@ async function cmdServe(args: string[]) {
   const schedules = config
     ? registerSchedulesFromConfig(scheduler, config)
     : [];
-  const maintenance = config ? registerEiaCatalogSchedule(scheduler) : [];
+  const maintenance = config ? registerCatalogSchedules(scheduler) : [];
   scheduler.start();
 
   const server = await createServer({ port, scheduler });

@@ -1,7 +1,7 @@
 # 树形 API 多源完备采集实施方案
 
 > **状态**：已落地（H3 ✅ · T1–T4 ✅ · **L1 深化 v1.8**）  
-> **版本**：v1.8（2026-05-22）  
+> **版本**：v1.9（2026-05-22）  
 > **进度真源**：[实施进度总览.md](./实施进度总览.md) §4.11（轨 T）  
 > **方法论**：[树形API数据源完备采集方法论.md](../knowledge/树形API数据源完备采集方法论.md)  
 > **样板**：[EIA完备采集方案.md](./EIA完备采集方案.md)（✅ H0–H2 MVP）  
@@ -26,11 +26,11 @@
 
 | 源 | 官方目录形态 | 当前缺口 | 本方案 Phase |
 |----|--------------|----------|--------------|
-| **EIA** | `/v2` 树 + `/data` facet | L0 ✅；L1 **16** route + 周 cron | **H3** ✅ |
-| **Eurostat** | Catalogue TOC ~5.5k dataset | 无 L0；L1 硬编码 3 dataset | **T1** |
-| **FRED** | Category 树 + 80 万 series | 无 L0；L1 仅 `series/search` | **T2** |
-| **OECD** | SDMX `dataflow` ~1.5k | L0 ✅；L1 YAML **5** 条 Tier A | **T3** ✅ |
-| **World Bank** | `/indicator` + `/topic` | L0 ✅；L1 YAML **15** 条 Tier A | **T4** ✅ |
+| **EIA** | `/v2` 树 + `/data` facet | L0 ✅；L1 **19** route + `eia-catalog-sync` 周 cron | **H3** ✅ |
+| **Eurostat** | Catalogue TOC ~5.5k dataset | L0 ✅；L1 YAML **9** 条 + `eurostat-catalog-sync` | **T1** ✅ |
+| **FRED** | Category 树 + 80 万 series | L0 ✅；L1 YAML **18** 条 + `fred-catalog-sync` | **T2** ✅ |
+| **OECD** | SDMX `dataflow` ~1.5k | L0 ✅；L1 YAML **7** 条 + `oecd-catalog-sync` | **T3** ✅ |
+| **World Bank** | `/indicator` + `/topic` | L0 ✅；L1 YAML **21** 条 + `worldbank-catalog-sync` | **T4** ✅ |
 
 ### 1.3 非目标
 
@@ -128,7 +128,8 @@ flowchart TB
 | T1-5 | 改 `eurostat.ts` `collect` | 由 `EUROSTAT_CORE_QUERIES` 常量 → 读 YAML + `resolveCollectRoutes`（仿 `eia.ts`） |
 | T1-6 | `scripts/verify-eurostat-datasets.mjs` | 每条 YAML 返回 200 且 `value` 非空 |
 | T1-7 | `src/__tests__/unit/eurostatCatalog.test.ts` | fixture TOC 片段 |
-| T1-8 | `docs/data-sources.md` §6.5、`sources.yml` options | `eurostat_datasets_file`、`eurostat_tier_filter` |
+| T1-8 | `docs/data-sources.md` §6.5、`sources.yml` options | `eurostat_datasets_file`、`eurostat_tier_filter`、`eurostat_catalog_sync_enabled` |
+| T1-9 | `registerCatalogSchedules` · `eurostat-catalog-sync` | 默认 `0 5 * * 0`；`GET /schedules` → `maintenance` |
 
 ### 5.3 Tier A 初始清单（建议，实施前用 L0 校验 code 存在）
 
@@ -164,6 +165,7 @@ flowchart TB
 | T2-5 | 改 `fred.ts` `collect` | YAML 驱动 `series/observations`；保留 `search` 作补充 |
 | T2-6 | `scripts/verify-fred-series.mjs` | |
 | T2-7 | 单测 + `FRED_API_KEY` 文档 | `credentials.ts` 已有 |
+| T2-8 | `fred-catalog-sync` 周 cron | `fred_catalog_sync_enabled` · 默认 `0 6 * * 0` |
 
 **注意**：不宜对 80 万 series 全量 L0；策略为 **category 全量 + series 按类抽样或仅登记 Tier A 显式 id**。
 
@@ -189,6 +191,7 @@ flowchart TB
 | T3-4 | `config/oecd-series.yml` | 保留现有 4 KEI key；**新增** 1 个非 KEI flow（如环境/能源，实施前用 L0 选） |
 | T3-5 | 改 `oecd.ts` | YAML + `OECD_CORE_QUERIES` 迁移 |
 | T3-6 | `scripts/verify-oecd-series.mjs` | |
+| T3-7 | `oecd-catalog-sync` 周 cron | `oecd_catalog_sync_enabled` · 默认 `0 7 * * 0` |
 
 ---
 
@@ -212,6 +215,7 @@ flowchart TB
 | T4-4 | `config/worldbank-indicators.yml` | 按 **topic** 选 Tier A（替换 `CORE_INDICATORS` 常量） |
 | T4-5 | 改 `worldbank.ts` | YAML 驱动；国家维改 **可配置** `countries: [US, CN, …]` 避免默认全国家 |
 | T4-6 | `scripts/verify-worldbank-indicators.mjs` | |
+| T4-7 | `worldbank-catalog-sync` 周 cron | `worldbank_catalog_sync_enabled` · 默认 `0 8 * * 0` |
 
 ---
 
@@ -270,6 +274,7 @@ flowchart TB
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| v1.9 | 2026-05-22 | **L0 cron**：`catalogSchedules.ts` 统一注册五源 maintenance；`sources.yml` 各 `*_catalog_sync_enabled` + 错峰周日 cron |
 | v1.8 | 2026-05-22 | **L1 深化**：EIA 19 · Eurostat 9 · FRED 18 · OECD 7 · World Bank 21 条；verify 除 OECD API 拥塞外通过 |
 | v1.7 | 2026-05-22 | T4 落地：World Bank L0 `worldbank_catalog_indicators` · CLI · YAML 15 条 · 可配置 `countries` · verify |
 | v1.6 | 2026-05-22 | T3 收尾：`catalogFetch` JSON/XML 全量 + agency 分批 · XML 解析 · 目录 sync 验收 1516 条 |

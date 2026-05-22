@@ -184,6 +184,14 @@ psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.
 | `EIA_API_KEY` | 是（eia） | [EIA Open Data](https://www.eia.gov/opendata/) 注册；Query `api_key=`；多 route 见 `config/eia-routes.yml` · `pnpm cli eia catalog sync` |
 | `EIA_CATALOG_SYNC_ENABLED` | 否 | `1`/`true` 时 `serve` 注册 `eia-catalog-sync` 周 cron（默认读 YAML `eia_catalog_sync_enabled`） |
 | `EIA_CATALOG_CRON` | 否 | 目录同步 cron（默认 `0 4 * * 0`） |
+| `EUROSTAT_CATALOG_SYNC_ENABLED` | 否 | `1`/`true` 时注册 `eurostat-catalog-sync`（YAML `eurostat_catalog_sync_enabled`） |
+| `EUROSTAT_CATALOG_CRON` | 否 | 默认 `0 5 * * 0` |
+| `FRED_CATALOG_SYNC_ENABLED` | 否 | `1`/`true` 时注册 `fred-catalog-sync`（YAML `fred_catalog_sync_enabled`；须 `FRED_API_KEY`） |
+| `FRED_CATALOG_CRON` | 否 | 默认 `0 6 * * 0` |
+| `OECD_CATALOG_SYNC_ENABLED` | 否 | `1`/`true` 时注册 `oecd-catalog-sync`（YAML `oecd_catalog_sync_enabled`） |
+| `OECD_CATALOG_CRON` | 否 | 默认 `0 7 * * 0` |
+| `WORLDBANK_CATALOG_SYNC_ENABLED` | 否 | `1`/`true` 时注册 `worldbank-catalog-sync`（YAML `worldbank_catalog_sync_enabled`） |
+| `WORLDBANK_CATALOG_CRON` | 否 | 默认 `0 8 * * 0` |
 | `EIA_COLLECT_MODE` | 否 | `snapshot`（默认）或 `backfill` |
 | `EIA_TIER_FILTER` | 否 | 逗号分隔 Tier，如 `A,B` |
 | `EIA_BACKFILL_ROUTE` | 否 | 手动 backfill 单 route（CLI/调试） |

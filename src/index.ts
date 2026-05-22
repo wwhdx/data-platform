@@ -7,8 +7,8 @@ import {
 } from "./scheduler/bootstrap";
 import {
   formatMaintenanceSummary,
-  registerEiaCatalogSchedule,
-} from "./scheduler/eiaCatalogSchedule";
+  registerCatalogSchedules,
+} from "./scheduler/catalogSchedules";
 import { registerDefaultConnectors } from "./connectors/bootstrap";
 import { getPool, closePool } from "./storage/db";
 import { loadConfig } from "./config/loader";
@@ -43,7 +43,7 @@ async function main() {
   const schedules = config
     ? registerSchedulesFromConfig(scheduler, config)
     : [];
-  const maintenance = config ? registerEiaCatalogSchedule(scheduler) : [];
+  const maintenance = config ? registerCatalogSchedules(scheduler) : [];
   scheduler.start();
   console.log(
     `Scheduler started (YAML): ${formatSchedulesSummary(schedules)}`,
