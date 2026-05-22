@@ -36,6 +36,8 @@ export const SOURCE_CREDENTIAL_SPECS: Record<string, SourceCredentialSpec> = {
   openalex: { envVar: "OPENALEX_API_KEY", required: false },
   materials_project: { envVar: "MATERIALS_PROJECT_API_KEY", required: true },
   eia: { envVar: "EIA_API_KEY", required: true },
+  census: { envVar: "CENSUS_API_KEY", required: true },
+  bea: { envVar: "BEA_API_KEY", required: true },
 };
 
 export function resolveApiKeyForSource(

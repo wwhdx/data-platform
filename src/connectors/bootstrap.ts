@@ -47,6 +47,9 @@ import { EurostatConnector, EUROSTAT_META } from "./eurostat";
 import { OecdConnector, OECD_META } from "./oecd";
 import { ImfConnector, IMF_META } from "./imf";
 import { EcbConnector, ECB_META } from "./ecb";
+import { CensusConnector, CENSUS_META } from "./census";
+import { BeaConnector, BEA_META } from "./bea";
+import { FaostatConnector, FAOSTAT_META } from "./faostat";
 import { UniprotConnector, UNIPROT_META } from "./uniprot";
 import { WipoConnector, WIPO_META } from "./wipo";
 import { OPENALEX_META } from "./openalex";
@@ -83,6 +86,9 @@ export {
   OECD_META,
   IMF_META,
   ECB_META,
+  CENSUS_META,
+  BEA_META,
+  FAOSTAT_META,
   UNIPROT_META,
   WIPO_META,
 };
@@ -118,6 +124,9 @@ export const REGISTERED_CONNECTOR_IDS = [
   "oecd",
   "imf",
   "ecb",
+  "census",
+  "bea",
+  "faostat",
   "uniprot",
   "wipo",
 ] as const;
@@ -247,6 +256,19 @@ export async function registerDefaultConnectors(
   const ecb = new EcbConnector(
     await resolveConnectorConfig("ecb", ECB_META),
   );
+  const census = new CensusConnector(
+    await resolveConnectorConfig("census", CENSUS_META, {
+      apiKey: process.env.CENSUS_API_KEY,
+    }),
+  );
+  const bea = new BeaConnector(
+    await resolveConnectorConfig("bea", BEA_META, {
+      apiKey: process.env.BEA_API_KEY,
+    }),
+  );
+  const faostat = new FaostatConnector(
+    await resolveConnectorConfig("faostat", FAOSTAT_META),
+  );
   const uniprot = new UniprotConnector(
     await resolveConnectorConfig("uniprot", UNIPROT_META),
   );
@@ -301,6 +323,9 @@ export async function registerDefaultConnectors(
   scheduler.registerConnector({ id: "oecd", create: () => oecd });
   scheduler.registerConnector({ id: "imf", create: () => imf });
   scheduler.registerConnector({ id: "ecb", create: () => ecb });
+  scheduler.registerConnector({ id: "census", create: () => census });
+  scheduler.registerConnector({ id: "bea", create: () => bea });
+  scheduler.registerConnector({ id: "faostat", create: () => faostat });
   scheduler.registerConnector({ id: "uniprot", create: () => uniprot });
   scheduler.registerConnector({ id: "wipo", create: () => wipo });
 }

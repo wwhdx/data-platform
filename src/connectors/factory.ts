@@ -43,6 +43,8 @@ function guessApiKeyEnv(sourceId: string): string | undefined {
     pubchem: "NCBI_API_KEY",
     materials_project: "MATERIALS_PROJECT_API_KEY",
     eia: "EIA_API_KEY",
+    census: "CENSUS_API_KEY",
+    bea: "BEA_API_KEY",
   };
   return map[sourceId];
 }

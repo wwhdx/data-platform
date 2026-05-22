@@ -537,6 +537,51 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 | RAG | `indicator`（汇率 EXR 等） |
 | YAML | `enabled: true`（`collect_max_items: 10`） |
 
+### 6.10 Census（轨 T+）
+
+| 字段 | 值 |
+|------|-----|
+| Base URL | `https://api.census.gov/data/` |
+| 认证 | `CENSUS_API_KEY`（Query `key=`） |
+| 目录 | `GET https://api.census.gov/data.json`（约 **1784** dataset） |
+| 数据 | `GET /{path}?get=...&predicates...&key=` |
+| 代码 | `src/connectors/census.ts` · `census/` |
+| L1 清单 | `config/census-queries.yml`（Tier A：**4** 条 timeseries） |
+| CLI | `pnpm cli census catalog sync` · `catalog list` |
+| ENV | `CENSUS_CATALOG_SYNC_ENABLED` · `CENSUS_CATALOG_CRON`（默认 `0 11 * * 0`） |
+| 验证 | `node scripts/verify-census-queries.mjs`（须 Key） |
+| YAML | `enabled: true`（`collect_max_items: 10`） |
+
+### 6.11 BEA（轨 T+）
+
+| 字段 | 值 |
+|------|-----|
+| Base URL | `https://apps.bea.gov/api/data/` |
+| 认证 | `BEA_API_KEY`（Query `UserID=`） |
+| 目录 | `GetDataSetList` + 各 dataset `GetParameterValues`（`ParameterName=TableName` 或 `TableID`） |
+| 数据 | `GetData` + `TableName` + `Frequency` + `Year` |
+| 代码 | `src/connectors/bea.ts` · `bea/` |
+| L1 清单 | `config/bea-tables.yml`（Tier A：**5** 条 NIPA 等） |
+| CLI | `pnpm cli bea catalog sync` · `catalog list [--dataset NIPA]` |
+| ENV | `BEA_CATALOG_SYNC_ENABLED` · `BEA_CATALOG_CRON`（默认 `0 12 * * 0`） |
+| 验证 | `node scripts/verify-bea-tables.mjs` |
+| YAML | `enabled: true`（`collect_max_items: 10`） |
+
+### 6.12 FAOSTAT（轨 T+）
+
+| 字段 | 值 |
+|------|-----|
+| Base URL | `https://nsi-release-ro-statsuite.fao.org/rest/` |
+| 认证 | 无 |
+| 目录 | `GET /dataflow/all`（约 **27** SDG dataflow） |
+| 数据 | `GET /data/FAO,{flowId},1.0/{key}?format=jsondata&lastNObservations=1`（实现用 Node `https`，因 `fetch` 对该主机常 500） |
+| 代码 | `src/connectors/faostat.ts` · `faostat/` |
+| L1 清单 | `config/faostat-series.yml`（Tier A：**5** 条 SDG） |
+| CLI | `pnpm cli faostat catalog sync` · `catalog list` |
+| ENV | `FAOSTAT_CATALOG_SYNC_ENABLED` · `FAOSTAT_CATALOG_CRON`（默认 `0 13 * * 0`） |
+| 验证 | `node scripts/verify-faostat-series.mjs` |
+| YAML | `enabled: true`（`collect_max_items: 10`） |
+
 ---
 
 ## 附录 B：已接入源配额与速率限制评估

@@ -198,6 +198,17 @@ psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.
 | `ECB_CATALOG_SYNC_ENABLED` | 否 | `1`/`true` 时注册 `ecb-catalog-sync`（YAML `ecb_catalog_sync_enabled`） |
 | `ECB_CATALOG_CRON` | 否 | 默认 `0 10 * * 0` |
 | `ECB_TIER_FILTER` | 否 | 逗号分隔 Tier，如 `A,B` |
+| `CENSUS_API_KEY` | 是（census 采集） | [Census API](https://api.census.gov/data/key_signup.html) 注册；Query `key=` |
+| `CENSUS_CATALOG_SYNC_ENABLED` | 否 | `1`/`true` 时注册 `census-catalog-sync`（YAML `census_catalog_sync_enabled`） |
+| `CENSUS_CATALOG_CRON` | 否 | 默认 `0 11 * * 0` |
+| `CENSUS_TIER_FILTER` | 否 | 逗号分隔 Tier，如 `A,B` |
+| `BEA_API_KEY` | 是（bea 采集/目录） | [BEA API](https://apps.bea.gov/API/signup/) 注册；Query `UserID=` |
+| `BEA_CATALOG_SYNC_ENABLED` | 否 | `1`/`true` 时注册 `bea-catalog-sync` |
+| `BEA_CATALOG_CRON` | 否 | 默认 `0 12 * * 0` |
+| `BEA_TIER_FILTER` | 否 | 逗号分隔 Tier，如 `A,B` |
+| `FAOSTAT_CATALOG_SYNC_ENABLED` | 否 | `1`/`true` 时注册 `faostat-catalog-sync` |
+| `FAOSTAT_CATALOG_CRON` | 否 | 默认 `0 13 * * 0` |
+| `FAOSTAT_TIER_FILTER` | 否 | 逗号分隔 Tier，如 `A,B` |
 | `EIA_COLLECT_MODE` | 否 | `snapshot`（默认）或 `backfill` |
 | `EIA_TIER_FILTER` | 否 | 逗号分隔 Tier，如 `A,B` |
 | `EIA_BACKFILL_ROUTE` | 否 | 手动 backfill 单 route（CLI/调试） |

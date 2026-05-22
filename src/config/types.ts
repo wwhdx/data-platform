@@ -136,6 +136,9 @@ export const IMPLEMENTED_CONNECTOR_IDS = [
   "oecd",
   "imf",
   "ecb",
+  "census",
+  "bea",
+  "faostat",
   "uniprot",
   "wipo",
 ] as const;

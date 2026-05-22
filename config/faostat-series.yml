@@ -1,0 +1,36 @@
+# FAOSTAT Tier A/B（SDMX jsondata；pnpm cli faostat catalog sync）
+series:
+  - agency: FAO
+    flowId: DF_SDG_2_1_1
+    key: all
+    tier: A
+    collect_enabled: true
+    title: SDG 2.1.1 Prevalence of undernourishment
+
+  - agency: FAO
+    flowId: DF_SDG_2_3_1
+    key: all
+    tier: A
+    collect_enabled: true
+    title: SDG 2.3.1 Small-scale food producer productivity
+
+  - agency: FAO
+    flowId: DF_SDG_2_4_1
+    key: all
+    tier: A
+    collect_enabled: true
+    title: SDG 2.4.1 Sustainable food production
+
+  - agency: FAO
+    flowId: DF_SDG_14_4_1
+    key: all
+    tier: B
+    collect_enabled: true
+    title: SDG 14.4.1 Sustainable fish stocks
+
+  - agency: FAO
+    flowId: DF_SDG_15_2_1
+    key: all
+    tier: B
+    collect_enabled: true
+    title: SDG 15.2.1 Progress on sustainable forest management

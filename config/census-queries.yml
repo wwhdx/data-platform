@@ -1,0 +1,33 @@
+# Census Tier A/B 采集清单（Discovery 校验 path；node scripts/verify-census-queries.mjs）
+queries:
+  - path: timeseries/eits/m3
+    get: data_type_code,time_slot_id,seasonally_adj,category_code,cell_value
+    predicates:
+      time: "2023"
+    tier: A
+    collect_enabled: true
+    title: M3 Manufacturing indicators
+
+  - path: timeseries/eits/advm3
+    get: data_type_code,time_slot_id,seasonally_adj,category_code,cell_value
+    predicates:
+      time: "2023"
+    tier: A
+    collect_enabled: true
+    title: Advance M3 durable goods
+
+  - path: timeseries/eits/m3sr
+    get: data_type_code,time_slot_id,seasonally_adj,category_code,cell_value
+    predicates:
+      time: "2023"
+    tier: B
+    collect_enabled: true
+    title: M3 survey-based manufacturing
+
+  - path: timeseries/intltrade/exports
+    get: cell_value,time,category
+    predicates:
+      time: "2023"
+    tier: B
+    collect_enabled: true
+    title: International trade exports

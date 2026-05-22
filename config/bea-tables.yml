@@ -1,0 +1,42 @@
+# BEA Tier A/B 采集清单（GetData；node scripts/verify-bea-tables.mjs）
+tables:
+  - datasetName: NIPA
+    tableName: T10101
+    frequency: Q
+    year: X
+    tier: A
+    collect_enabled: true
+    title: GDP and components (NIPA T10101)
+
+  - datasetName: NIPA
+    tableName: T20305
+    frequency: Q
+    year: X
+    tier: A
+    collect_enabled: true
+    title: Real PCE by type (NIPA T20305)
+
+  - datasetName: NIPA
+    tableName: T20306
+    frequency: Q
+    year: X
+    tier: A
+    collect_enabled: true
+    title: Real PCE major product types (NIPA T20306)
+
+  - datasetName: NIPA
+    tableName: T11000
+    frequency: Q
+    year: X
+    tier: B
+    collect_enabled: true
+    title: Price indexes for GDP (NIPA T11000)
+
+  - datasetName: NIPA
+    tableName: T20405
+    frequency: A
+    year: X
+    tier: B
+    collect_enabled: true
+    title: Price indexes for consumption (NIPA T20405)
+    tableParam: TableName

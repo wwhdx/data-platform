@@ -595,6 +595,66 @@ sources:
       ecb_catalog_sync_enabled: true
       ecb_catalog_cron: "0 10 * * 0"
 
+  # role: primary | collect: main | cluster: macro_indicator
+  # 轨 T+ P1 · Census Discovery + timeseries
+  - id: census
+    profile: rest_query_param_key
+    name: US Census Bureau
+    enabled: true
+    base_url: https://api.census.gov/data/
+    rate_limit: "not specified"
+    license: "US Government Work"
+    commercial_use: true
+    schedule: "0 3 * * 0"
+    description: "Census Data API（L0 data.json + YAML timeseries）"
+    options:
+      default_collect_query: manufacturing
+      collect_max_items: 10
+      census_queries_file: config/census-queries.yml
+      census_tier_filter: "A,B"
+      census_catalog_sync_enabled: true
+      census_catalog_cron: "0 11 * * 0"
+
+  # role: primary | collect: main | cluster: macro_indicator
+  # 轨 T+ P1 · BEA NIPA 等（与 fred 显式去重）
+  - id: bea
+    profile: rest_query_param_key
+    name: BEA
+    enabled: true
+    base_url: https://apps.bea.gov/api/data/
+    rate_limit: "not specified"
+    license: "Public Domain"
+    commercial_use: true
+    schedule: "0 3 * * 0"
+    description: "BEA GetData 表格序列（L0 dataset/table + YAML Tier A）"
+    options:
+      default_collect_query: gdp
+      collect_max_items: 10
+      bea_tables_file: config/bea-tables.yml
+      bea_tier_filter: "A,B"
+      bea_catalog_sync_enabled: true
+      bea_catalog_cron: "0 12 * * 0"
+
+  # role: primary | collect: main | cluster: macro_indicator
+  # 轨 T+ P1 · FAOSTAT SDMX（农业垂直）
+  - id: faostat
+    profile: sdmx_json
+    name: FAOSTAT
+    enabled: true
+    base_url: https://nsi-release-ro-statsuite.fao.org/rest/
+    rate_limit: "polite (~2/sec)"
+    license: "FAO Terms of Use"
+    commercial_use: true
+    schedule: "0 3 * * 0"
+    description: "FAO SDMX dataflow（L0 27 flow + YAML Tier A SDG）"
+    options:
+      default_collect_query: food
+      collect_max_items: 10
+      faostat_series_file: config/faostat-series.yml
+      faostat_tier_filter: "A,B"
+      faostat_catalog_sync_enabled: true
+      faostat_catalog_cron: "0 13 * * 0"
+
   # role: primary | collect: main | cluster: pharma_vertical
   # 波次 8+ · 默认 disabled；UniProt REST（与 pubchem 同属生物分子真源）
   - id: uniprot

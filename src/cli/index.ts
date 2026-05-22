@@ -1664,6 +1664,12 @@ function printHelp() {
   data-platform imf catalog list --agency IMF
   data-platform ecb catalog sync
   data-platform ecb catalog list
+  data-platform census catalog sync
+  data-platform census catalog list
+  data-platform bea catalog sync
+  data-platform bea catalog list [--dataset NIPA]
+  data-platform faostat catalog sync
+  data-platform faostat catalog list
   data-platform worldbank catalog sync
   data-platform worldbank catalog list --topic 3
   data-platform serve --port 3400
@@ -1740,6 +1746,15 @@ async function main(): Promise<void> {
       break;
     case "ecb":
       await (await import("./ecbCommands")).cmdEcb(rest);
+      break;
+    case "census":
+      await (await import("./censusCommands")).cmdCensus(rest);
+      break;
+    case "bea":
+      await (await import("./beaCommands")).cmdBea(rest);
+      break;
+    case "faostat":
+      await (await import("./faostatCommands")).cmdFaostat(rest);
       break;
     case "worldbank":
       await (await import("./worldbankCommands")).cmdWorldbank(rest);

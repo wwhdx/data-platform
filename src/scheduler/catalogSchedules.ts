@@ -5,6 +5,9 @@ import { FredConnector, FRED_META } from "../connectors/fred";
 import { OecdConnector, OECD_META } from "../connectors/oecd";
 import { ImfConnector, IMF_META } from "../connectors/imf";
 import { EcbConnector, ECB_META } from "../connectors/ecb";
+import { CensusConnector, CENSUS_META } from "../connectors/census";
+import { BeaConnector, BEA_META } from "../connectors/bea";
+import { FaostatConnector, FAOSTAT_META } from "../connectors/faostat";
 import { WorldBankConnector, WORLD_BANK_META } from "../connectors/worldbank";
 import { resolveConnectorConfig } from "../connectors/factory";
 import type { ConnectorConfig, ConnectorMeta } from "../types";
@@ -130,6 +133,45 @@ const TREE_CATALOG_SPECS: TreeCatalogSourceSpec[] = [
     yamlCronKey: "ecb_catalog_cron",
     defaultCron: "0 10 * * 0",
     createConnector: (cfg) => new EcbConnector(cfg),
+    formatDone: (r) =>
+      `${r.dataflows} dataflows, yamlMissing=${r.yamlMissing}`,
+  },
+  {
+    sourceId: "census",
+    taskId: "census-catalog-sync",
+    meta: CENSUS_META,
+    envEnabled: "CENSUS_CATALOG_SYNC_ENABLED",
+    yamlEnabledKey: "census_catalog_sync_enabled",
+    envCron: "CENSUS_CATALOG_CRON",
+    yamlCronKey: "census_catalog_cron",
+    defaultCron: "0 11 * * 0",
+    createConnector: (cfg) => new CensusConnector(cfg),
+    formatDone: (r) =>
+      `${r.datasets} datasets, yamlMissing=${r.yamlMissing}`,
+  },
+  {
+    sourceId: "bea",
+    taskId: "bea-catalog-sync",
+    meta: BEA_META,
+    envEnabled: "BEA_CATALOG_SYNC_ENABLED",
+    yamlEnabledKey: "bea_catalog_sync_enabled",
+    envCron: "BEA_CATALOG_CRON",
+    yamlCronKey: "bea_catalog_cron",
+    defaultCron: "0 12 * * 0",
+    createConnector: (cfg) => new BeaConnector(cfg),
+    formatDone: (r) =>
+      `${r.tables} tables, datasets=${r.datasets}, yamlMissing=${r.yamlMissing}`,
+  },
+  {
+    sourceId: "faostat",
+    taskId: "faostat-catalog-sync",
+    meta: FAOSTAT_META,
+    envEnabled: "FAOSTAT_CATALOG_SYNC_ENABLED",
+    yamlEnabledKey: "faostat_catalog_sync_enabled",
+    envCron: "FAOSTAT_CATALOG_CRON",
+    yamlCronKey: "faostat_catalog_cron",
+    defaultCron: "0 13 * * 0",
+    createConnector: (cfg) => new FaostatConnector(cfg),
     formatDone: (r) =>
       `${r.dataflows} dataflows, yamlMissing=${r.yamlMissing}`,
   },
