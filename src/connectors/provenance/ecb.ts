@@ -17,6 +17,7 @@ export function buildEcbDocumentRequest(
   const sp = buildEcbDataParams({
     startPeriod: opts?.startPeriod,
     lastNObservations: opts?.startPeriod ? undefined : 1,
+    seriesKey: query.key,
   });
   const url = `${root}/${path}?${sp}`;
   const capture = captureFromRequest(url, {

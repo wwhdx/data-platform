@@ -34,20 +34,37 @@ export function buildEcbDataPath(query: EcbQuery): string {
   return `data/${query.flowId}/${query.key}`;
 }
 
+/** EXR 月度序列 key 以 M. 开头；增量 startPeriod 常返回空 body */
+export function isEcbMonthlyKey(key: string): boolean {
+  return key.startsWith("M.");
+}
+
 export function buildEcbDataParams(opts?: {
   startPeriod?: string;
   lastNObservations?: number;
+  seriesKey?: string;
 }): URLSearchParams {
   const sp = new URLSearchParams({
     format: "jsondata",
     detail: "dataonly",
   });
-  if (opts?.startPeriod) {
+  const monthly = opts?.seriesKey != null && isEcbMonthlyKey(opts.seriesKey);
+  if (opts?.startPeriod && !monthly) {
     sp.set("startPeriod", opts.startPeriod);
   } else {
     sp.set("lastNObservations", String(opts?.lastNObservations ?? 1));
   }
   return sp;
+}
+
+export function parseEcbJsonBody(text: string): Record<string, unknown> | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  try {
+    return JSON.parse(trimmed) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
 }
 
 export function buildEcbAccessibleUrl(
@@ -57,7 +74,7 @@ export function buildEcbAccessibleUrl(
 ): string {
   const root = baseUrl.replace(/\/$/, "");
   const path = buildEcbDataPath(query);
-  const sp = buildEcbDataParams(opts);
+  const sp = buildEcbDataParams({ ...opts, seriesKey: query.key });
   return `${root}/${path}?${sp}`;
 }
 

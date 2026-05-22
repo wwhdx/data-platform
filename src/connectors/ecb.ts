@@ -17,6 +17,7 @@ import {
   ecbQueryMatchesText,
   hasSdmxJsonErrors,
   mapEcbJsonToDocuments,
+  parseEcbJsonBody,
   type EcbQuery,
 } from "./ecbHelpers";
 import { attachProvenance } from "./provenance/attach";
@@ -76,6 +77,7 @@ export class EcbConnector extends BaseConnector {
     const sp = buildEcbDataParams({
       startPeriod: opts?.startPeriod,
       lastNObservations: opts?.startPeriod ? undefined : 1,
+      seriesKey: query.key,
     });
     return `${root}/${path}?${sp}`;
   }
@@ -86,8 +88,8 @@ export class EcbConnector extends BaseConnector {
   ): Promise<Record<string, unknown> | null> {
     const res = await this.fetch(this.dataUrl(query, opts));
     if (!res.ok) return null;
-    const body = (await res.json()) as Record<string, unknown>;
-    if (hasSdmxJsonErrors(body.errors)) return null;
+    const body = parseEcbJsonBody(await res.text());
+    if (!body || hasSdmxJsonErrors(body.errors)) return null;
     if (!body.data && !body.dataSets) return null;
     return body;
   }
