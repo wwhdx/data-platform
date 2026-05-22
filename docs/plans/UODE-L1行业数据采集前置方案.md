@@ -26,9 +26,9 @@ UODE L2 的 `domainSignal.trendScore` / `recentDocCount` 与 `/api/search?indust
 | 弱信号虚拟源 + query collect | ✅ U-L1-5：`pubmed_医疗` · `openalex_能源` |
 | 宏观虚拟源 + indicator 白名单 | ✅ **U-L1-A1**：`worldbank_医疗` · `worldbank_indicator_codes` |
 | 试点 macro 灌库 | ✅ 医疗 56/10 · 能源 298/10 |
-| 试点 text 灌库 | 🟡 医疗 20/50 · 能源 0/50 |
+| 试点 text 灌库 | 🟡 医疗 ✅ 200/50 · 能源 0/50 |
 
-**剩余缺口**：弱信号 text 未达 50 条/行业 → 行业 strict 检索与 trend 仍偏弱；完成 **U-L1-A2 / U-L1-A3** 运维 collect 后跑 §四 完成定义。
+**剩余缺口**：能源弱信号 text 未达 50 条；完成 **U-L1-A3** 后跑 §四 双行业 `l1Ready` 验收。
 
 ### 1.2 目标（U-L1）
 
@@ -148,11 +148,13 @@ industries:
 | ID | 通道 | 任务 | 命令 / 动作 | 完成标准 | 关联 |
 |----|------|------|-------------|----------|------|
 | **U-L1-A1** | macro | 医疗宏观虚拟源 + health 指标白名单灌库 | `pnpm cli config sync` → `collect --source worldbank_医疗` | 医疗 macro≥10 | U-L1-5 · `8b086d0` ✅ |
-| **U-L1-A2** | text | 医疗弱信号灌库 | `pnpm cli collect --source pubmed_医疗`（可重复至达标） | 医疗 text≥50 | U-L1-5 · U-L1-8 □ |
+| **U-L1-A2** | text | 医疗弱信号灌库 | `pnpm cli collect --source pubmed_医疗`（可重复至达标） | 医疗 text≥50 | U-L1-5 · U-L1-8 ✅ |
 | **U-L1-A3** | text | 能源弱信号灌库 | `pnpm cli collect --source openalex_能源` | 能源 text≥50 | U-L1-5 · U-L1-8 □ |
 | **U-L1-accept** | 汇总 | 试点 coverage 全门槛 | `pnpm cli industry coverage` + §四 检索/trend | 医疗/能源 `l1Ready: true` | U-L1-8 |
 
 **前置**：虚拟源 collect 前须 `pnpm cli config sync`；API/CLI collect 须 `serve` 已注册虚拟 connector（重启后生效）。
+
+**首次灌库提示**：DB 已有 `last_collected_at` 时默认 `since` 为当日，匹配面窄且易全重复；未达标时须显式 `--since YYYY-MM-DD`（如 `2024-01-01`）配合 `--max-items 200` 做历史回填。
 
 **完成定义（试点「医疗」）**：
 
@@ -226,3 +228,4 @@ U-L1 coverage 验收（0.5d）        ← E1 行业联调前建议完成
 | v1.1 | 2026-05-22 | **U-L1-1～10** 试点落地：industry-l1.yml、虚拟源、coverage CLI/API、单测 |
 | v1.2 | 2026-05-22 | **U-L1-A1** `worldbank_医疗` 宏观虚拟源 + `worldbank_indicator_codes`；§一 coverage 快照；医疗 macro 灌库 56/10 |
 | v1.3 | 2026-05-22 | 正式定义 **U-L1-A2/A3** 运维灌库子任务（§4.1）；与 §3 A 轨 A2/A3 编号隔离说明 |
+| v1.4 | 2026-05-22 | **U-L1-A2** 完成：job #11 `pubmed_医疗` 200/50；§4.1 增补首次灌库 `--since` 说明 |
