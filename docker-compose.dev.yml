@@ -1,12 +1,15 @@
-# 开发模式：挂载源码 + tsx watch 热重载
+# 开发模式：挂载源码 + tsx watch 热重载（服务拓扑与 docker-compose.yml 对齐）
 networks:
   dp-network:
 
 services:
 
+  # ── PostgreSQL (pgvector) ─────────────────
   db:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
+    env_file:
+      - .env
     networks:
       - dp-network
     environment:
@@ -16,7 +19,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - dev_pgdata:/var/lib/postgresql/data
+      - ${DATA_PLATFORM_PGDATA_DIR:-./data/pgdata}:/var/lib/postgresql/data
       - ./src/storage/migrations:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U lumina -d data_platform"]
@@ -24,14 +27,16 @@ services:
       timeout: 5s
       retries: 5
 
-  # 勿与本机 `ollama serve` 同占宿主机 11434
+  # ── Ollama (Docker 内 Embedding；勿与本机 ollama serve 同占 11434) ──
   ollama:
     image: ollama/ollama:latest
     restart: unless-stopped
+    env_file:
+      - .env
     networks:
       - dp-network
     volumes:
-      - dev_ollama_models:/root/.ollama
+      - ${DATA_PLATFORM_OLLAMA_DIR:-./data/ollama}:/root/.ollama
     ports:
       - "11434:11434"
     healthcheck:
@@ -41,6 +46,7 @@ services:
       retries: 5
       start_period: 30s
 
+  # ── 模型拉取（一次性，经 ollama 服务拉取，不另起 serve）────────
   ollama-init:
     image: ollama/ollama:latest
     networks:
@@ -59,6 +65,7 @@ services:
       ollama:
         condition: service_healthy
 
+  # ── data-platform API 服务（开发：Dockerfile.dev + 源码挂载）────
   app:
     build:
       context: .
@@ -68,20 +75,24 @@ services:
       - "3400:3400"
     networks:
       - dp-network
-    volumes:
-      - ./src:/app/src
-      - ./data/raw:/data/raw
-      # GCP ADC 凭证（google_patents BigQuery 需要）；secrets/ 已加入 .gitignore
-      - ./secrets/gcp-adc.json:/gcp/adc.json:ro
     env_file:
       - .env
     environment:
+      # 覆盖 .env 中面向宿主机的值，容器内须用服务名
       DATA_PLATFORM_DATABASE_URL: postgresql://lumina:lumina_pass@db:5432/data_platform
       DATA_PLATFORM_RAW_MIRROR: /data/raw
+      DATA_PLATFORM_COLLECT_LOG_DIR: /data/logs/collect
       EMBED_BACKEND: ollama
       EMBED_API_URL: http://ollama:11434
       NODE_ENV: development
       PORT: "3400"
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config:ro
+      - ./data/raw:/data/raw
+      - ./data/logs/collect:/data/logs/collect
+      # GCP ADC 凭证（google_patents BigQuery 需要）；secrets/ 已加入 .gitignore
+      - ./secrets/gcp-adc.json:/gcp/adc.json:ro
     depends_on:
       db:
         condition: service_healthy
@@ -89,5 +100,5 @@ services:
         condition: service_completed_successfully
 
 volumes:
-  dev_pgdata:
-  dev_ollama_models:
+  pgdata:
+  ollama_models:
