@@ -40,6 +40,14 @@ export function buildDocumentFilterClause(
     i++;
   }
 
+  if (filters.industryTag) {
+    if (filters.industryStrict) {
+      parts.push(`rd.industry_tag = $${i}`);
+      params.push(filters.industryTag);
+      i++;
+    }
+  }
+
   // contentType 依赖 Layer 2 富化表，MVP 尚未落地，暂不生成 SQL
 
   const sql = parts.length ? ` AND ${parts.join(" AND ")}` : "";

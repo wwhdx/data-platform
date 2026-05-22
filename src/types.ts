@@ -133,15 +133,28 @@ export interface CollectParams {
   signal?: AbortSignal;
 }
 
+// ── UODE L2 认知信号（SearchProvider / HTTP search）──
+export interface DomainSignal {
+  citationCount?: number;
+  trendScore?: number;
+  recentDocCount?: number;
+  industryTag?: string;
+  trlHint?: string;
+}
+
 // ── 搜索 ──
 export interface SearchOptions {
   maxResults?: number;
+  industryTag?: string | null;
+  industryStrict?: boolean;
   filters?: {
     sourceIds?: string[];
     contentType?: string[];
     dateFrom?: string;
     dateTo?: string;
     commercialUse?: boolean;
+    industryTag?: string | null;
+    industryStrict?: boolean;
   };
 }
 
@@ -155,18 +168,17 @@ export interface SearchResult {
   score: number;
   license: string;
   commercialUse: boolean;
+  citationCount?: number;
+  industryTag?: string | null;
+  domainSignal?: DomainSignal;
 }
 
 export interface SearchRequest {
   query: string;
   maxResults?: number;
-  filters?: {
-    sourceIds?: string[];
-    contentType?: string[];
-    dateFrom?: string;
-    dateTo?: string;
-    commercialUse?: boolean;
-  };
+  industry?: string;
+  industryStrict?: boolean;
+  filters?: SearchOptions["filters"];
 }
 
 export interface SearchResponse {

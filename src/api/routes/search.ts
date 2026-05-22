@@ -20,8 +20,11 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
 
     // Phase 2: 混合检索（语义 + 关键词 + RRF）
     // 语义搜索失败时自动降级为纯关键词搜索
+    const industryTag = body.industry?.trim() || undefined;
     const results = await hybridSearch(query, {
       maxResults: body.maxResults ?? 10,
+      industryTag: industryTag ?? null,
+      industryStrict: body.industryStrict === true,
       filters: body.filters,
     });
 

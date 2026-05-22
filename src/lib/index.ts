@@ -19,6 +19,8 @@ export type {
   SearchResult,
 } from "../client";
 
+export type { DomainSignal } from "../types";
+
 export {
   createDataPlatformSearchProvider,
   type SearchProvider,

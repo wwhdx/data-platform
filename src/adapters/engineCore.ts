@@ -6,11 +6,15 @@
  *   const searchProvider = createDataPlatformSearchProvider(process.env.DATA_PLATFORM_URL);
  */
 import { createDataPlatformClient } from "../client/dataPlatformClient";
+import type { DomainSignal } from "../types";
+
+export type { DomainSignal };
 
 export interface SearchProviderResult {
   title: string;
   url: string;
   snippet: string;
+  domainSignal?: DomainSignal;
 }
 
 export interface SearchProviderOptions {
@@ -41,6 +45,7 @@ export function createDataPlatformSearchProvider(
         title: r.title,
         url: r.url,
         snippet: r.snippet,
+        domainSignal: r.domainSignal,
       }));
     },
   };

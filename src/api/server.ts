@@ -2,6 +2,10 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { searchRoutes } from "./routes/search";
 import { adminRoutes } from "./routes/admin";
 import { healthRoute } from "./routes/health";
+import { opportunityVectorsRoutes } from "./routes/opportunityVectors";
+import { opportunityOutcomesRoutes } from "./routes/opportunityOutcomes";
+import { opportunityWeightsRoutes } from "./routes/opportunityWeights";
+import { industryTagsRoutes } from "./routes/industryTags";
 import type { Scheduler } from "../scheduler";
 
 export interface ServerOptions {
@@ -23,6 +27,10 @@ export async function buildApp(opts: ServerOptions = {}): Promise<FastifyInstanc
   await app.register(healthRoute);
   await app.register(searchRoutes, { prefix: "/api" });
   await app.register(adminRoutes, { prefix: "/api/admin" });
+  await app.register(opportunityVectorsRoutes, { prefix: "/api/opportunity-vectors" });
+  await app.register(opportunityOutcomesRoutes, { prefix: "/api/opportunity-outcomes" });
+  await app.register(opportunityWeightsRoutes, { prefix: "/api/opportunity-weights" });
+  await app.register(industryTagsRoutes, { prefix: "/api/admin/industry-tags" });
 
   return app;
 }

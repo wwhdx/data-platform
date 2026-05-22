@@ -6,8 +6,35 @@ import { embedQuery } from "./embed";
 import { semanticSearch } from "./vectorStore";
 import { keywordSearch } from "../storage/models/rawDocument";
 import { query } from "../storage/db";
+import { citationFromRaw, enrichSearchResults } from "./domainSignal";
 import type { SearchResult, SearchOptions } from "../types";
 import type { InternalSearchHit } from "../storage/models/rawDocument";
+
+function resolveIndustry(opts?: SearchOptions): {
+  industryTag: string | null;
+  industryStrict: boolean;
+} {
+  const tag = opts?.industryTag ?? opts?.filters?.industryTag ?? null;
+  const industryStrict = Boolean(
+    opts?.industryStrict ?? opts?.filters?.industryStrict,
+  );
+  return { industryTag: tag, industryStrict };
+}
+
+function mergeSearchOpts(opts?: SearchOptions): SearchOptions | undefined {
+  const { industryTag, industryStrict } = resolveIndustry(opts);
+  if (!opts && !industryTag) return opts;
+  return {
+    ...opts,
+    industryTag,
+    industryStrict,
+    filters: {
+      ...opts?.filters,
+      industryTag,
+      industryStrict,
+    },
+  };
+}
 
 /**
  * RRF 融合：rank = 1/(k + position)，k 默认 60。
@@ -40,7 +67,9 @@ export async function hybridSearch(
   opts?: SearchOptions,
 ): Promise<SearchResult[]> {
   const topK = opts?.maxResults ?? 10;
-  const filters = opts?.filters;
+  const merged = mergeSearchOpts(opts);
+  const filters = merged?.filters;
+  const { industryTag } = resolveIndustry(merged);
 
   const [queryVec, keywordHits] = await Promise.all([
     embedQuery(searchQuery).catch(() => null),
@@ -59,15 +88,16 @@ export async function hybridSearch(
   // 降级：仅语义结果
   if (keywordHits.length === 0 && semanticResults.length > 0) {
     const top = semanticResults.slice(0, topK);
-    return fetchDocumentsById(
+    const results = await fetchDocumentsById(
       top.map(s => s.docId),
-      top.map((_, i) => 1 / (60 + i + 1)),  // RRF 得分
+      top.map((_, i) => 1 / (60 + i + 1)),
     );
+    return finalizeSearchResults(results, searchQuery, industryTag, merged);
   }
 
-  // 降级：仅关键词结果（ts_rank 已含得分）
   if (semanticResults.length === 0 && keywordHits.length > 0) {
-    return keywordHits.slice(0, topK);
+    const sliced = keywordHits.slice(0, topK).map((h) => hitsToSearchResult(h));
+    return finalizeSearchResults(sliced, searchQuery, industryTag, merged);
   }
 
   // 都为空
@@ -83,10 +113,41 @@ export async function hybridSearch(
     .slice(0, topK)
     .map(([docId, score]) => ({ docId, score }));
 
-  return fetchDocumentsById(
+  const results = await fetchDocumentsById(
     sorted.map(s => s.docId),
     sorted.map(s => s.score),
   );
+  return finalizeSearchResults(results, searchQuery, industryTag, merged);
+}
+
+async function finalizeSearchResults(
+  results: SearchResult[],
+  searchQuery: string,
+  industryTag: string | null,
+  opts?: SearchOptions,
+): Promise<SearchResult[]> {
+  const enriched = await enrichSearchResults(results, searchQuery, industryTag);
+  const { industryStrict } = resolveIndustry(opts);
+  if (!industryTag || industryStrict) return enriched;
+  return [...enriched].sort((a, b) => {
+    const boostB = b.industryTag === industryTag ? 0.2 : 0;
+    const boostA = a.industryTag === industryTag ? 0.2 : 0;
+    return b.score + boostB - (a.score + boostA);
+  });
+}
+
+function hitsToSearchResult(hit: InternalSearchHit): SearchResult {
+  return {
+    title: hit.title,
+    url: hit.url,
+    snippet: hit.snippet,
+    sourceId: hit.sourceId,
+    sourceName: hit.sourceName,
+    publishedAt: hit.publishedAt,
+    score: hit.score,
+    license: hit.license,
+    commercialUse: hit.commercialUse,
+  };
 }
 
 async function fetchDocumentsById(
@@ -101,6 +162,7 @@ async function fetchDocumentsById(
       rd.id AS doc_id,
       rd.source_id,
       rd.raw_json,
+      rd.industry_tag,
       ds.name AS source_name,
       ds.license,
       ds.commercial_use
@@ -131,6 +193,8 @@ async function fetchDocumentsById(
       score: scores?.[i] ?? 0,
       license: String(row.license),
       commercialUse: Boolean(row.commercial_use),
+      citationCount: citationFromRaw(raw),
+      industryTag: row.industry_tag != null ? String(row.industry_tag) : null,
     });
   }
   return out;

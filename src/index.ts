@@ -9,6 +9,7 @@ import {
   formatMaintenanceSummary,
   registerCatalogSchedules,
 } from "./scheduler/catalogSchedules";
+import { registerOpportunityWeightsSchedule } from "./scheduler/opportunityWeightsSchedule";
 import { registerDefaultConnectors } from "./connectors/bootstrap";
 import { getPool, closePool } from "./storage/db";
 import { loadConfig } from "./config/loader";
@@ -44,6 +45,7 @@ async function main() {
     ? registerSchedulesFromConfig(scheduler, config)
     : [];
   const maintenance = config ? registerCatalogSchedules(scheduler) : [];
+  registerOpportunityWeightsSchedule(scheduler);
   scheduler.start();
   console.log(
     `Scheduler started (YAML): ${formatSchedulesSummary(schedules)}`,
