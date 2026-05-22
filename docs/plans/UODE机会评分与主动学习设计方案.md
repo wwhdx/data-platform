@@ -120,7 +120,7 @@ data-platform G1 读路径（034 + search + sync）✅
     │
 data-platform G1-5 + U-L1 代码 ✅（macro 灌库 ✅ · text 验收中）
     │
-    ├─ 待 A2/A3 text collect → coverage `l1Ready`
+    ├─ 待 **U-L1-A2 / U-L1-A3** text collect → **U-L1-accept**（`l1Ready`）
     │
 data-platform U1（domainSignal + 向量）✅
     │
@@ -152,3 +152,4 @@ data-platform U2（035–037 迁移 + /report + /weights 鉴权分级 + 校准�
 | v1.4 | 2026-05-22 | **职责再划**：UODE 写路径与 `DATA_PLATFORM_ADMIN_KEY` 收敛至 engine-core；wangye 仅 L6 决策 + 调 `finalizeOpportunityReview`；闭环图与依赖顺序同步 |
 | v1.5 | 2026-05-22 | 依赖图增 **G1-5 + U-L1**；三仓库表增 L1 前置专篇 |
 | v1.6 | 2026-05-22 | 依赖图：**U-L1-A1** macro ✅；E1 联调门闸改为 text coverage 达标 |
+| v1.7 | 2026-05-22 | 依赖图：**U-L1-A2/A3** 正式编号（替会话内裸写 A2/A3） |

@@ -82,3 +82,42 @@ commit 前抽 5 处 `rg` 反证路径与函数名；遍历 `§` 交叉引用；c
 2. `pnpm build` / `tsc` / `vitest` / `docker compose` 前缀 `timeout`。
 3. 一条 Shell 一个问题；禁 `cmd | head -N`（用 `awk 'NR<=N'` 或 `rg --max-count`）。
 4. 禁扫 `agent-transcripts/**/*.jsonl`。
+
+## 7. 任务编号与文档真源（禁止裸写 A2/A3）
+
+> 人类索引：`docs/agent-workflow.md` · U-L1 运维表：`docs/plans/UODE-L1行业数据采集前置方案.md` §4.1 · 登记真源：`docs/plans/实施进度总览.md` §2.7
+
+### 7.1 编号空间（禁止混用）
+
+| 前缀 | 登记位置 | 含义 |
+|------|----------|------|
+| **A1–A12** | 实施进度 §3 A 轨 | Connector / 流水线（**A2**=`paginateOffset`，**A3**=World Bank Connector） |
+| **U-L1-1～10** | U-L1 方案 §四 | 设计/代码任务（如 U-L1-5 虚拟源**实现**） |
+| **U-L1-A*** | 实施进度 §2.7 + U-L1 §4.1 | **运维灌库 + coverage 验收**（须带 `U-L1-` 前缀） |
+| **U-L1-accept** | 同上 | 试点 `l1Ready` 汇总门闸 |
+
+**当前 U-L1 运维链**（2026-05-22 HEAD）：
+
+| ID | 状态 | 动作 | 完成标准 |
+|----|------|------|----------|
+| U-L1-A1 | ✅ | `collect --source worldbank_医疗` | 医疗 macro≥10 |
+| U-L1-A2 | □ | `collect --source pubmed_医疗` | 医疗 text≥50 |
+| U-L1-A3 | □ | `collect --source openalex_能源` | 能源 text≥50 |
+| U-L1-accept | 🟡 | `pnpm cli industry coverage` + U-L1 §四 | 两行业 `l1Ready` |
+
+虚拟源 collect 前：`pnpm cli config sync`；API collect 须 `serve` 已注册虚拟 connector。
+
+### 7.2 强制动作（评估/排期/汇报「下一步」时）
+
+1. 新代号（A2、步骤 N、阶段 B）→ **同一主题**内在 §2.7 或专题方案 **增表行**（ID · 命令 · 完成标准）；禁止只在对话/变更记录裸写。
+2. **`rg` 查冲突**：`rg '^\| \*\*A2\*\*' docs/plans/实施进度总览.md` — §3 已占用则必须用 **`U-L1-A2`** 等同轨前缀。
+3. 代码 commit 引用了未登记 ID → **doc-progress-sync 违规**；须同批或紧邻 docs commit。
+4. 运维任务勾 ✅ 须附验收命令（如 `pnpm cli industry coverage --tag 医疗`）；**U-L1-8 工具 ✅ ≠ 灌库 ✅**。
+
+### 7.3 案例：U-L1-A2/A3 一度未定义（2026-05-22）
+
+- **编号空间分裂**：U-L1-1～10 偏实现；灌库是会话临时「A1–A3」，未入真源。
+- **只登记 A1**：`U-L1-A1` 随代码进 §2.7；docs 抄「A2/A3」未增行。
+- **与 §3 A2/A3 同名**：裸写造成歧义。
+
+**收尾自检追加问句**：答复里若出现「接下来 A2/步骤 N」→ 该 ID 是否已在 §2.7 或专题 § 任务表占一行？否 → 先补文档再 commit。

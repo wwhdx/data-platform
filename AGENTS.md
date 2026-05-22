@@ -21,6 +21,7 @@ docker compose up -d --build   # API :3400, PG :5433
 - 凭证仅 `process.env`；API 带 User-Agent
 - 新 Connector → `src/connectors/index.ts` + 运行时 `registerConnector`（见规则 §3）
 - **任务结束前 `pnpm build` 必须通过**（Docker 同命令；见规则 §2 Build 门闸）
+- **任务编号**：U-L1 运维用 `U-L1-A*`（禁与 §3 A2/A3 混号）；新代号须登记 §2.7 → 规则 **§7**
 
 ## Commit
 

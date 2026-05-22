@@ -12,6 +12,7 @@ alwaysApply: true
 2. **范围**：仅同步与本次提交同主题的章节。
 3. **勾 ✅ 前**：`rg` 验证代码已接入（如 Connector 已 export + 注册）。
 4. **大文档自审**（≥100 行或连续 3 次 commit 改同一 doc）：按 `ai-task-integration.mdc` 父仓四维方法；commit message 带「自审：通过 / N 条勘误」。
+5. **任务编号**：会话内新代号（A2、步骤 N）须在同一主题 commit 内登记至 `实施进度总览.md` §2.7 或专题方案任务表；禁止裸写或与 §3 A/B/C 矩阵混号。细则 → `ai-task-integration.mdc` **§7**。
 
 ## 环境变量（强制）
 
