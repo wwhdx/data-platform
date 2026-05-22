@@ -1,6 +1,10 @@
 import { logger } from "../lib/logger";
 import type { RawDocument } from "../types";
-import { insertRawDocuments, findExistingIds } from "../storage/models/rawDocument";
+import {
+  insertRawDocuments,
+  findExistingIds,
+  patchIndustryTagOnExisting,
+} from "../storage/models/rawDocument";
 import { insertCollectionJobEvent } from "../storage/models/collectionJobEvent";
 import { embedDocuments } from "../rag/vectorStore";
 import { mirrorInsertedDocuments } from "../export/mirror";
@@ -66,16 +70,32 @@ export async function dedup(
 
     const fresh: RawDocument[] = [];
     const seenInBatch = new Set<string>();
+    const tagPatches: Array<{
+      externalId: string;
+      industryTag: string;
+      collectionJobId?: number;
+    }> = [];
     for (const d of sourceDocs) {
       if (existing.has(d.externalId) || seenInBatch.has(d.externalId)) {
         skippedCount++;
         if (sampleLimit > 0 && skippedSampleIds.length < sampleLimit) {
           skippedSampleIds.push(d.externalId);
         }
+        if (d.industryTag) {
+          tagPatches.push({
+            externalId: d.externalId,
+            industryTag: d.industryTag,
+            collectionJobId: d.collectionJobId,
+          });
+        }
       } else {
         seenInBatch.add(d.externalId);
         fresh.push(d);
       }
+    }
+
+    if (tagPatches.length > 0) {
+      await patchIndustryTagOnExisting(sourceId, tagPatches);
     }
 
     if (fresh.length > 0) {

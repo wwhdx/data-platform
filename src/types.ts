@@ -27,6 +27,8 @@ export interface ConnectorConfig {
   baseUrl?: string;
   /** sources.yml 源级 industry_tag（G1-5） */
   industryTag?: string | null;
+  /** 入库 raw_documents.source_id（U-L1 虚拟源与底层 connector id 分离） */
+  publishSourceId?: string;
   /** sources.yml options（如 entrez_db） */
   sourceOptions?: Record<string, unknown>;
   timeoutMs?: number;

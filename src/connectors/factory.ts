@@ -23,6 +23,7 @@ export async function resolveConnectorConfig(
     baseUrl: rt.baseUrl,
     sourceOptions: rt.options,
     industryTag: overrides.industryTag ?? getSourceIndustryTag(sourceId),
+    publishSourceId: overrides.publishSourceId ?? sourceId,
     apiKey,
     apiSecret,
   };

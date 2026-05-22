@@ -363,6 +363,60 @@ export async function registerVirtualConnectors(
       );
       scheduler.registerConnector({ id: raw.id, create: () => c });
       registered.push(raw.id);
+    } else if (base === "faostat") {
+      const c = new FaostatConnector(
+        await resolveConnectorConfig(raw.id, FAOSTAT_META, {}),
+      );
+      scheduler.registerConnector({ id: raw.id, create: () => c });
+      registered.push(raw.id);
+    } else if (base === "fred") {
+      const c = new FredConnector(
+        await resolveConnectorConfig(raw.id, FRED_META, {
+          apiKey: process.env.FRED_API_KEY,
+        }),
+      );
+      scheduler.registerConnector({ id: raw.id, create: () => c });
+      registered.push(raw.id);
+    } else if (base === "eurostat") {
+      const c = new EurostatConnector(
+        await resolveConnectorConfig(raw.id, EUROSTAT_META, {}),
+      );
+      scheduler.registerConnector({ id: raw.id, create: () => c });
+      registered.push(raw.id);
+    } else if (base === "imf") {
+      const c = new ImfConnector(
+        await resolveConnectorConfig(raw.id, IMF_META, {}),
+      );
+      scheduler.registerConnector({ id: raw.id, create: () => c });
+      registered.push(raw.id);
+    } else if (base === "oecd") {
+      const c = new OecdConnector(
+        await resolveConnectorConfig(raw.id, OECD_META, {}),
+      );
+      scheduler.registerConnector({ id: raw.id, create: () => c });
+      registered.push(raw.id);
+    } else if (base === "census") {
+      const c = new CensusConnector(
+        await resolveConnectorConfig(raw.id, CENSUS_META, {
+          apiKey: process.env.CENSUS_API_KEY,
+        }),
+      );
+      scheduler.registerConnector({ id: raw.id, create: () => c });
+      registered.push(raw.id);
+    } else if (base === "bea") {
+      const c = new BeaConnector(
+        await resolveConnectorConfig(raw.id, BEA_META, {
+          apiKey: process.env.BEA_API_KEY,
+        }),
+      );
+      scheduler.registerConnector({ id: raw.id, create: () => c });
+      registered.push(raw.id);
+    } else if (base === "ecb") {
+      const c = new EcbConnector(
+        await resolveConnectorConfig(raw.id, ECB_META, {}),
+      );
+      scheduler.registerConnector({ id: raw.id, create: () => c });
+      registered.push(raw.id);
     } else {
       console.warn(
         `[bootstrap] 虚拟源 ${raw.id} 未支持 connector=${base}，跳过注册`,

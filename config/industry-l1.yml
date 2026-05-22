@@ -31,3 +31,68 @@ industries:
         - "renewable energy storage"
         - "grid decarbonization"
       schedule: "0 7 * * 1"
+
+  农业:
+    macro:
+      source: ecb
+      virtual_source_id: ecb_农业
+      tier: A
+    text:
+      source: openalex
+      virtual_source_id: openalex_农业
+      queries:
+        - "precision agriculture machine learning"
+        - "crop yield prediction satellite"
+      schedule: "0 8 * * 1"
+
+  建筑:
+    macro:
+      source: fred
+      virtual_source_id: fred_建筑
+      tier: A
+    text:
+      source: openalex
+      virtual_source_id: openalex_建筑
+      queries:
+        - "green building construction technology"
+        - "building information modeling BIM"
+      schedule: "0 9 * * 1"
+
+  食品安全:
+    macro:
+      source: eurostat
+      virtual_source_id: eurostat_食品安全
+      tier: A
+    text:
+      source: openalex
+      virtual_source_id: openalex_食品安全
+      queries:
+        - "food safety traceability"
+        - "food contamination detection"
+      schedule: "0 10 * * 1"
+
+  水资源:
+    macro:
+      source: census
+      virtual_source_id: census_水资源
+      tier: A
+    text:
+      source: openalex
+      virtual_source_id: openalex_水资源
+      queries:
+        - "water resource management"
+        - "wastewater treatment technology"
+      schedule: "0 11 * * 1"
+
+  电器制造:
+    macro:
+      source: bea
+      virtual_source_id: bea_电器制造
+      tier: A
+    text:
+      source: openalex
+      virtual_source_id: openalex_电器制造
+      queries:
+        - "smart manufacturing industry 4.0"
+        - "power electronics systems"
+      schedule: "0 12 * * 1"

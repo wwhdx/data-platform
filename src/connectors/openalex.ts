@@ -77,6 +77,10 @@ export class OpenAlexConnector extends BaseConnector {
     return this.apiKey ? `&api_key=${this.apiKey}` : "";
   }
 
+  private docSourceId(): string {
+    return this.publishSourceId || OPENALEX_META.id;
+  }
+
   async search(query: string, opts?: SearchOptions): Promise<SearchResult[]> {
     const maxResults = opts?.maxResults ?? 10;
     const url = `${this.runtimeBaseUrl}/works?search=${encodeURIComponent(query)}&per_page=${maxResults}${this.authParam}`;
@@ -91,10 +95,13 @@ export class OpenAlexConnector extends BaseConnector {
   async *collect(params: CollectParams = {}): AsyncGenerator<RawDocument> {
     const since = params.since ?? new Date(Date.now() - 86400000).toISOString().slice(0, 10);
     const maxItems = params.maxItems ?? Infinity;
+    const q = params.query?.trim();
     let yielded = 0;
     let batchIndex = 0;
 
-    const baseUrl = `${this.runtimeBaseUrl}/works?filter=from_publication_date:${since}&per_page=200${this.authParam}`;
+    const baseUrl = q
+      ? `${this.runtimeBaseUrl}/works?search=${encodeURIComponent(q)}&filter=from_publication_date:${since}&per_page=200${this.authParam}`
+      : `${this.runtimeBaseUrl}/works?filter=from_publication_date:${since}&per_page=200${this.authParam}`;
     let cursor: string | undefined;
 
     const collectCtx = {
@@ -169,7 +176,7 @@ export class OpenAlexConnector extends BaseConnector {
       title: work.title ?? "Untitled",
       url,
       snippet: abstract.slice(0, 300),
-      sourceId: OPENALEX_META.id,
+      sourceId: this.docSourceId(),
       sourceName: OPENALEX_META.name,
       publishedAt: work.publication_date,
       score: work.cited_by_count ?? 0,
@@ -185,7 +192,7 @@ export class OpenAlexConnector extends BaseConnector {
     const abstract = uninvertAbstract(work.abstract_inverted_index);
     const rawJson = work as unknown as Record<string, unknown>;
     return {
-      sourceId: OPENALEX_META.id,
+      sourceId: this.docSourceId(),
       externalId: extId,
       rawJson: abstract ? { ...rawJson, abstract } : rawJson,
       fetchedAt: new Date(),

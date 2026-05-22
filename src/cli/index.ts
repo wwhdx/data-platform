@@ -1680,6 +1680,8 @@ function printHelp() {
   data-platform   worldbank catalog list --topic 3
   data-platform industry coverage --tag 医疗
   data-platform industry validate
+  data-platform industry sync-tags
+  data-platform industry collect-l1 --skip-ready --since 2024-01-01
   data-platform serve --port 3400
   data-platform config validate
   data-platform config sync

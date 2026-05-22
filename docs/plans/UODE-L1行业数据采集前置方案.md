@@ -1,6 +1,6 @@
 # UODE · L1 行业数据采集前置方案
 
-> **状态**：试点落地（医疗/能源 U-L1-A* + accept ✅）  
+> **状态**：七行业 L1 扩展落地（2026-05-22）  
 > **版本**：v1.3（2026-05-22）  
 > **进度真源**：[实施进度总览.md](./实施进度总览.md) §2.8（G1-5）· §2.7（U-L1）  
 > **关联**：[UODE-data-platform-L2信号与机会向量设计方案.md](./UODE-data-platform-L2信号与机会向量设计方案.md) §1.1 · [行业维度接入设计方案.md](./行业维度接入设计方案.md) · [树形API数据源完备采集方法论.md](../knowledge/树形API数据源完备采集方法论.md)  
@@ -26,9 +26,9 @@ UODE L2 的 `domainSignal.trendScore` / `recentDocCount` 与 `/api/search?indust
 | 弱信号虚拟源 + query collect | ✅ U-L1-5：`pubmed_医疗` · `openalex_能源` |
 | 宏观虚拟源 + indicator 白名单 | ✅ **U-L1-A1**：`worldbank_医疗` · `worldbank_indicator_codes` |
 | 试点 macro 灌库 | ✅ 医疗 56/10 · 能源 298/10 |
-| 试点 text 灌库 | ✅ 医疗 200/50 · 能源 200/50 |
+| 七行业 text/macro 灌库 | ✅ 农业/医疗/建筑/食品安全/水资源/电器制造/能源（`pnpm cli industry coverage`） |
 
-**剩余缺口**：滚动扩展至全部 `is_active` 行业（§七 +1d/行业）；非试点行业仍可能 text/macro 未达标。
+**剩余缺口**：与 wangye `INDUSTRIES` 名称对齐（如「医疗健康」vs「医疗」）；非 `industry-l1.yml` 条目行业仍无 L1。
 
 ### 1.2 目标（U-L1）
 
@@ -230,3 +230,4 @@ U-L1 coverage 验收（0.5d）        ← E1 行业联调前建议完成
 | v1.3 | 2026-05-22 | 正式定义 **U-L1-A2/A3** 运维灌库子任务（§4.1）；与 §3 A 轨 A2/A3 编号隔离说明 |
 | v1.4 | 2026-05-22 | **U-L1-A2** 完成：job #11 `pubmed_医疗` 200/50；§4.1 增补首次灌库 `--since` 说明 |
 | v1.5 | 2026-05-22 | **U-L1-A3** job #12 `openalex_能源` 200/50；**U-L1-accept** 双行业 l1Ready |
+| v1.6 | 2026-05-22 | **七行业扩展**：`industry-l1.yml` + 虚拟源 + `industry sync-tags`/`collect-l1`；OpenAlex `publishSourceId`+query；农业宏观改 `ecb_农业` |

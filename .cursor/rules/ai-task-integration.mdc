@@ -103,7 +103,7 @@ commit 前抽 5 处 `rg` 反证路径与函数名；遍历 `§` 交叉引用；c
 | U-L1-A1 | ✅ | `collect --source worldbank_医疗` | 医疗 macro≥10 |
 | U-L1-A2 | ✅ | `collect --source pubmed_医疗` | 医疗 text 200/50 |
 | U-L1-A3 | ✅ | `collect --source openalex_能源` | 能源 text 200/50 |
-| U-L1-accept | ✅ | `pnpm cli industry coverage` + U-L1 §四 | 两行业 `l1Ready` |
+| U-L1-accept | ✅ | `pnpm cli industry coverage` + U-L1 §四 | 七行业 `l1Ready` |
 
 虚拟源 collect 前：`pnpm cli config sync`；API collect 须 `serve` 已注册虚拟 connector。
 

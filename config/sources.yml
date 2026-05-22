@@ -759,3 +759,174 @@ sources:
     description: "U-L1 能源弱信号；策略见 config/industry-l1.yml"
     options:
       collect_max_items: 200
+
+  # ── U-L1 扩展：农业 / 建筑 / 食品安全 / 水资源 / 电器制造 ──
+  - id: ecb_农业
+    connector: ecb
+    profile: sdmx_json
+    name: ECB 农业 L1
+    enabled: true
+    industry_tag: "农业"
+    base_url: https://data-api.ecb.europa.eu/service/
+    rate_limit: "polite"
+    license: ECB terms
+    commercial_use: true
+    schedule:
+      cron: "0 8 * * 1"
+    description: "U-L1 农业宏观锚（ECB Tier A）"
+    options:
+      collect_max_items: 15
+      ecb_tier_filter: "A,B"
+
+  - id: openalex_农业
+    connector: openalex
+    profile: rest_query_param_key
+    name: OpenAlex 农业 L1
+    enabled: true
+    industry_tag: "农业"
+    base_url: https://api.openalex.org
+    rate_limit: "freemium ~10k list+filter/day ($1 free)"
+    license: CC0
+    commercial_use: true
+    schedule:
+      cron: "0 8 * * 1"
+      query: "(precision agriculture machine learning) OR (crop yield prediction satellite)"
+    description: "U-L1 农业弱信号"
+    options:
+      collect_max_items: 200
+
+  - id: fred_建筑
+    connector: fred
+    profile: rest_query_param_key
+    name: FRED 建筑 L1
+    enabled: true
+    industry_tag: "建筑"
+    base_url: https://api.stlouisfed.org/fred/
+    rate_limit: "120/min with key"
+    license: Public Domain
+    commercial_use: true
+    schedule:
+      cron: "0 9 * * 1"
+    description: "U-L1 建筑宏观锚；须 FRED_API_KEY"
+    options:
+      collect_max_items: 30
+      fred_tier_filter: "A"
+
+  - id: openalex_建筑
+    connector: openalex
+    profile: rest_query_param_key
+    name: OpenAlex 建筑 L1
+    enabled: true
+    industry_tag: "建筑"
+    base_url: https://api.openalex.org
+    rate_limit: "freemium ~10k list+filter/day ($1 free)"
+    license: CC0
+    commercial_use: true
+    schedule:
+      cron: "0 9 * * 1"
+      query: "(green building construction technology) OR (building information modeling BIM)"
+    description: "U-L1 建筑弱信号"
+    options:
+      collect_max_items: 200
+
+  - id: eurostat_食品安全
+    connector: eurostat
+    profile: sdmx_json
+    name: Eurostat 食品安全 L1
+    enabled: true
+    industry_tag: "食品安全"
+    base_url: https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/
+    rate_limit: "polite"
+    license: Eurostat terms
+    commercial_use: true
+    schedule:
+      cron: "0 10 * * 1"
+    description: "U-L1 食品安全宏观锚"
+    options:
+      collect_max_items: 30
+      eurostat_tier_filter: "A"
+
+  - id: openalex_食品安全
+    connector: openalex
+    profile: rest_query_param_key
+    name: OpenAlex 食品安全 L1
+    enabled: true
+    industry_tag: "食品安全"
+    base_url: https://api.openalex.org
+    rate_limit: "freemium ~10k list+filter/day ($1 free)"
+    license: CC0
+    commercial_use: true
+    schedule:
+      cron: "0 10 * * 1"
+      query: "(food safety traceability) OR (food contamination detection)"
+    description: "U-L1 食品安全弱信号"
+    options:
+      collect_max_items: 200
+
+  - id: census_水资源
+    connector: census
+    profile: rest_query_param_key
+    name: Census 水资源 L1
+    enabled: true
+    industry_tag: "水资源"
+    base_url: https://api.census.gov/data/
+    rate_limit: "polite"
+    license: Census terms
+    commercial_use: true
+    schedule:
+      cron: "0 11 * * 1"
+    description: "U-L1 水资源宏观锚；须 CENSUS_API_KEY"
+    options:
+      collect_max_items: 30
+      census_tier_filter: "A"
+
+  - id: openalex_水资源
+    connector: openalex
+    profile: rest_query_param_key
+    name: OpenAlex 水资源 L1
+    enabled: true
+    industry_tag: "水资源"
+    base_url: https://api.openalex.org
+    rate_limit: "freemium ~10k list+filter/day ($1 free)"
+    license: CC0
+    commercial_use: true
+    schedule:
+      cron: "0 11 * * 1"
+      query: "(water resource management) OR (wastewater treatment technology)"
+    description: "U-L1 水资源弱信号"
+    options:
+      collect_max_items: 200
+
+  - id: bea_电器制造
+    connector: bea
+    profile: rest_query_param_key
+    name: BEA 电器制造 L1
+    enabled: true
+    industry_tag: "电器制造"
+    base_url: https://apps.bea.gov/api/data/
+    rate_limit: "polite"
+    license: BEA terms
+    commercial_use: true
+    schedule:
+      cron: "0 12 * * 1"
+    description: "U-L1 电器制造宏观锚；须 BEA_API_KEY"
+    options:
+      collect_max_items: 30
+      bea_tier_filter: "A"
+
+  - id: openalex_电器制造
+    connector: openalex
+    profile: rest_query_param_key
+    name: OpenAlex 电器制造 L1
+    enabled: true
+    industry_tag: "电器制造"
+    base_url: https://api.openalex.org
+    rate_limit: "freemium ~10k list+filter/day ($1 free)"
+    license: CC0
+    commercial_use: true
+    schedule:
+      cron: "0 12 * * 1"
+      query: "(smart manufacturing industry 4.0) OR (power electronics systems)"
+    description: "U-L1 电器制造弱信号"
+    options:
+      collect_max_items: 200

@@ -27,6 +27,8 @@ export abstract class BaseConnector implements Connector {
   protected readonly sourceOptions: Record<string, unknown>;
   /** sources.yml 源级 industry_tag（G1-5e） */
   protected readonly resolvedSourceIndustryTag: string | null;
+  /** 写入 raw_documents.source_id（默认同 connector meta.id） */
+  protected readonly publishSourceId: string;
   /** 最近一次 fetch 的请求描述（供 collect 挂 batch provenance） */
   protected lastHttpCapture: HttpRequestCapture | null = null;
 
@@ -37,6 +39,8 @@ export abstract class BaseConnector implements Connector {
     const srcTag = config.industryTag?.trim();
     this.resolvedSourceIndustryTag =
       srcTag && srcTag.length > 0 ? srcTag : null;
+    const pub = config.publishSourceId?.trim();
+    this.publishSourceId = pub && pub.length > 0 ? pub : "";
     this.timeoutMs = config.timeoutMs ?? 30_000;
     this.userAgent = config.userAgent ?? "WangyeDataPlatform/0.1";
     this.rateLimiter = RateLimiter.fromDailyLimit(100_000);

@@ -163,6 +163,36 @@ export async function patchRawDocumentJson(
   return mapInsertedRow(row as Record<string, unknown>);
 }
 
+/** U-L1：重复键跳过时，为已有 openalex 等文档补 industry_tag / collection_job_id */
+export async function patchIndustryTagOnExisting(
+  sourceId: string,
+  items: Array<{
+    externalId: string;
+    industryTag: string;
+    collectionJobId?: number;
+  }>,
+): Promise<number> {
+  if (items.length === 0) return 0;
+  let updated = 0;
+  for (const item of items) {
+    const res = await query(
+      `UPDATE raw_documents
+       SET industry_tag = $3,
+           collection_job_id = COALESCE($4::bigint, collection_job_id)
+       WHERE source_id = $1 AND external_id = $2
+         AND (industry_tag IS NULL OR industry_tag = $3)`,
+      [
+        sourceId,
+        item.externalId,
+        item.industryTag,
+        item.collectionJobId ?? null,
+      ],
+    );
+    updated += res.rowCount ?? 0;
+  }
+  return updated;
+}
+
 export async function findExistingIds(
   sourceId: string,
   externalIds: string[],

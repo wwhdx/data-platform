@@ -31,9 +31,11 @@ describe("industryL1 config", () => {
     );
   });
 
-  it("validateIndustryL1Config 检测 macro 源重复", () => {
+  it("validateIndustryL1Config 七行业 macro 源不重复", () => {
     const config = loadIndustryL1Config()!;
-    const issues = validateIndustryL1Config(config, ["医疗", "能源"]);
+    const tags = Object.keys(config.industries);
+    expect(tags).toHaveLength(7);
+    const issues = validateIndustryL1Config(config, tags);
     expect(issues.filter((i) => i.level === "error")).toHaveLength(0);
   });
 
