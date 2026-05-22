@@ -24,6 +24,7 @@ import {
 import { validateCredentialsForCollect } from "../connectors/credentials";
 import { dedup } from "../processors/dedup";
 import { insertCollectionJobEvent } from "../storage/models/collectionJobEvent";
+import { stampIndustryTagOnDocument } from "../collect/industryTag";
 import { query } from "../storage/db";
 
 interface ConnectorFactory {
@@ -241,13 +242,16 @@ export class Scheduler {
       });
 
       const stampJobId = (doc: RawDocument): RawDocument => {
-        const stamped = { ...doc, collectionJobId: job.id };
-        if (!stamped.fetchProvenance) return stamped;
+        const tagged = stampIndustryTagOnDocument(
+          { ...doc, collectionJobId: job.id },
+          { sourceId, connectorId: factory.id },
+        );
+        if (!tagged.fetchProvenance) return tagged;
         return {
-          ...stamped,
+          ...tagged,
           fetchProvenance: {
-            ...stamped.fetchProvenance,
-            collect: { ...stamped.fetchProvenance.collect, jobId: job.id },
+            ...tagged.fetchProvenance,
+            collect: { ...tagged.fetchProvenance.collect, jobId: job.id },
           },
         };
       };

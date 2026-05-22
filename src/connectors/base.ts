@@ -1,3 +1,4 @@
+import { stampIndustryTagOnDocument } from "../collect/industryTag";
 import type {
   Connector,
   ConnectorMeta,
@@ -24,6 +25,8 @@ export abstract class BaseConnector implements Connector {
   /** resolveRuntimeConfig 或 META 默认 */
   protected readonly runtimeBaseUrl: string;
   protected readonly sourceOptions: Record<string, unknown>;
+  /** sources.yml 源级 industry_tag（G1-5e） */
+  protected readonly resolvedSourceIndustryTag: string | null;
   /** 最近一次 fetch 的请求描述（供 collect 挂 batch provenance） */
   protected lastHttpCapture: HttpRequestCapture | null = null;
 
@@ -31,6 +34,9 @@ export abstract class BaseConnector implements Connector {
     this.apiKey = config.apiKey;
     this.runtimeBaseUrl = config.baseUrl ?? metaDefaultBaseUrl;
     this.sourceOptions = config.sourceOptions ?? {};
+    const srcTag = config.industryTag?.trim();
+    this.resolvedSourceIndustryTag =
+      srcTag && srcTag.length > 0 ? srcTag : null;
     this.timeoutMs = config.timeoutMs ?? 30_000;
     this.userAgent = config.userAgent ?? "WangyeDataPlatform/0.1";
     this.rateLimiter = RateLimiter.fromDailyLimit(100_000);
@@ -41,6 +47,19 @@ export abstract class BaseConnector implements Connector {
 
   abstract search(query: string, opts?: SearchOptions): Promise<SearchResult[]>;
   abstract collect(params: CollectParams): AsyncGenerator<RawDocument>;
+
+  /** catalog 行 industry_tag + 源级/connector 默认（G1-5e） */
+  protected withIndustryTag(
+    doc: RawDocument,
+    catalogTag?: string | null,
+  ): RawDocument {
+    return stampIndustryTagOnDocument(doc, {
+      sourceId: doc.sourceId,
+      connectorId: this.meta.id,
+      catalogTag,
+      sourceTag: this.resolvedSourceIndustryTag,
+    });
+  }
 
   // ── 基础设施方法 ──
 

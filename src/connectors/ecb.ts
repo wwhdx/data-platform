@@ -185,16 +185,19 @@ export class EcbConnector extends BaseConnector {
         if (params.signal?.aborted) break;
         if (yielded >= maxItems) break;
 
-        const doc: RawDocument = {
-          sourceId: ECB_META.id,
-          externalId: mapped.externalId,
-          rawJson: {
-            ...mapped.rawJson,
-            series_key: item.key,
-            collect_tier: (item as EcbSeriesYamlEntry).tier,
+        const doc = this.withIndustryTag(
+          {
+            sourceId: ECB_META.id,
+            externalId: mapped.externalId,
+            rawJson: {
+              ...mapped.rawJson,
+              series_key: item.key,
+              collect_tier: (item as EcbSeriesYamlEntry).tier,
+            },
+            fetchedAt: new Date(),
           },
-          fetchedAt: new Date(),
-        };
+          (item as EcbSeriesYamlEntry).industry_tag,
+        );
         yield attachProvenance(doc, ECB_META, {
           documentRequest: buildEcbDocumentRequest(
             item,

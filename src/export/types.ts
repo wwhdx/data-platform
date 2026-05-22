@@ -12,6 +12,7 @@ export interface ExportFilters {
 }
 
 export interface RawDocumentRow {
+  industryTag?: string | null;
   id: number;
   sourceId: string;
   externalId: string;

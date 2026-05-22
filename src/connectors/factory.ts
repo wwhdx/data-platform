@@ -1,4 +1,4 @@
-import { resolveRuntimeConfig } from "../config/runtime";
+import { getSourceIndustryTag, resolveRuntimeConfig } from "../config/runtime";
 import type { ConnectorConfig, ConnectorMeta } from "../types";
 
 /** 合并 env > DB > YAML options，供 Connector 构造使用 */
@@ -21,6 +21,7 @@ export async function resolveConnectorConfig(
     ...overrides,
     baseUrl: rt.baseUrl,
     sourceOptions: rt.options,
+    industryTag: overrides.industryTag ?? getSourceIndustryTag(sourceId),
     apiKey,
     apiSecret,
   };

@@ -21,8 +21,8 @@ UODE L2 的 `domainSignal.trendScore` / `recentDocCount` 与 `/api/search?indust
 | 迁移 034：`industry_tags` + `raw_documents.industry_tag` 列 | ✅ |
 | `POST /api/search` 读路径过滤 + `domainSignal` | ✅ |
 | `POST /api/admin/industry-tags/sync` | ✅ |
-| 采集入库写 `industry_tag` | ❌ `RawDocument` / `insertRawDocuments` 未接 |
-| `sources.yml` / 树形 YAML `industry_tag` 消费 | ❌ 类型预留，采集未透传 |
+| 采集入库写 `industry_tag` | ✅ G1-5：`rawDocument.ts` · `types.ts` · `chunk` 继承 |
+| `sources.yml` / 树形 YAML `industry_tag` 消费 | ✅ G1-5d/e：`config/expand` · `collect/industryTag` · 树形 connector |
 | 按行业 query 的弱信号 collect | ❌ 无配置与调度 |
 
 **后果**：对任意 `industry=医疗` 请求，库内 tagged 文档≈0 → 行业 trend 无效、检索空、engine-core D(h) 只能降级全局。
@@ -161,9 +161,9 @@ curl -s -X POST localhost:3400/api/search \
 | 行业 tag 列 | `034_industry_dimension.sql` | ✅ |
 | 检索过滤 | `src/rag/searchFilters.ts` · `retriever.ts` | ✅ |
 | trend SQL | `src/rag/domainSignal.ts` | ✅（无 tagged 数据时无效） |
-| 入库打标 | `rawDocument.ts` · `types.ts` | □ G1-5 |
-| 源级 tag | `config/sources.yml` | □ G1-5d |
-| 树形 catalog tag | `config/worldbank-indicators.yml` 等 | 🟡 注释预留 |
+| 入库打标 | `rawDocument.ts` · `types.ts` | ✅ G1-5 |
+| 源级 tag | `config/sources.yml` · `config/expand.ts` | ✅ G1-5d |
+| 树形 catalog tag | `worldbank`/`fred`/`eia`/`imf`/`ecb`/`eurostat`/`oecd` | ✅ G1-5e（YAML 行取消注释即生效） |
 | 行业 L1 策略 | `config/industry-l1.yml` | □ U-L1-4 |
 | 覆盖率 | CLI / admin route | □ U-L1-8 |
 
@@ -201,3 +201,4 @@ U-L1 coverage 验收（0.5d）        ← E1 行业联调前建议完成
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1.0 | 2026-05-22 | 初稿：G1-5 缺口评估、四阶段 U-L1、`industry-l1.yml` schema、任务 U-L1-1～10 |
+| v1.0.1 | 2026-05-22 | **G1-5** 代码落地，§一/§五 状态同步 |

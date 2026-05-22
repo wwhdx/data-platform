@@ -8,7 +8,7 @@ export interface FredSeriesYamlEntry {
   collect_enabled?: boolean;
   title?: string;
   category_id?: number;
-  /** 注释用：行业标签，不入库 */
+  /** 行业标签（G1-5 catalog 行） */
   industry_tag?: string;
 }
 

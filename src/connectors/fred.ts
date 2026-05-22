@@ -242,16 +242,19 @@ export class FredConnector extends BaseConnector {
       const latest = obs?.observations?.[0];
       const { externalId, rawJson } = mapFredSeriesToRawJson(meta, latest, obs?.units);
 
-      const doc: RawDocument = {
-        sourceId: FRED_META.id,
-        externalId,
-        rawJson: {
-          ...rawJson,
-          series_id: item.series_id,
-          collect_tier: item.tier,
+      const doc = this.withIndustryTag(
+        {
+          sourceId: FRED_META.id,
+          externalId,
+          rawJson: {
+            ...rawJson,
+            series_id: item.series_id,
+            collect_tier: item.tier,
+          },
+          fetchedAt: new Date(),
         },
-        fetchedAt: new Date(),
-      };
+        item.industry_tag,
+      );
       yield attachProvenance(doc, FRED_META, {
         documentRequest: buildFredDocumentRequest(
           externalId,
@@ -274,12 +277,15 @@ export class FredConnector extends BaseConnector {
         const obs = await this.latestObservation(s.id);
         const latest = obs?.observations?.[0];
         const { externalId, rawJson } = mapFredSeriesToRawJson(s, latest, obs?.units);
-        const doc: RawDocument = {
-          sourceId: FRED_META.id,
-          externalId,
-          rawJson,
-          fetchedAt: new Date(),
-        };
+        const doc = this.withIndustryTag(
+          {
+            sourceId: FRED_META.id,
+            externalId,
+            rawJson,
+            fetchedAt: new Date(),
+          },
+          null,
+        );
         yield attachProvenance(doc, FRED_META, {
           documentRequest: buildFredDocumentRequest(
             externalId,

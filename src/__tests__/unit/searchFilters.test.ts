@@ -26,4 +26,13 @@ describe("buildDocumentFilterClause", () => {
     expect(sql).toContain("publication_date");
     expect(params).toEqual(["2024-01-01", "2024-12-31"]);
   });
+
+  it("industryStrict 时应过滤 industry_tag", () => {
+    const { sql, params } = buildDocumentFilterClause(
+      { industryTag: "医疗", industryStrict: true },
+      3,
+    );
+    expect(sql).toContain("rd.industry_tag = $3");
+    expect(params).toEqual(["医疗"]);
+  });
 });

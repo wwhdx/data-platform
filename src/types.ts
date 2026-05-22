@@ -25,6 +25,8 @@ export interface ConnectorConfig {
   apiSecret?: string;
   /** resolveRuntimeConfig / YAML 展开后的 base_url */
   baseUrl?: string;
+  /** sources.yml 源级 industry_tag（G1-5） */
+  industryTag?: string | null;
   /** sources.yml options（如 entrez_db） */
   sourceOptions?: Record<string, unknown>;
   timeoutMs?: number;
@@ -76,6 +78,8 @@ export interface RawDocument {
   rawJson: Record<string, unknown>;
   fetchedAt: Date;
   collectionJobId?: number;
+  /** 望野行业标签，与 industry_tags.name / wangye Article.industryTag 一致 */
+  industryTag?: string | null;
   /** 采集时 HTTP 溯源；入库至 fetch_provenance */
   fetchProvenance?: DocumentProvenance;
 }

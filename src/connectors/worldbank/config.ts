@@ -10,7 +10,7 @@ export interface WorldbankIndicatorYamlEntry {
   countries?: string[];
   mrv?: number;
   topic_id?: string;
-  /** 注释用：行业标签，不入库 */
+  /** 行业标签（G1-5 catalog 行，取消注释后入库） */
   industry_tag?: string;
 }
 

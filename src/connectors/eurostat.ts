@@ -184,16 +184,19 @@ export class EurostatConnector extends BaseConnector {
         if (params.signal?.aborted) break;
         if (yielded >= maxItems) break;
 
-        const doc: RawDocument = {
-          sourceId: EUROSTAT_META.id,
-          externalId: mapped.externalId,
-          rawJson: {
-            ...mapped.rawJson,
-            dataset_code: item.code.toLowerCase(),
-            collect_tier: (item as EurostatDatasetYamlEntry).tier,
+        const doc = this.withIndustryTag(
+          {
+            sourceId: EUROSTAT_META.id,
+            externalId: mapped.externalId,
+            rawJson: {
+              ...mapped.rawJson,
+              dataset_code: item.code.toLowerCase(),
+              collect_tier: (item as EurostatDatasetYamlEntry).tier,
+            },
+            fetchedAt: new Date(),
           },
-          fetchedAt: new Date(),
-        };
+          (item as EurostatDatasetYamlEntry).industry_tag,
+        );
         yield attachProvenance(doc, EUROSTAT_META, {
           documentRequest: buildEurostatDocumentRequest(
             item,

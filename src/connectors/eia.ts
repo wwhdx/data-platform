@@ -179,12 +179,15 @@ export class EiaConnector extends BaseConnector {
             dataColumns: p.dataColumns,
             fetchUrl,
           });
-          const doc: RawDocument = {
-            sourceId: EIA_META.id,
-            externalId,
-            rawJson,
-            fetchedAt: new Date(),
-          };
+          const doc = this.withIndustryTag(
+            {
+              sourceId: EIA_META.id,
+              externalId,
+              rawJson,
+              fetchedAt: new Date(),
+            },
+            entry.industry_tag,
+          );
           yield attachProvenance(doc, EIA_META, {
             documentRequest: buildEiaDocumentRequest(
               fetchUrl,

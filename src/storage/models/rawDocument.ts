@@ -20,9 +20,9 @@ export async function insertRawDocuments(docs: RawDocument[]): Promise<InsertedR
   const params: unknown[] = [];
   for (let i = 0; i < docs.length; i++) {
     const d = docs[i];
-    const base = i * 5;
+    const base = i * 6;
     values.push(
-      `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`,
+      `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`,
     );
     params.push(
       d.sourceId,
@@ -30,17 +30,19 @@ export async function insertRawDocuments(docs: RawDocument[]): Promise<InsertedR
       JSON.stringify(d.rawJson),
       d.collectionJobId ?? null,
       d.fetchProvenance ? JSON.stringify(d.fetchProvenance) : null,
+      d.industryTag ?? null,
     );
   }
 
   const sql = `
-    INSERT INTO raw_documents (source_id, external_id, raw_json, collection_job_id, fetch_provenance)
+    INSERT INTO raw_documents (source_id, external_id, raw_json, collection_job_id, fetch_provenance, industry_tag)
     VALUES ${values.join(", ")}
     ON CONFLICT (source_id, external_id) DO UPDATE
       SET raw_json = EXCLUDED.raw_json,
           fetched_at = now(),
-          collection_job_id = COALESCE(EXCLUDED.collection_job_id, raw_documents.collection_job_id)
-    RETURNING id, source_id, external_id, raw_json, fetched_at, collection_job_id, fetch_provenance
+          collection_job_id = COALESCE(EXCLUDED.collection_job_id, raw_documents.collection_job_id),
+          industry_tag = COALESCE(EXCLUDED.industry_tag, raw_documents.industry_tag)
+    RETURNING id, source_id, external_id, raw_json, fetched_at, collection_job_id, fetch_provenance, industry_tag
   `;
 
   const result = await query(sql, params);
@@ -62,6 +64,8 @@ function mapInsertedRow(row: Record<string, unknown>): InsertedRawRow {
     fetchedAt: new Date(String(row.fetched_at)),
     collectionJobId: row.collection_job_id != null ? Number(row.collection_job_id) : null,
     fetchProvenance: parseFetchProvenance(row.fetch_provenance),
+    industryTag:
+      row.industry_tag != null ? String(row.industry_tag) : null,
     title: String(raw.title ?? ""),
     abstract: String(raw.abstract ?? ""),
   };

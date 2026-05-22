@@ -77,10 +77,12 @@ function expandOneSource(
     throw new Error(`${raw.id}: 展开后缺少 auth_type`);
   }
 
+  const industryTag = raw.industry_tag?.trim();
   return {
     id: raw.id,
     name: raw.name,
     enabled: raw.enabled,
+    ...(industryTag ? { industry_tag: industryTag } : {}),
     base_url,
     auth_type,
     rate_limit,

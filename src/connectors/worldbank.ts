@@ -226,21 +226,24 @@ export class WorldBankConnector extends BaseConnector {
     entry: WorldbankIndicatorYamlEntry,
   ): RawDocument {
     const extId = `${obs.indicator.id}/${obs.country.id}/${obs.date}`;
-    return {
-      sourceId: WORLD_BANK_META.id,
-      externalId: extId,
-      rawJson: {
-        indicator_name: obs.indicator.value,
-        indicator_code: obs.indicator.id,
-        collect_tier: entry.tier,
-        value: obs.value,
-        unit: obs.unit ?? "",
-        date: obs.date,
-        country: obs.country.value,
-        country_code: obs.country.id,
-        country_iso3: obs.countryiso3code,
+    return this.withIndustryTag(
+      {
+        sourceId: WORLD_BANK_META.id,
+        externalId: extId,
+        rawJson: {
+          indicator_name: obs.indicator.value,
+          indicator_code: obs.indicator.id,
+          collect_tier: entry.tier,
+          value: obs.value,
+          unit: obs.unit ?? "",
+          date: obs.date,
+          country: obs.country.value,
+          country_code: obs.country.id,
+          country_iso3: obs.countryiso3code,
+        },
+        fetchedAt: new Date(),
       },
-      fetchedAt: new Date(),
-    };
+      entry.industry_tag,
+    );
   }
 }

@@ -22,6 +22,7 @@ export interface EmbedDocumentInput {
   title: string;
   abstract: string;
   sourceId: string;
+  industryTag?: string | null;
   rawJson?: Record<string, unknown>;
 }
 
@@ -38,7 +39,12 @@ export async function embedDocuments(
 ): Promise<number> {
   if (docs.length === 0) return 0;
 
-  const rows: Array<{ docId: number; chunkIndex: number; text: string }> = [];
+  const rows: Array<{
+    docId: number;
+    chunkIndex: number;
+    text: string;
+    industryTag: string | null;
+  }> = [];
   for (const doc of docs) {
     const texts = chunkDocument({
       sourceId: doc.sourceId,
@@ -46,8 +52,9 @@ export async function embedDocuments(
       abstract: doc.abstract,
       rawJson: doc.rawJson,
     });
+    const tag = doc.industryTag ?? null;
     texts.forEach((text, chunkIndex) => {
-      rows.push({ docId: doc.id, chunkIndex, text });
+      rows.push({ docId: doc.id, chunkIndex, text, industryTag: tag });
     });
   }
 
@@ -62,21 +69,25 @@ export async function embedDocuments(
   const values: string[] = [];
   const params: unknown[] = [];
   for (let i = 0; i < rows.length; i++) {
-    const base = i * 5;
-    values.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`);
+    const base = i * 6;
+    values.push(
+      `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`,
+    );
     params.push(
       rows[i]!.docId,
       rows[i]!.chunkIndex,
       rows[i]!.text,
       `[${results[i]!.embedding.join(",")}]`,
       getEmbeddingModel(),
+      rows[i]!.industryTag,
     );
   }
 
   const sql = `
-    INSERT INTO document_chunks (doc_id, chunk_index, text, embedding, embedding_model)
+    INSERT INTO document_chunks (doc_id, chunk_index, text, embedding, embedding_model, industry_tag)
     VALUES ${values.join(", ")}
-    ON CONFLICT (doc_id, chunk_index) DO NOTHING
+    ON CONFLICT (doc_id, chunk_index) DO UPDATE
+      SET industry_tag = COALESCE(EXCLUDED.industry_tag, document_chunks.industry_tag)
   `;
 
   await query(sql, params);

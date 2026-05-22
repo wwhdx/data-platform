@@ -48,6 +48,8 @@ export interface InterfaceProfile {
 export interface SourceConfigRaw {
   id: string;
   profile?: string;
+  /** 源实例级行业标签（G1-5，覆盖 connector 默认） */
+  industry_tag?: string;
   name: string;
   enabled: boolean;
   base_url?: string;
@@ -62,6 +64,7 @@ export interface SourceConfigRaw {
 
 /** 展开后完整配置（含 options / profile 元数据） */
 export interface ExpandedSourceConfig extends SourceConfig {
+  industry_tag?: string;
   profile?: string;
   protocol?: Protocol;
   pagination?: Pagination;

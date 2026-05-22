@@ -182,16 +182,19 @@ export class ImfConnector extends BaseConnector {
         if (params.signal?.aborted) break;
         if (yielded >= maxItems) break;
 
-        const doc: RawDocument = {
-          sourceId: IMF_META.id,
-          externalId: mapped.externalId,
-          rawJson: {
-            ...mapped.rawJson,
-            series_key: item.key,
-            collect_tier: (item as ImfSeriesYamlEntry).tier,
+        const doc = this.withIndustryTag(
+          {
+            sourceId: IMF_META.id,
+            externalId: mapped.externalId,
+            rawJson: {
+              ...mapped.rawJson,
+              series_key: item.key,
+              collect_tier: (item as ImfSeriesYamlEntry).tier,
+            },
+            fetchedAt: new Date(),
           },
-          fetchedAt: new Date(),
-        };
+          (item as ImfSeriesYamlEntry).industry_tag,
+        );
         yield attachProvenance(doc, IMF_META, {
           documentRequest: buildImfDocumentRequest(
             item,

@@ -6,6 +6,8 @@ import type { EiaCollectMode } from "./types";
 export interface EiaRouteYamlEntry {
   path: string;
   tier: string;
+  /** 行业标签（G1-5 catalog 行） */
+  industry_tag?: string;
   collect_enabled?: boolean;
   frequency?: string;
   observations?: number;

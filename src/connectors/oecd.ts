@@ -201,16 +201,19 @@ export class OecdConnector extends BaseConnector {
         if (params.signal?.aborted) break;
         if (yielded >= maxItems) break;
 
-        const doc: RawDocument = {
-          sourceId: OECD_META.id,
-          externalId: mapped.externalId,
-          rawJson: {
-            ...mapped.rawJson,
-            series_key: item.key,
-            collect_tier: (item as OecdSeriesYamlEntry).tier,
+        const doc = this.withIndustryTag(
+          {
+            sourceId: OECD_META.id,
+            externalId: mapped.externalId,
+            rawJson: {
+              ...mapped.rawJson,
+              series_key: item.key,
+              collect_tier: (item as OecdSeriesYamlEntry).tier,
+            },
+            fetchedAt: new Date(),
           },
-          fetchedAt: new Date(),
-        };
+          (item as OecdSeriesYamlEntry).industry_tag,
+        );
         yield attachProvenance(doc, OECD_META, {
           documentRequest: buildOecdDocumentRequest(
             item,

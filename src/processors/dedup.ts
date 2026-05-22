@@ -180,6 +180,7 @@ export async function dedup(
           title: d.title,
           abstract: d.abstract,
           sourceId: d.sourceId,
+          industryTag: d.industryTag ?? null,
           rawJson: d.rawJson,
         }));
 

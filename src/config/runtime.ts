@@ -18,6 +18,14 @@ export function getSourceOptions(
   return expandedCache.find((s) => s.id === sourceId)?.options;
 }
 
+/** sources.yml 源级 industry_tag（G1-5） */
+export function getSourceIndustryTag(sourceId: string): string | null {
+  const tag = expandedCache.find((s) => s.id === sourceId)?.industry_tag;
+  if (!tag) return null;
+  const t = tag.trim();
+  return t.length > 0 ? t : null;
+}
+
 function envBaseUrl(sourceId: string): string | undefined {
   const key = `${sourceId.toUpperCase().replace(/-/g, "_")}_BASE_URL`;
   return process.env[key];
