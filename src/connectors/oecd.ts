@@ -22,6 +22,15 @@ import {
 } from "./oecdHelpers";
 import { attachProvenance } from "./provenance/attach";
 import { buildOecdDocumentRequest } from "./provenance/oecd";
+import { crawlOecdCatalog } from "./oecd/catalogCrawl";
+import { fetchOecdDataflowList } from "./oecd/catalogFetch";
+import {
+  loadOecdSeriesFile,
+  parseOecdConnectorOptions,
+  type OecdConnectorOptions,
+  type OecdSeriesYamlEntry,
+} from "./oecd/config";
+import { searchOecdCatalogByName } from "../storage/models/oecdCatalog";
 
 export const OECD_META: ConnectorMeta = {
   id: "oecd",
@@ -31,11 +40,12 @@ export const OECD_META: ConnectorMeta = {
   commercialUse: true,
   authType: "none",
   rateLimit: "polite (~2/sec)",
-  description: "OECD 官方宏观序列（SDMX-JSON KEI：GDP/失业/CPI）",
+  description: "OECD 官方宏观序列（SDMX-JSON KEI + AEA 环境）",
 };
 
 export class OecdConnector extends BaseConnector {
   readonly meta: ConnectorMeta = OECD_META;
+  private readonly oecdOpts: OecdConnectorOptions;
 
   constructor(config: ConnectorConfig = {}) {
     super(
@@ -43,10 +53,12 @@ export class OecdConnector extends BaseConnector {
         ...config,
         userAgent:
           config.userAgent ?? "WangyeDataPlatform/0.1 (mailto:dev@wangye.app)",
+        timeoutMs: config.timeoutMs ?? 120_000,
       },
       OECD_META.baseUrl,
     );
     this.rateLimiter = RateLimiter.fromRPS(2, 500);
+    this.oecdOpts = parseOecdConnectorOptions(this.sourceOptions);
   }
 
   private periodFromSince(since?: string): string | undefined {
@@ -83,15 +95,59 @@ export class OecdConnector extends BaseConnector {
     return body;
   }
 
+  async syncCatalog(): Promise<{
+    dataflows: number;
+    oecdAgency: number;
+    yamlMissing: number;
+  }> {
+    const body = await fetchOecdDataflowList((url, init) => this.fetch(url, init));
+    const yamlSeries = loadOecdSeriesFile(this.oecdOpts.seriesFile);
+    const result = await crawlOecdCatalog(body, yamlSeries);
+    return {
+      dataflows: result.dataflows,
+      oecdAgency: result.oecdAgency,
+      yamlMissing: result.yamlMissing,
+    };
+  }
+
   async search(query: string, opts?: SearchOptions): Promise<SearchResult[]> {
     const q = query.trim().toLowerCase() || "gdp";
     const maxResults = opts?.maxResults ?? 10;
-    const matched = OECD_CORE_QUERIES.filter((item) =>
-      oecdQueryMatchesText(item, q),
-    ).slice(0, maxResults);
-
     const results: SearchResult[] = [];
+
+    try {
+      const catalogHits = await searchOecdCatalogByName(q, maxResults);
+      for (const hit of catalogHits) {
+        if (results.length >= maxResults) break;
+        results.push({
+          title: hit.name ?? `${hit.agency},${hit.flow_id}`,
+          url: buildOecdCanonicalUrl({
+            agency: hit.agency,
+            flowId: hit.flow_id,
+            title: hit.name ?? hit.flow_id,
+            key: "",
+          }),
+          snippet: (hit.description ?? hit.flow_id).slice(0, 300),
+          sourceId: OECD_META.id,
+          sourceName: OECD_META.name,
+          score: 0.5,
+          license: OECD_META.license,
+          commercialUse: OECD_META.commercialUse,
+        });
+      }
+    } catch {
+      /* 目录表未迁移时仅走 YAML */
+    }
+
+    const yamlSeries = this.resolveCollectSeries(
+      loadOecdSeriesFile(this.oecdOpts.seriesFile),
+    );
+    const matched = yamlSeries
+      .filter((item) => oecdQueryMatchesText(item, q))
+      .slice(0, maxResults);
+
     for (const item of matched) {
+      if (results.length >= maxResults) break;
       const body = await this.fetchDataset(item);
       if (!body) continue;
       const docs = mapSdmxJsonToDocuments(item, body, this.runtimeBaseUrl);
@@ -108,12 +164,17 @@ export class OecdConnector extends BaseConnector {
         license: OECD_META.license,
         commercialUse: OECD_META.commercialUse,
       });
-      if (results.length >= maxResults) break;
     }
-    return results;
+    return results.slice(0, maxResults);
   }
 
   async *collect(params: CollectParams = {}): AsyncGenerator<RawDocument> {
+    const yamlSeries = loadOecdSeriesFile(this.oecdOpts.seriesFile);
+    const queries =
+      yamlSeries.length > 0
+        ? this.resolveCollectSeries(yamlSeries)
+        : OECD_CORE_QUERIES;
+
     const maxItems = params.maxItems ?? Infinity;
     const queryFilter = params.query?.trim().toLowerCase();
     const startPeriod = this.periodFromSince(params.since);
@@ -124,7 +185,7 @@ export class OecdConnector extends BaseConnector {
       query: params.query,
     };
 
-    for (const item of OECD_CORE_QUERIES) {
+    for (const item of queries) {
       if (params.signal?.aborted) break;
       if (yielded >= maxItems) break;
       if (queryFilter && !oecdQueryMatchesText(item, queryFilter)) continue;
@@ -143,7 +204,11 @@ export class OecdConnector extends BaseConnector {
         const doc: RawDocument = {
           sourceId: OECD_META.id,
           externalId: mapped.externalId,
-          rawJson: mapped.rawJson,
+          rawJson: {
+            ...mapped.rawJson,
+            series_key: item.key,
+            collect_tier: (item as OecdSeriesYamlEntry).tier,
+          },
           fetchedAt: new Date(),
         };
         yield attachProvenance(doc, OECD_META, {
@@ -159,5 +224,17 @@ export class OecdConnector extends BaseConnector {
         yielded++;
       }
     }
+  }
+
+  private resolveCollectSeries(
+    yamlSeries: OecdSeriesYamlEntry[],
+  ): OecdSeriesYamlEntry[] {
+    const tiers = new Set(this.oecdOpts.tierFilter.map((t) => t.toUpperCase()));
+    return yamlSeries.filter((s) => {
+      const tier = s.tier.toUpperCase();
+      if (!tiers.has(tier)) return false;
+      if (s.collect_enabled === false) return false;
+      return true;
+    });
   }
 }

@@ -536,10 +536,12 @@ sources:
     license: "OECD Terms and Conditions"
     commercial_use: true
     schedule: "0 3 * * 0"
-    description: "OECD KEI 宏观序列（SDMX-JSON：GDP/失业/CPI）"
+    description: "OECD KEI + AEA 宏观/环境序列（SDMX-JSON L0+L1）"
     options:
       default_collect_query: gdp
-      collect_max_items: 3
+      collect_max_items: 10
+      oecd_series_file: config/oecd-series.yml
+      oecd_tier_filter: "A,B"
 
   # role: primary | collect: main | cluster: pharma_vertical
   # 波次 8+ · 默认 disabled；UniProt REST（与 pubchem 同属生物分子真源）

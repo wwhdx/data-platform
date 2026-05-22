@@ -1,0 +1,41 @@
+# OECD Tier A/B 采集清单（Git 真源）
+# 运行 pnpm cli oecd catalog sync 后用 L0 校验 flow；node scripts/verify-oecd-series.mjs
+series:
+  - agency: OECD.SDD.STES
+    flowId: DSD_KEI@DF_KEI
+    key: OECD.A.B1GQ_Q.GR._T.Y.GY
+    tier: A
+    collect_enabled: true
+    title: GDP growth OECD
+    # industry_tag: 国民经济
+
+  - agency: OECD.SDD.STES
+    flowId: DSD_KEI@DF_KEI
+    key: USA.A.B1GQ_Q.GR._T.Y.GY
+    tier: A
+    collect_enabled: true
+    title: GDP growth USA
+
+  - agency: OECD.SDD.STES
+    flowId: DSD_KEI@DF_KEI
+    key: OECD.A.UNEMP.PT_LF._T.Y._Z
+    tier: A
+    collect_enabled: true
+    title: Unemployment OECD
+    # industry_tag: 劳动
+
+  - agency: OECD.SDD.STES
+    flowId: DSD_KEI@DF_KEI
+    key: OECD.A.CP.GR._Z._Z.GY
+    tier: A
+    collect_enabled: true
+    title: CPI growth OECD
+    # industry_tag: 价格
+
+  - agency: OECD.SDD.NAD.SEEA
+    flowId: DSD_AEA@DF_AEA
+    key: OECD.A.EMISSIONS.T_CO2E.N.E.GHG.RES._Z.ESTIMATED
+    tier: A
+    collect_enabled: true
+    title: GHG emissions OECD (Air Emissions Accounts)
+    # industry_tag: 环境

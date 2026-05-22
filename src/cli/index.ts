@@ -1658,6 +1658,8 @@ function printHelp() {
   data-platform eurostat catalog list --theme general
   data-platform fred catalog sync
   data-platform fred catalog list --top Money
+  data-platform oecd catalog sync
+  data-platform oecd catalog list --agency OECD.SDD
   data-platform serve --port 3400
   data-platform config validate
   data-platform config sync
@@ -1723,6 +1725,9 @@ async function main(): Promise<void> {
       break;
     case "fred":
       await (await import("./fredCommands")).cmdFred(rest);
+      break;
+    case "oecd":
+      await (await import("./oecdCommands")).cmdOecd(rest);
       break;
     case "serve":
       await cmdServe(rest);

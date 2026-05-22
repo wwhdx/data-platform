@@ -1,0 +1,26 @@
+{
+  "data": {
+    "dataflows": [
+      {
+        "id": "DSD_KEI@DF_KEI",
+        "agencyID": "OECD.SDD.STES",
+        "isFinal": true,
+        "name": "Key short-term economic indicators",
+        "description": "KEI dataflow"
+      },
+      {
+        "id": "DSD_AEA@DF_AEA",
+        "agencyID": "OECD.SDD.NAD.SEEA",
+        "isFinal": true,
+        "name": "Air Emissions Accounts",
+        "description": "AEA"
+      },
+      {
+        "id": "SEEA_AEA_A",
+        "agencyID": "ESTAT",
+        "isFinal": true,
+        "name": "Air Emissions Accounts Eurostat"
+      }
+    ]
+  }
+}
