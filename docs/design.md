@@ -523,15 +523,24 @@ function toSearchProviderResult(
 ### 7.1 端点一览
 
 ```
-POST   /api/search              # RAG 检索（核心接口）
+POST   /api/search              # RAG 检索（核心接口）；body 可选 industry / industryStrict
 GET    /api/sources              # 数据源列表 + 状态
 GET    /api/sources/:id          # 单个数据源详情
 POST   /api/admin/collect        # 手动触发采集
 POST   /api/admin/collect/:id    # 手动触发单个源采集
 GET    /api/admin/jobs           # 采集任务历史
 GET    /api/admin/stats          # 统计（文档数、向量数、采集量）
+POST   /api/admin/industry-tags/sync   # 行业标签同步（Admin Key；engine-core 代理）
+POST   /api/opportunity-vectors/distance  # N(h) 新颖性（无 Admin Key）
+POST   /api/opportunity-vectors/upsert    # 机会向量 upsert（Admin Key）
+GET    /api/opportunity-vectors/stats     # 向量库统计（Admin Key）
+POST   /api/opportunity-outcomes/report   # 审核 outcome 上报（Admin Key）
+GET    /api/opportunity-weights/:tag      # 当前权重（内网可读，无 Key）
+GET    /api/opportunity-weights/:tag/history  # 校准历史（Admin Key）
 GET    /api/health               # 健康检查
 ```
+
+UODE 路由详案与鉴权分级 → [plans/UODE-data-platform-L2信号与机会向量设计方案.md](plans/UODE-data-platform-L2信号与机会向量设计方案.md) §五。
 
 ### 7.2 核心接口：POST /api/search
 
@@ -540,6 +549,8 @@ GET    /api/health               # 健康检查
 interface SearchRequest {
   query: string;
   maxResults?: number;           // 默认 10
+  industry?: string;             // G1：按行业标签过滤 raw_documents
+  industryStrict?: boolean;      // true 时无 industry_tag 的行排除
   filters?: {
     sourceIds?: string[];        // 限定数据源
     contentType?: string[];      // 限定内容类型
@@ -567,6 +578,13 @@ interface SearchResultItem {
   score: number;                // 相关性分数
   license: string;              // "CC0", "CC BY 4.0", etc.
   commercialUse: boolean;
+  domainSignal?: {              // U1：L2 认知信号（top-3 共享 trend；每行 citationCount/trlHint）
+    citationCount?: number;
+    trendScore?: number;
+    recentDocCount?: number;
+    industryTag?: string;
+    trlHint?: string;
+  };
 }
 ```
 
@@ -1010,6 +1028,7 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-05-22 | v0.3.1 | §七 增补 G1/UODE HTTP 路由、`domainSignal` 响应字段；链 UODE 详案 |
 | 2026-05-21 | v0.3 | 新增 **§零 设计大纲**（六层/模块地图/横切轨/Phase）；修正 Qdrant→pgvector、Prisma→pg 池、Connector 29、Phase 4 勾选 |
 | 2026-05-19 | v0.2.8 | `patentsview` 迁至 ODP（`api.uspto.gov` + `USPTO_ODP_API_KEY`）；废弃 PatentSearch / `PATENTSVIEW_API_KEY` |
 | 2026-05-19 | v0.2.7 | PatentsView 文档同步：`data-sources.md` §2.3 ODP 迁移与 Key 申请 |
@@ -1022,7 +1041,7 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 | 2025-05-15 | v0.1 | 初始草案 |
 | 2026-05-15 | v0.2 | 职责边界澄清：移除 `/api/context`（LLM 摘要生成 → engine-core）；§9.1 接入点从 3 个精简为 2 个；§1.2 边界表新增 LLM 摘要/实体抽取行；Phase 4 移除 `/api/context` |
 
-> **版本**: v0.3 | **状态**: Phase 1/2 + 29 Connector + I/L/D 轨已落地 · 波次 10 进行中 | **最后更新**: 2026-05-21
+> **版本**: v0.3.1 | **状态**: Phase 1/2 + U 轨 G1/U1/U2 + 29 Connector · 波次 10 进行中 | **最后更新**: 2026-05-22
 >
 > 相关文档：
 > - 实施进度总览：`docs/plans/实施进度总览.md`

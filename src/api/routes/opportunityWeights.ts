@@ -71,8 +71,8 @@ export const opportunityWeightsRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
+  // 内网可读：engine-core score_opportunity 自拉权重（v1.4 §5.4；history 仍要 Admin Key）
   app.get("/:industryTag", async (req, reply) => {
-    if (!requireAdminKey(req, reply)) return;
     const param = (req.params as { industryTag: string }).industryTag;
     const decoded = decodeURIComponent(param);
     const lookup =

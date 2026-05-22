@@ -1,7 +1,7 @@
 # UODE · data-platform — L2 认知信号、机会向量与 L5 权重校准设计方案
 
-> **状态**：设计草案（待实施）  
-> **版本**：v1.4（2026-05-22）  
+> **状态**：部分落地（G1/U1/U2 ✅；跨仓 E1/E3/P1/P2 待实施）  
+> **版本**：v1.4.1（2026-05-22）  
 > **仓库**：`packages/data-platform`  
 > **职责层**：UODE L1（现有）+ **L2 认知信号**（本方案）+ **L5 权重校准**（本方案）  
 > **进度真源**：[实施进度总览.md](./实施进度总览.md)（落地后追加 U1/U2 条目）  
@@ -619,7 +619,7 @@ app.register(opportunityWeightsRoutes,  { prefix: "/api/opportunity-weights" });
 
 | 任务 | 文件 / 说明 |
 |------|------|
-| U2-0 | `opportunityWeights.ts`：`GET /:tag` 改为内网可读（去掉 Admin Key）|
+| U2-0 | `opportunityWeights.ts`：`GET /:tag` 改为内网可读（去掉 Admin Key）| ✅ |
 | U2-1 | `036_opportunity_outcomes.sql` |
 | U2-2 | `037_opportunity_weights.sql` |
 | U2-3 | `src/api/routes/opportunityOutcomes.ts` |
@@ -656,3 +656,4 @@ curl http://localhost:3400/api/opportunity-weights/医疗 \
 | v1.3 | 2026-05-22 | **落地**：代码迁移 **034 G1 + 035–037 U 轨**（与 v1.2 勘误对齐） |
 | v1.2 | 2026-05-22 | **勘误**：迁移 **035–037**（034=G1）（避开已占用 025–027）；`vector(1024)` + `embedding_model`；`fetched_at`/`raw_json` 趋势 SQL；冷启动 **N=50**；G1 前置；`weight_snapshots` + history API；outcome UPSERT；校准触发改 `calibrated_at` 窗口；行业样本 ≥50；adapter/`types` 透传 `domainSignal`；§1.1 L1 前置 |
 | v1.4 | 2026-05-22 | **职责再划**：调用方改为 engine-core 代理；§5.4 鉴权分级；`ADMIN_KEY` 不进入 wangye；U2-0 权重 GET 内网可读；闭环依赖 E3 非 P1 权重注入 |
+| v1.4.1 | 2026-05-22 | **U2-0 落地**：`GET /opportunity-weights/:tag` 去掉 Admin Key；实施进度 §2.7 同步 |

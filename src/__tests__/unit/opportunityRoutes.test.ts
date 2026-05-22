@@ -77,11 +77,23 @@ describe("opportunity API routes", () => {
     await app.close();
   });
 
-  it("GET /api/opportunity-weights 无 Bearer → 401", async () => {
+  it("GET /api/opportunity-weights 无 Bearer → 200（内网可读）", async () => {
     const app = await buildApp({ logger: false });
     const res = await app.inject({
       method: "GET",
       url: "/api/opportunity-weights/__global__",
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body) as { version: string };
+    expect(body.version).toBe("v0_default");
+    await app.close();
+  });
+
+  it("GET /api/opportunity-weights/history 无 Bearer → 401", async () => {
+    const app = await buildApp({ logger: false });
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/opportunity-weights/__global__/history",
     });
     expect(res.statusCode).toBe(401);
     await app.close();
