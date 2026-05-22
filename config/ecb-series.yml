@@ -27,7 +27,43 @@ series:
     title: JPY/EUR daily exchange rate
 
   - flowId: EXR
+    key: D.CNY.EUR.SP00.A
+    tier: A
+    collect_enabled: true
+    title: CNY/EUR daily exchange rate
+
+  - flowId: EXR
     key: D.CHF.EUR.SP00.A
-    tier: B
+    tier: A
     collect_enabled: true
     title: CHF/EUR daily exchange rate
+
+  - flowId: EXR
+    key: D.SEK.EUR.SP00.A
+    tier: A
+    collect_enabled: true
+    title: SEK/EUR daily exchange rate
+
+  - flowId: EXR
+    key: D.PLN.EUR.SP00.A
+    tier: A
+    collect_enabled: true
+    title: PLN/EUR daily exchange rate
+
+  - flowId: EXR
+    key: D.AUD.EUR.SP00.A
+    tier: B
+    collect_enabled: true
+    title: AUD/EUR daily exchange rate
+
+  - flowId: EXR
+    key: M.GBP.EUR.SP00.A
+    tier: B
+    collect_enabled: true
+    title: GBP/EUR monthly exchange rate
+
+  - flowId: EXR
+    key: M.JPY.EUR.SP00.A
+    tier: B
+    collect_enabled: true
+    title: JPY/EUR monthly exchange rate

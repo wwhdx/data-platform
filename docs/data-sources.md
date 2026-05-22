@@ -514,7 +514,7 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 | 目录 | `GET /structure/dataflow?references=none`（`Accept: application/json`，约 **193** dataflow） |
 | 数据 | `GET /data/dataflow/{agency}/{flowId}/+/{key}?dimensionAtObservation=TIME_PERIOD&includeHistory=false` |
 | 代码 | `src/connectors/imf.ts` · `imf/` · `imfHelpers.ts` |
-| L1 清单 | `config/imf-series.yml`（Tier A：**6** 条 WEO；`IMF_TIER_FILTER`） |
+| L1 清单 | `config/imf-series.yml`（**14** 条 WEO；`IMF_TIER_FILTER`） |
 | CLI | `pnpm cli imf catalog sync` · `catalog list [--agency IMF]` |
 | ENV | `IMF_CATALOG_SYNC_ENABLED` · `IMF_CATALOG_CRON`（默认 `0 9 * * 0`） |
 | 验证 | `node scripts/verify-imf-series.mjs` |
@@ -530,7 +530,7 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 | 目录 | `GET /dataflow/ECB?references=none`（SDMX structure XML，约 **103** dataflow） |
 | 数据 | `GET /data/{flowId}/{seriesKey}?format=jsondata&detail=dataonly&lastNObservations=1` |
 | 代码 | `src/connectors/ecb.ts` · `ecb/` · `ecbHelpers.ts` |
-| L1 清单 | `config/ecb-series.yml`（Tier A：**5** 条 EXR；`ECB_TIER_FILTER`） |
+| L1 清单 | `config/ecb-series.yml`（**11** 条 EXR；`ECB_TIER_FILTER`） |
 | CLI | `pnpm cli ecb catalog sync` · `catalog list` |
 | ENV | `ECB_CATALOG_SYNC_ENABLED` · `ECB_CATALOG_CRON`（默认 `0 10 * * 0`） |
 | 验证 | `node scripts/verify-ecb-series.mjs` |
@@ -546,7 +546,7 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 | 目录 | `GET https://api.census.gov/data.json`（约 **1784** dataset） |
 | 数据 | `GET /{path}?get=...&predicates...&key=` |
 | 代码 | `src/connectors/census.ts` · `census/` |
-| L1 清单 | `config/census-queries.yml`（Tier A：**4** 条 timeseries） |
+| L1 清单 | `config/census-queries.yml`（**5** 条 EITS timeseries；须 `for=us:*`） |
 | CLI | `pnpm cli census catalog sync` · `catalog list` |
 | ENV | `CENSUS_CATALOG_SYNC_ENABLED` · `CENSUS_CATALOG_CRON`（默认 `0 11 * * 0`） |
 | 验证 | `node scripts/verify-census-queries.mjs`（须 Key） |
@@ -561,7 +561,7 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 | 目录 | `GetDataSetList` + 各 dataset `GetParameterValues`（`ParameterName=TableName` 或 `TableID`） |
 | 数据 | `GetData` + `TableName` + `Frequency` + `Year` |
 | 代码 | `src/connectors/bea.ts` · `bea/` |
-| L1 清单 | `config/bea-tables.yml`（Tier A：**5** 条 NIPA 等） |
+| L1 清单 | `config/bea-tables.yml`（**9** 条 NIPA/FixedAssets） |
 | CLI | `pnpm cli bea catalog sync` · `catalog list [--dataset NIPA]` |
 | ENV | `BEA_CATALOG_SYNC_ENABLED` · `BEA_CATALOG_CRON`（默认 `0 12 * * 0`） |
 | 验证 | `node scripts/verify-bea-tables.mjs` |
@@ -576,7 +576,7 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 | 目录 | `GET /dataflow/all`（约 **27** SDG dataflow） |
 | 数据 | `GET /data/FAO,{flowId},1.0/{key}?format=jsondata&lastNObservations=1`（实现用 Node `https`，因 `fetch` 对该主机常 500） |
 | 代码 | `src/connectors/faostat.ts` · `faostat/` |
-| L1 清单 | `config/faostat-series.yml`（Tier A：**5** 条 SDG） |
+| L1 清单 | `config/faostat-series.yml`（**9** 条 SDG dataflow） |
 | CLI | `pnpm cli faostat catalog sync` · `catalog list` |
 | ENV | `FAOSTAT_CATALOG_SYNC_ENABLED` · `FAOSTAT_CATALOG_CRON`（默认 `0 13 * * 0`） |
 | 验证 | `node scripts/verify-faostat-series.mjs` |

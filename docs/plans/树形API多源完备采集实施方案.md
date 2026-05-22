@@ -1,7 +1,7 @@
 # 树形 API 多源完备采集实施方案
 
-> **状态**：轨 T 已落地（H3 ✅ · T1–T4 ✅ · **P0 L1 加深 v2.1**）；**轨 T+ P1** ✅（`imf`/`ecb`/`census`/`bea`/`faostat`）  
-> **版本**：v2.3（2026-05-22）  
+> **状态**：轨 T 已落地（H3 ✅ · T1–T4 ✅ · **P0 L1 加深 v2.1**）；**轨 T+ P1** ✅ · **T+ L1 加深 v2.4** ✅  
+> **版本**：v2.4（2026-05-22）  
 > **进度真源**：[实施进度总览.md](./实施进度总览.md) §4.11（轨 T）  
 > **方法论**：[树形API数据源完备采集方法论.md](../knowledge/树形API数据源完备采集方法论.md)  
 > **样板**：[EIA完备采集方案.md](./EIA完备采集方案.md)（✅ H0–H2 MVP）  
@@ -371,6 +371,7 @@ flowchart LR
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| v2.4 | 2026-05-22 | **T+ L1 加深**：imf **14** · ecb **11** · census **5** · bea **9** · faostat **9**；修复 BEA `DataSetName`、Census `for=us:*`、FAOSTAT catalog JSON |
 | v2.3 | 2026-05-22 | **P1 收尾**：`census`/`bea`/`faostat` Connector（migration 031–033 · catalog CLI · YAML · verify · catalogSchedules 11–13 点） |
 | v2.2 | 2026-05-22 | **P1 轨 T+**：`imf` + `ecb` Connector（migration 029/030 · catalog CLI · YAML · verify · catalogSchedules 9/10 点） |
 | v2.1 | 2026-05-22 | **P0 L1 第二轮加深**：五源 YAML +4~+6 条/源；`verify-*` 23/13/24/26 OK；OECD 维持 7 条（API 拥塞） |

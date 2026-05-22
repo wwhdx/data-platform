@@ -1,8 +1,10 @@
 # Census Tier A/B 采集清单（Discovery 校验 path；node scripts/verify-census-queries.mjs）
+# EITS timeseries 须带 for=us:*（见 Census API examples）
 queries:
   - path: timeseries/eits/m3
     get: data_type_code,time_slot_id,seasonally_adj,category_code,cell_value
     predicates:
+      for: "us:*"
       time: "2023"
     tier: A
     collect_enabled: true
@@ -11,23 +13,53 @@ queries:
   - path: timeseries/eits/advm3
     get: data_type_code,time_slot_id,seasonally_adj,category_code,cell_value
     predicates:
+      for: "us:*"
       time: "2023"
     tier: A
     collect_enabled: true
     title: Advance M3 durable goods
 
+  - path: timeseries/eits/mrts
+    get: data_type_code,time_slot_id,seasonally_adj,category_code,cell_value
+    predicates:
+      for: "us:*"
+      time: "2023"
+    tier: A
+    collect_enabled: true
+    title: Monthly retail trade and food services
+
+  - path: timeseries/eits/resconst
+    get: data_type_code,time_slot_id,seasonally_adj,category_code,cell_value
+    predicates:
+      for: "us:*"
+      time: "2023"
+    tier: A
+    collect_enabled: true
+    title: Residential construction spending
+
+  - path: timeseries/eits/ressales
+    get: data_type_code,time_slot_id,seasonally_adj,category_code,cell_value
+    predicates:
+      for: "us:*"
+      time: "2023"
+    tier: A
+    collect_enabled: true
+    title: New residential sales
+
   - path: timeseries/eits/m3sr
     get: data_type_code,time_slot_id,seasonally_adj,category_code,cell_value
     predicates:
+      for: "us:*"
       time: "2023"
     tier: B
-    collect_enabled: true
-    title: M3 survey-based manufacturing
+    collect_enabled: false
+    title: M3 survey-based manufacturing (API 404; 保留路径待 Census 恢复)
 
   - path: timeseries/intltrade/exports
     get: cell_value,time,category
     predicates:
+      for: "us:*"
       time: "2023"
     tier: B
-    collect_enabled: true
-    title: International trade exports
+    collect_enabled: false
+    title: International trade exports (当前 API 无观测行)

@@ -43,7 +43,9 @@ async function fetchQuery(entry) {
 const yml = yaml.load(
   fs.readFileSync(path.resolve("config/census-queries.yml"), "utf8"),
 );
-const queries = yml.queries ?? [];
+const queries = (yml.queries ?? []).filter(
+  (q) => q.collect_enabled !== false,
+);
 
 console.log(`验证 ${queries.length} 条 Census YAML queries:\n`);
 let ok = 0;

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { normalizeFaostatCatalogBody } from "../../connectors/faostat/catalogFetch";
 import { crawlFaostatCatalog } from "../../connectors/faostat/catalogCrawl";
 import * as fs from "fs";
 import * as path from "path";
@@ -18,6 +19,17 @@ const fixture = JSON.parse(
 describe("faostat catalogCrawl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("normalizeFaostatCatalogBody 解析 references map", () => {
+    const body = normalizeFaostatCatalogBody({
+      references: {
+        "urn:sdmx:org.sdmx.infomodel.datastructure.Dataflow=FAO:DF_SDG_2_1_1(1.0)":
+          { id: "DF_SDG_2_1_1", name: "undernourishment" },
+      },
+    });
+    expect(body.data?.dataflows).toHaveLength(1);
+    expect(body.data?.dataflows?.[0]?.id).toBe("DF_SDG_2_1_1");
   });
 
   it("crawlFaostatCatalog 入库 dataflow", async () => {

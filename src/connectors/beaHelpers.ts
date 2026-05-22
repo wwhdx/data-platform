@@ -78,7 +78,7 @@ export function buildBeaDataUrl(apiKey: string, query: BeaQuery): string {
   const tableParam = query.tableParam ?? "TableName";
   const params: Record<string, string> = {
     method: "GetData",
-    datasetname: query.datasetName,
+    DataSetName: query.datasetName,
     Frequency: query.frequency,
     Year: query.year,
   };

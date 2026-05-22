@@ -11,13 +11,13 @@ export const CENSUS_CORE_QUERIES: CensusQuery[] = [
   {
     path: "timeseries/eits/m3",
     get: "data_type_code,time_slot_id,seasonally_adj,category_code,cell_value",
-    predicates: { time: "2023" },
+    predicates: { for: "us:*", time: "2023" },
     title: "M3 Manufacturing indicators",
   },
   {
     path: "timeseries/eits/advm3",
     get: "data_type_code,time_slot_id,seasonally_adj,category_code,cell_value",
-    predicates: { time: "2023" },
+    predicates: { for: "us:*", time: "2023" },
     title: "Advance M3 durable goods",
   },
 ];

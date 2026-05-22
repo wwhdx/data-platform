@@ -9,6 +9,22 @@ tables:
     title: GDP and components (NIPA T10101)
 
   - datasetName: NIPA
+    tableName: T10105
+    frequency: Q
+    year: X
+    tier: A
+    collect_enabled: true
+    title: Gross domestic product (NIPA T10105)
+
+  - datasetName: NIPA
+    tableName: T10201
+    frequency: Q
+    year: X
+    tier: A
+    collect_enabled: true
+    title: Real GDP by major type of product (NIPA T10201)
+
+  - datasetName: NIPA
     tableName: T20305
     frequency: Q
     year: X
@@ -23,6 +39,14 @@ tables:
     tier: A
     collect_enabled: true
     title: Real PCE major product types (NIPA T20306)
+
+  - datasetName: NIPA
+    tableName: T30100
+    frequency: Q
+    year: X
+    tier: A
+    collect_enabled: true
+    title: Government consumption expenditures and investment (NIPA T30100)
 
   - datasetName: NIPA
     tableName: T11000
@@ -40,3 +64,11 @@ tables:
     collect_enabled: true
     title: Price indexes for consumption (NIPA T20405)
     tableParam: TableName
+
+  - datasetName: FixedAssets
+    tableName: FAAt101
+    frequency: A
+    year: X
+    tier: B
+    collect_enabled: true
+    title: Fixed assets net stock (FAAt101)

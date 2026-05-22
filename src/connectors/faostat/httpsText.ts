@@ -4,11 +4,17 @@ import https from "https";
 export function faostatHttpsGetText(
   url: string,
   userAgent: string,
+  opts?: { accept?: string },
 ): Promise<{ status: number; body: string }> {
   return new Promise((resolve, reject) => {
     const req = https.get(
       url,
-      { headers: { "User-Agent": userAgent, Accept: "*/*" } },
+      {
+        headers: {
+          "User-Agent": userAgent,
+          Accept: opts?.accept ?? "*/*",
+        },
+      },
       (res) => {
         let data = "";
         res.on("data", (chunk) => {

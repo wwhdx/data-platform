@@ -20,7 +20,6 @@ function dataUrl(entry) {
     UserID: key,
     method: "GetData",
     DataSetName: entry.datasetName,
-    datasetname: entry.datasetName,
     TableName: entry.tableName,
     Frequency: entry.frequency,
     Year: entry.year,

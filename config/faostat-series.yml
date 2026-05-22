@@ -8,6 +8,13 @@ series:
     title: SDG 2.1.1 Prevalence of undernourishment
 
   - agency: FAO
+    flowId: DF_SDG_2_1_2
+    key: all
+    tier: A
+    collect_enabled: true
+    title: SDG 2.1.2 Prevalence of moderate or severe food insecurity
+
+  - agency: FAO
     flowId: DF_SDG_2_3_1
     key: all
     tier: A
@@ -22,11 +29,32 @@ series:
     title: SDG 2.4.1 Sustainable food production
 
   - agency: FAO
+    flowId: DF_SDG_6_4_1
+    key: all
+    tier: A
+    collect_enabled: true
+    title: SDG 6.4.1 Water use efficiency
+
+  - agency: FAO
+    flowId: DF_SDG_12_3_1
+    key: all
+    tier: A
+    collect_enabled: true
+    title: SDG 12.3.1 Global food loss and waste
+
+  - agency: FAO
     flowId: DF_SDG_14_4_1
     key: all
     tier: B
     collect_enabled: true
     title: SDG 14.4.1 Sustainable fish stocks
+
+  - agency: FAO
+    flowId: DF_SDG_15_1_1
+    key: all
+    tier: B
+    collect_enabled: true
+    title: SDG 15.1.1 Forest area share of land
 
   - agency: FAO
     flowId: DF_SDG_15_2_1

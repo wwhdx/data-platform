@@ -67,7 +67,7 @@ export async function crawlBeaCatalog(
     for (const paramName of BEA_TABLE_PARAM_NAMES) {
       const paramUrl = buildBeaApiUrl(apiKey, {
         method: "GetParameterValues",
-        datasetname: datasetName,
+        DataSetName: datasetName,
         ParameterName: paramName,
       });
       const paramRes = await fetchFn(paramUrl);

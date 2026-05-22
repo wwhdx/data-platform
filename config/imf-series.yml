@@ -25,6 +25,34 @@ series:
 
   - agency: IMF.RES
     flowId: WEO
+    key: GBR.NGDP_RPCH.A
+    tier: A
+    collect_enabled: true
+    title: UK Real GDP growth (WEO)
+
+  - agency: IMF.RES
+    flowId: WEO
+    key: IND.NGDP_RPCH.A
+    tier: A
+    collect_enabled: true
+    title: India Real GDP growth (WEO)
+
+  - agency: IMF.RES
+    flowId: WEO
+    key: BRA.NGDP_RPCH.A
+    tier: A
+    collect_enabled: true
+    title: Brazil Real GDP growth (WEO)
+
+  - agency: IMF.RES
+    flowId: WEO
+    key: FRA.NGDP_RPCH.A
+    tier: A
+    collect_enabled: true
+    title: France Real GDP growth (WEO)
+
+  - agency: IMF.RES
+    flowId: WEO
     key: USA.PCPIPCH.A
     tier: A
     collect_enabled: true
@@ -41,7 +69,37 @@ series:
 
   - agency: IMF.RES
     flowId: WEO
+    key: USA.GGR_NGDP.A
+    tier: A
+    collect_enabled: true
+    title: US general government revenue (% GDP, WEO)
+    # industry_tag: 财政
+
+  - agency: IMF.RES
+    flowId: WEO
+    key: USA.GGXWDG_NGDP.A
+    tier: A
+    collect_enabled: true
+    title: US general government net lending/borrowing (% GDP, WEO)
+
+  - agency: IMF.RES
+    flowId: WEO
+    key: USA.BCA_NGDPD.A
+    tier: A
+    collect_enabled: true
+    title: US current account balance (% GDP, WEO)
+    # industry_tag: 国际收支
+
+  - agency: IMF.RES
+    flowId: WEO
     key: JPN.NGDP_RPCH.A
     tier: B
     collect_enabled: true
     title: Japan Real GDP growth (WEO)
+
+  - agency: IMF.RES
+    flowId: WEO
+    key: MEX.NGDP_RPCH.A
+    tier: B
+    collect_enabled: true
+    title: Mexico Real GDP growth (WEO)
