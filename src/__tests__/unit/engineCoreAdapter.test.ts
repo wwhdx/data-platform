@@ -50,4 +50,42 @@ describe("unit/adapters: engineCore SearchProvider", () => {
     expect(body).toEqual({ query: "query", industry: "医疗" });
     expect(body).not.toHaveProperty("industryStrict");
   });
+
+  it("domainSignal 应原样透传至 SearchProviderResult", async () => {
+    const domainSignal = {
+      citationCount: 12,
+      trendScore: 72,
+      recentDocCount: 8,
+      industryTag: "能源",
+      trlHint: "pilot",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          results: [
+            {
+              title: "光伏 AI 应用",
+              url: "https://example.com/a",
+              snippet: "snippet",
+              domainSignal,
+            },
+          ],
+        }),
+      }),
+    );
+
+    const provider = createDataPlatformSearchProvider("http://test.local:3400");
+    const results = await provider.search("光伏");
+
+    expect(results).toHaveLength(1);
+    expect(results[0]).toEqual({
+      title: "光伏 AI 应用",
+      url: "https://example.com/a",
+      snippet: "snippet",
+      domainSignal,
+    });
+    expect(results[0]!.domainSignal).toBe(domainSignal);
+  });
 });
