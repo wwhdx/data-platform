@@ -118,13 +118,11 @@ calibrateWeights() → opportunity_weights
 ```
 data-platform G1 读路径（034 + search + sync）✅
     │
-data-platform G1-5 + U-L1 代码 ✅（macro 灌库 ✅ · text 验收中）
-    │
-    ├─ 待 **U-L1-A2 / U-L1-A3** text collect → **U-L1-accept**（`l1Ready`）
+data-platform G1-5 + U-L1 ✅（**U-L1-A1～A3 + accept** 试点 `l1Ready`）
     │
 data-platform U1（domainSignal + 向量）✅
     │
-    ├─ 并行 → engine-core E1（score_opportunity + 自拉权重 + pending upsert）← **U-L1 text 达标后联调**
+    ├─ 并行 → engine-core E1（score_opportunity + 自拉权重 + pending upsert）← **可启动行业联调**
     │              │
     │         engine-core E2（多 Agent 评审团）
     │              │
@@ -153,3 +151,4 @@ data-platform U2（035–037 迁移 + /report + /weights 鉴权分级 + 校准�
 | v1.5 | 2026-05-22 | 依赖图增 **G1-5 + U-L1**；三仓库表增 L1 前置专篇 |
 | v1.6 | 2026-05-22 | 依赖图：**U-L1-A1** macro ✅；E1 联调门闸改为 text coverage 达标 |
 | v1.7 | 2026-05-22 | 依赖图：**U-L1-A2/A3** 正式编号（替会话内裸写 A2/A3） |
+| v1.8 | 2026-05-22 | 依赖图：**U-L1-accept** 试点灌库完成；E1 联调门闸解除 |
