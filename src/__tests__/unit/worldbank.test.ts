@@ -6,6 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { WorldBankConnector } from "../../connectors/worldbank";
+import { WORLD_BANK_CORE_INDICATORS } from "../../connectors/worldbank/config";
 
 // ── 模拟 World Bank API 响应格式 ──
 
@@ -114,16 +115,12 @@ describe("World Bank connector helpers", () => {
 
   // ── 核心指标列表 ──
 
-  describe("CORE_INDICATORS", () => {
-    it("contains GDP indicator", () => {
-      const indicators = [
-        "NY.GDP.MKTP.CD", "NY.GDP.PCAP.CD", "SP.POP.TOTL",
-        "FP.CPI.TOTL.ZG", "IT.NET.USER.ZS", "SL.UEM.TOTL.ZS",
-        "NE.EXP.GNFS.ZS", "SE.ADT.LITR.ZS", "SH.XPD.CHEX.GD.ZS", "SP.DYN.LE00.IN",
-      ];
-      expect(indicators).toContain("NY.GDP.MKTP.CD");
-      expect(indicators).toContain("SP.POP.TOTL");
-      expect(indicators.length).toBe(10);
+  describe("WORLD_BANK_CORE_INDICATORS", () => {
+    it("contains GDP indicator fallback", () => {
+      const codes = WORLD_BANK_CORE_INDICATORS.map((i) => i.code);
+      expect(codes).toContain("NY.GDP.MKTP.CD");
+      expect(codes).toContain("SP.POP.TOTL");
+      expect(codes.length).toBe(10);
     });
   });
 
@@ -148,7 +145,7 @@ describe("World Bank connector helpers", () => {
       vi.restoreAllMocks();
     });
 
-    it("跨多个 CORE_INDICATORS 累计不超过 maxItems", async () => {
+    it("跨多个 YAML indicator 累计不超过 maxItems", async () => {
       vi.mocked(global.fetch).mockImplementation(async (input) => {
         const url = String(input);
         if (url.includes("NY.GDP.MKTP.CD")) {

@@ -347,6 +347,9 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 | 认证 | 无需 |
 | 速率 | 无明确 RPS（公平使用）；本包 3 RPS → [附录 B](#附录-b已接入源配额与速率限制评估) |
 | 许可 | CC BY |
+| **L0 目录** | `pnpm cli worldbank catalog sync` → 表 `worldbank_catalog_indicators`（分页 `/indicator` + `/topic`） |
+| **L1 采集** | `config/worldbank-indicators.yml`；`worldbank_countries` / `WORLD_BANK_COUNTRIES` 限制国家（非 `country/all`） |
+| **验证** | `node scripts/verify-worldbank-indicators.mjs` |
 
 ### 4.2 ClinicalTrials.gov
 
@@ -723,7 +726,7 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 | `sec_edgar` | rest_polite | **10** | 10 filing 全文 | 低 |
 | `yahoo_finance` | rest_none | **10** | 5 ticker 量级 | 低 |
 | `fred` | rest_query_param_key | **50** | 50 序列 ~50s | 低 |
-| `worldbank` | rest_none | **5** | 单指标 1–2 GET | 低 |
+| `worldbank` | rest_none | **50** | YAML 15 指标 × 6 国 × mrv 5 | 低 |
 | `clinicaltrials` | rest_none | **100** | 2 页 pageSize=100 | 中 |
 | `github` | rest_bearer | **30** | Search 30/min | 低 |
 | `hackernews` | firebase_rest | **50** | 51 Firebase 调用 | 低 |

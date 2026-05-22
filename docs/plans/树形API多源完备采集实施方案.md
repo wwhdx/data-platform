@@ -1,7 +1,7 @@
 # 树形 API 多源完备采集实施方案
 
-> **状态**：部分落地（T1 ✅ · T2 ✅ · T3 ✅）  
-> **版本**：v1.6（2026-05-22）  
+> **状态**：已落地（H3 ✅ · T1–T4 ✅）  
+> **版本**：v1.7（2026-05-22）  
 > **进度真源**：[实施进度总览.md](./实施进度总览.md) §4.11（轨 T）  
 > **方法论**：[树形API数据源完备采集方法论.md](../knowledge/树形API数据源完备采集方法论.md)  
 > **样板**：[EIA完备采集方案.md](./EIA完备采集方案.md)（✅ H0–H2 MVP）  
@@ -30,7 +30,7 @@
 | **Eurostat** | Catalogue TOC ~5.5k dataset | 无 L0；L1 硬编码 3 dataset | **T1** |
 | **FRED** | Category 树 + 80 万 series | 无 L0；L1 仅 `series/search` | **T2** |
 | **OECD** | SDMX `dataflow` ~1.5k | L0 ✅；L1 YAML **5** 条 Tier A | **T3** ✅ |
-| **World Bank** | `/indicator` + `/topic` | 无 L0；L1 硬编码 10 指标 | **T4** |
+| **World Bank** | `/indicator` + `/topic` | L0 ✅；L1 YAML **15** 条 Tier A | **T4** ✅ |
 
 ### 1.3 非目标
 
@@ -52,7 +52,7 @@
 | Eurostat | TOC **~5 466** dataset | ✅ `pnpm cli eurostat catalog sync` | `config/eurostat-datasets.yml` **6** 条 Tier A | 🟡 目录全、数据 Tier A |
 | FRED | Category 树 + **80 万+** series | ✅ `pnpm cli fred catalog sync` | `config/fred-series.yml` **13** 条 Tier A | 🟡 目录 BFS、数据 Tier A |
 | OECD | 多 agency **dataflow** ~1.5k | ✅ `pnpm cli oecd catalog sync` | `config/oecd-series.yml` **5** 条 Tier A | 🟡 目录全、数据 Tier A |
-| World Bank | **16 000+** indicator × topic | ❌ | `CORE_INDICATORS` **10** 条 × 全国家 | ❌ 指标维 |
+| World Bank | **16 000+** indicator × topic | ✅ `pnpm cli worldbank catalog sync` | `config/worldbank-indicators.yml` **15** 条 Tier A | 🟡 目录全、数据 Tier A |
 
 **EIA 路由内 facet**：仅 `electricity/retail-sales` 声明 `sectorid`×`stateid` 白名单；其余已采 route 多为无 facet 默认页。
 
@@ -270,6 +270,7 @@ flowchart TB
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| v1.7 | 2026-05-22 | T4 落地：World Bank L0 `worldbank_catalog_indicators` · CLI · YAML 15 条 · 可配置 `countries` · verify |
 | v1.6 | 2026-05-22 | T3 收尾：`catalogFetch` JSON/XML 全量 + agency 分批 · XML 解析 · 目录 sync 验收 1516 条 |
 | v1.5 | 2026-05-21 | T3 落地：OECD L0 `oecd_catalog_dataflows` · CLI · YAML 5 条（KEI×4 + AEA GHG）· verify |
 | v1.4 | 2026-05-21 | T2 落地：FRED L0 `fred_catalog_categories` · CLI · YAML 13 条 Tier A · verify 13/13 |

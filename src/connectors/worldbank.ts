@@ -1,6 +1,24 @@
-import type { ConnectorMeta, ConnectorConfig, RawDocument, SearchResult, CollectParams, SearchOptions } from "../types";
+import type {
+  ConnectorMeta,
+  ConnectorConfig,
+  RawDocument,
+  SearchResult,
+  CollectParams,
+  SearchOptions,
+} from "../types";
 import { BaseConnector } from "./base";
 import { RateLimiter } from "./rateLimiter";
+import { crawlWorldbankCatalog } from "./worldbank/catalogCrawl";
+import type { WbIndicatorItem, WbMeta, WbTopicItem } from "./worldbank/catalogCrawl";
+import {
+  loadWorldbankIndicatorsFile,
+  parseWorldbankConnectorOptions,
+  resolveIndicatorCountries,
+  WORLD_BANK_CORE_INDICATORS,
+  type WorldbankConnectorOptions,
+  type WorldbankIndicatorYamlEntry,
+} from "./worldbank/config";
+import { searchWorldbankCatalogByName } from "../storage/models/worldbankCatalog";
 
 export const WORLD_BANK_META: ConnectorMeta = {
   id: "worldbank",
@@ -10,25 +28,8 @@ export const WORLD_BANK_META: ConnectorMeta = {
   commercialUse: true,
   authType: "none",
   rateLimit: "unlimited",
-  description: "16,000+ 经济时间序列，覆盖 200+ 国家",
+  description: "16,000+ 经济时间序列（L0 指标目录 + YAML Tier A）",
 };
-
-// World Bank API 返回格式: [metadata, dataArray]
-interface WBMeta {
-  page: number;
-  pages: number;
-  per_page: string;
-  total: number;
-}
-
-interface IndicatorItem {
-  id: string;
-  name: string;
-  unit?: string;
-  source?: { id: string; value: string };
-  sourceNote?: string;
-  sourceOrganization?: string;
-}
 
 interface ObservationItem {
   indicator: { id: string; value: string };
@@ -39,22 +40,9 @@ interface ObservationItem {
   unit?: string;
 }
 
-// 核心经济指标列表
-const CORE_INDICATORS = [
-  "NY.GDP.MKTP.CD",   // GDP
-  "NY.GDP.PCAP.CD",   // 人均 GDP
-  "SP.POP.TOTL",      // 总人口
-  "FP.CPI.TOTL.ZG",   // 通胀率
-  "IT.NET.USER.ZS",   // 互联网普及率
-  "SL.UEM.TOTL.ZS",   // 失业率
-  "NE.EXP.GNFS.ZS",   // 出口占 GDP 比
-  "SE.ADT.LITR.ZS",   // 成人识字率
-  "SH.XPD.CHEX.GD.ZS",// 医疗支出占 GDP
-  "SP.DYN.LE00.IN",   // 预期寿命
-];
-
 export class WorldBankConnector extends BaseConnector {
   readonly meta: ConnectorMeta = WORLD_BANK_META;
+  private readonly wbOpts: WorldbankConnectorOptions;
 
   constructor(config: ConnectorConfig = {}) {
     super(
@@ -65,47 +53,110 @@ export class WorldBankConnector extends BaseConnector {
       },
       WORLD_BANK_META.baseUrl,
     );
-    this.rateLimiter = RateLimiter.fromRPS(3, 500); // 每秒 3 次，最小间隔 500ms
+    this.rateLimiter = RateLimiter.fromRPS(3, 500);
+    this.wbOpts = parseWorldbankConnectorOptions(this.sourceOptions);
   }
 
-  // ── 搜索 ──
+  private async fetchWbJson<T>(url: string): Promise<T | null> {
+    const res = await this.fetch(url);
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  }
+
+  async syncCatalog(): Promise<{
+    indicators: number;
+    topics: number;
+    yamlMissing: number;
+  }> {
+    const { indicators: yamlIndicators } = loadWorldbankIndicatorsFile(
+      this.wbOpts.indicatorsFile,
+    );
+    const result = await crawlWorldbankCatalog(
+      async () => {
+        const url = `${this.runtimeBaseUrl}/topic?format=json&per_page=50`;
+        const data = await this.fetchWbJson<[WbMeta, WbTopicItem[]]>(url);
+        return Array.isArray(data?.[1]) ? data[1] : [];
+      },
+      async (page, perPage) => {
+        const url = `${this.runtimeBaseUrl}/indicator?format=json&page=${page}&per_page=${perPage}`;
+        const data = await this.fetchWbJson<[WbMeta, WbIndicatorItem[]]>(url);
+        if (!data) return null;
+        const meta = data[0];
+        const items = Array.isArray(data[1]) ? data[1] : [];
+        return { meta, items };
+      },
+      yamlIndicators,
+    );
+    return {
+      indicators: result.indicators,
+      topics: result.topics,
+      yamlMissing: result.yamlMissing,
+    };
+  }
 
   async search(query: string, opts?: SearchOptions): Promise<SearchResult[]> {
     const maxResults = opts?.maxResults ?? 10;
-    const lowerQuery = query.toLowerCase();
+    const q = query.trim().toLowerCase();
     const results: SearchResult[] = [];
 
-    // 搜索指标名称匹配
-    const url = `${this.runtimeBaseUrl}/indicator?format=json&per_page=50`;
-
-    const res = await this.fetch(url);
-    if (!res.ok) return [];
-
-    const data = (await res.json()) as [WBMeta, IndicatorItem[]];
-    const items = Array.isArray(data[1]) ? data[1] : [];
-
-    for (const item of items) {
-      if (results.length >= maxResults) break;
-      if (item.name.toLowerCase().includes(lowerQuery)) {
-        results.push(this.toSearchResult(item));
+    try {
+      const catalogHits = await searchWorldbankCatalogByName(q, maxResults);
+      for (const hit of catalogHits) {
+        if (results.length >= maxResults) break;
+        results.push({
+          title: `${hit.name ?? hit.code} (${hit.code})`,
+          url: `https://data.worldbank.org/indicator/${hit.code}`,
+          snippet: (hit.name ?? hit.code).slice(0, 300),
+          sourceId: WORLD_BANK_META.id,
+          sourceName: WORLD_BANK_META.name,
+          score: 0.5,
+          license: WORLD_BANK_META.license,
+          commercialUse: WORLD_BANK_META.commercialUse,
+        });
       }
+    } catch {
+      /* 目录表未迁移时走 API */
     }
 
-    return results;
+    if (results.length < maxResults) {
+      const url = `${this.runtimeBaseUrl}/indicator?format=json&per_page=50`;
+      const data = await this.fetchWbJson<[WbMeta, WbIndicatorItem[]]>(url);
+      const items = Array.isArray(data?.[1]) ? data[1] : [];
+      for (const item of items) {
+        if (results.length >= maxResults) break;
+        if (!q || item.name.toLowerCase().includes(q)) {
+          results.push(this.toSearchResult(item));
+        }
+      }
+    }
+    return results.slice(0, maxResults);
   }
 
-  // ── 增量采集 ──
-
   async *collect(params: CollectParams = {}): AsyncGenerator<RawDocument> {
+    const loaded = loadWorldbankIndicatorsFile(this.wbOpts.indicatorsFile);
+    const entries =
+      loaded.indicators.length > 0
+        ? this.resolveCollectIndicators(loaded.indicators)
+        : WORLD_BANK_CORE_INDICATORS;
+
     const maxItems = params.maxItems ?? Infinity;
     let yielded = 0;
 
-    for (const code of CORE_INDICATORS) {
+    for (const entry of entries) {
       if (params.signal?.aborted) break;
       if (yielded >= maxItems) break;
 
+      const countries = resolveIndicatorCountries(
+        entry,
+        loaded.defaults,
+        this.wbOpts.defaultCountries,
+      );
+      const mrv = entry.mrv ?? loaded.defaults?.mrv ?? this.wbOpts.defaultMrv;
+
       for await (const doc of this.collectIndicator(
-        code,
+        entry,
+        countries,
+        mrv,
         maxItems - yielded,
         params.signal,
       )) {
@@ -116,40 +167,52 @@ export class WorldBankConnector extends BaseConnector {
     }
   }
 
+  private resolveCollectIndicators(
+    yaml: WorldbankIndicatorYamlEntry[],
+  ): WorldbankIndicatorYamlEntry[] {
+    const tiers = new Set(this.wbOpts.tierFilter.map((t) => t.toUpperCase()));
+    return yaml.filter((s) => {
+      const tier = s.tier.toUpperCase();
+      if (!tiers.has(tier)) return false;
+      if (s.collect_enabled === false) return false;
+      return true;
+    });
+  }
+
   private async *collectIndicator(
-    code: string,
+    entry: WorldbankIndicatorYamlEntry,
+    countries: string[],
+    mrv: number,
     maxItems: number,
     signal?: AbortSignal,
   ): AsyncGenerator<RawDocument> {
     let yielded = 0;
-    const mrv = 5; // 最近 5 年
+    const countryPath = countries.join(";");
 
     for await (const obs of this.paginateOffset<ObservationItem>(
       async (page, perPage) => {
-        const url = `${this.runtimeBaseUrl}/country/all/indicator/${code}?format=json&mrv=${mrv}&per_page=${perPage}&page=${page}`;
-        const res = await this.fetch(url);
-        if (!res.ok) return [];
-
-        const data = (await res.json()) as [WBMeta, ObservationItem[]];
-        return (Array.isArray(data[1]) ? data[1] : [])
-          .filter(o => o.value !== null); // 跳过无数据观测值
+        const url =
+          `${this.runtimeBaseUrl}/country/${countryPath}/indicator/${entry.code}` +
+          `?format=json&mrv=${mrv}&per_page=${perPage}&page=${page}`;
+        const data = await this.fetchWbJson<[WbMeta, ObservationItem[]]>(url);
+        return (Array.isArray(data?.[1]) ? data[1] : []).filter(
+          (o) => o.value !== null,
+        );
       },
       { perPage: 50 },
     )) {
       if (signal?.aborted) break;
-      yield this.toRawDocument(obs);
+      yield this.toRawDocument(obs, entry);
       yielded++;
       if (yielded >= maxItems) break;
     }
   }
 
-  // ── 数据映射 ──
-
-  private toSearchResult(item: IndicatorItem): SearchResult {
+  private toSearchResult(item: WbIndicatorItem): SearchResult {
     return {
       title: `${item.name} (${item.id})`,
       url: `https://data.worldbank.org/indicator/${item.id}`,
-      snippet: item.sourceNote?.slice(0, 300) ?? item.name,
+      snippet: item.name,
       sourceId: WORLD_BANK_META.id,
       sourceName: WORLD_BANK_META.name,
       score: 0,
@@ -158,7 +221,10 @@ export class WorldBankConnector extends BaseConnector {
     };
   }
 
-  private toRawDocument(obs: ObservationItem): RawDocument {
+  private toRawDocument(
+    obs: ObservationItem,
+    entry: WorldbankIndicatorYamlEntry,
+  ): RawDocument {
     const extId = `${obs.indicator.id}/${obs.country.id}/${obs.date}`;
     return {
       sourceId: WORLD_BANK_META.id,
@@ -166,6 +232,7 @@ export class WorldBankConnector extends BaseConnector {
       rawJson: {
         indicator_name: obs.indicator.value,
         indicator_code: obs.indicator.id,
+        collect_tier: entry.tier,
         value: obs.value,
         unit: obs.unit ?? "",
         date: obs.date,

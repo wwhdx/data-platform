@@ -374,9 +374,13 @@ sources:
     license: "CC BY"
     commercial_use: true
     schedule: "0 3 * * 0"
-    description: "16,000+ 时间序列，覆盖 200+ 国家"
+    description: "WDI 指标目录 L0 + YAML Tier A（可配置国家列表）"
     options:
-      collect_max_items: 5
+      collect_max_items: 50
+      worldbank_indicators_file: config/worldbank-indicators.yml
+      worldbank_tier_filter: "A,B"
+      worldbank_countries: "US,CN,IN,JP,DE,GB"
+      worldbank_mrv: 5
 
   # role: registry | collect: main | cluster: clinical（NCT 注册真源，低重叠）
   - id: clinicaltrials

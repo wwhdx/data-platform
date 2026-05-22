@@ -1,0 +1,109 @@
+# World Bank Tier A/B 采集清单（Git 真源）
+# 运行 pnpm cli worldbank catalog sync 后用 L0 校验 code；node scripts/verify-worldbank-indicators.mjs
+defaults:
+  countries: [US, CN, IN, JP, DE, GB]
+  mrv: 5
+indicators:
+  # topic 3 — Economy & Growth
+  - code: NY.GDP.MKTP.CD
+    tier: A
+    collect_enabled: true
+    title: GDP (current US$)
+    topic_id: "3"
+    # industry_tag: 国民经济
+
+  - code: NY.GDP.PCAP.CD
+    tier: A
+    collect_enabled: true
+    title: GDP per capita
+    topic_id: "3"
+
+  - code: NE.EXP.GNFS.ZS
+    tier: A
+    collect_enabled: true
+    title: Exports % of GDP
+    topic_id: "3"
+
+  # topic 11 — Poverty
+  - code: SI.POV.DDAY
+    tier: A
+    collect_enabled: true
+    title: Poverty headcount ratio at $2.15/day
+    topic_id: "11"
+    # industry_tag: 社会
+
+  # topic 8 — Health
+  - code: SP.DYN.LE00.IN
+    tier: A
+    collect_enabled: true
+    title: Life expectancy at birth
+    topic_id: "8"
+
+  - code: SH.XPD.CHEX.GD.ZS
+    tier: A
+    collect_enabled: true
+    title: Current health expenditure % of GDP
+    topic_id: "8"
+
+  # topic 4 — Education
+  - code: SE.ADT.LITR.ZS
+    tier: A
+    collect_enabled: true
+    title: Literacy rate adult total
+    topic_id: "4"
+
+  # topic 10 — Environment
+  - code: EN.ATM.PM25.MC.M3
+    tier: A
+    collect_enabled: true
+    title: PM2.5 air pollution mean annual exposure
+    topic_id: "10"
+    # industry_tag: 环境
+
+  - code: EG.USE.ELEC.KH.PC
+    tier: A
+    collect_enabled: true
+    title: Electric power consumption kWh per capita
+    topic_id: "10"
+    # industry_tag: 能源
+
+  # topic 19 — Climate Change
+  - code: EG.FEC.RNEW.ZS
+    tier: A
+    collect_enabled: true
+    title: Renewable energy consumption % of total final energy
+    topic_id: "19"
+
+  # topic 12 — Trade
+  - code: NE.TRD.GNFS.ZS
+    tier: A
+    collect_enabled: true
+    title: Trade % of GDP
+    topic_id: "12"
+
+  # topic 9 — Infrastructure
+  - code: IT.NET.USER.ZS
+    tier: A
+    collect_enabled: true
+    title: Individuals using the Internet %
+    topic_id: "9"
+
+  # topic 2 — Aid Effectiveness (劳动代理：失业率在 WDI 常归 Social）
+  - code: SL.UEM.TOTL.ZS
+    tier: A
+    collect_enabled: true
+    title: Unemployment total % of labor force
+    topic_id: "2"
+    # industry_tag: 劳动
+
+  - code: FP.CPI.TOTL.ZG
+    tier: A
+    collect_enabled: true
+    title: Inflation consumer prices annual %
+    topic_id: "3"
+
+  - code: SP.POP.TOTL
+    tier: A
+    collect_enabled: true
+    title: Population total
+    topic_id: "3"
