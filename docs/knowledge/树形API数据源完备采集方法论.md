@@ -1,7 +1,7 @@
 # 树形 API 数据源完备采集方法论
 
 > **状态**：共识知识（EIA 样板已落地）  
-> **版本**：v1.1（2026-05-21）  
+> **版本**：v1.2（2026-05-22）  
 > **样板实现**：[EIA完备采集方案](../plans/EIA完备采集方案.md) · 代码 `src/connectors/eia/`  
 > **多源实施步骤**：[树形API多源完备采集实施方案](../plans/树形API多源完备采集实施方案.md)（轨 T：H3 + T1–T4）  
 > **文档地图** → [README.md](../README.md)
@@ -166,14 +166,22 @@ EIA 脚本：`node scripts/verify-eia-routes.mjs`
 
 ## 7. 其他数据源映射建议
 
+**子版块**：可枚举、可分层浏览的采集单元（route、TOC 文件夹、dataflow、topic、dataset、MeSH、CPC 等）。**不必**为 EIA 式 URL 路径树；轨 T+ 候选见 [树形API多源完备采集实施方案 §14](../plans/树形API多源完备采集实施方案.md)。
+
 | 源 | 目录 L0 | 数据 L1 | 备注 |
 |----|---------|---------|------|
 | **EIA** | BFS `routes[]` | YAML 多 route | 本方法论样板 |
-| **FRED** | `series/categories` 或搜索索引表 | 已有 `series/search` + observations | 宜建 `fred_series_catalog` |
-| **World Bank** | `GET /indicator` 分页 | 扩展 `CORE_INDICATORS` 或目录驱动 | 指标型，非树形 |
-| **Eurostat / OECD** | SDMX dataflow 列表 | 每 dataset 一条 indicator | `sdmx_json` profile |
-| **OpenAlex / CrossRef** | 无全局树 | 查询驱动 collect | **不适用**本方法论 |
-| **OAI 预印本** | setSpec 列表 | 时间窗 harvest | 用 OAI 专章，非 route 树 |
+| **FRED** | `category/children` BFS | YAML `series_id` | ✅ `fred_catalog_categories`（轨 T2） |
+| **World Bank** | `/indicator` + `/topic` | YAML 按 topic | ✅ 轨 T4 |
+| **Eurostat / OECD** | TOC / SDMX dataflow | YAML 每 dataset/flow | ✅ 轨 T1/T3 · `sdmx_json` |
+| **IMF / ECB / BIS / ILO** | SDMX dataflow | YAML 代表 series key | □ 轨 T+ · 复用 OECD 模块 |
+| **Census / BEA** | Discovery / `GETDATASETLIST` | YAML dataset 或 table | □ 轨 T+ |
+| **FAOSTAT** | SDMX dataflow / domain | YAML 按农业域 | □ 轨 T+ |
+| **BLS** | `/surveys`（非全量 series） | YAML 代表 series | □ 仅 survey 级 L0 |
+| **OpenAlex** | `/topics`、`/concepts` | filter by topic collect | 已有 Connector **加 catalog**；非轨 T |
+| **PubMed** | MeSH 树 | 按 MeSH collect | 同上 |
+| **CrossRef / arXiv 查询源** | 无稳定全局目录 | 查询/时间窗 | **不适用** L0 完备 |
+| **OAI 预印本** | setSpec 列表 | 时间窗 harvest | OAI 专章，非 route 树 |
 
 ---
 
@@ -210,5 +218,6 @@ EIA 脚本：`node scripts/verify-eia-routes.mjs`
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| v1.2 | 2026-05-22 | §7 增补「子版块」定义；轨 T+ 候选（IMF/ECB/Census/BEA/FAO…）与已有源 catalog |
 | v1.1 | 2026-05-21 | 链入 [树形API多源完备采集实施方案](../plans/树形API多源完备采集实施方案.md)（轨 T 实施步骤） |
 | v1.0 | 2026-05-21 | 基于 EIA H0–H2 落地与二次验证：两维完备、L0 陷阱、Tier、验证清单、他源映射 |

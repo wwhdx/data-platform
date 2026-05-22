@@ -1,7 +1,7 @@
 # 树形 API 多源完备采集实施方案
 
-> **状态**：已落地（H3 ✅ · T1–T4 ✅ · **L1 深化 v1.8**）  
-> **版本**：v1.9（2026-05-22）  
+> **状态**：轨 T 已落地（H3 ✅ · T1–T4 ✅ · L1 深化 v1.8）；**轨 T+ 为规划**（§14）  
+> **版本**：v2.0（2026-05-22）  
 > **进度真源**：[实施进度总览.md](./实施进度总览.md) §4.11（轨 T）  
 > **方法论**：[树形API数据源完备采集方法论.md](../knowledge/树形API数据源完备采集方法论.md)  
 > **样板**：[EIA完备采集方案.md](./EIA完备采集方案.md)（✅ H0–H2 MVP）  
@@ -14,7 +14,9 @@
 
 ### 1.1 目标
 
-在 **EIA H0–H2 已落地** 基础上，将「**目录完备（L0）+ 分层数据（L1/L2）**」模式复制到其余**具备分层目录的宏观/指标源**，避免长期停留在「单 query / 硬编码 3–10 条样本」PoC。
+在 **EIA H0–H2 已落地** 基础上，将「**目录完备（L0）+ 分层数据（L1/L2）**」模式复制到其余**具备可枚举子版块的宏观/指标源**，避免长期停留在「单 query / 硬编码 3–10 条样本」PoC。
+
+**子版块（本方案用语）**：官方 API 可枚举、可分层浏览的采集单元，包括但不限于 EIA `routes[]`、Eurostat TOC 文件夹、SDMX `dataflow`、World Bank `topic`、BEA `dataset`→`TableName`、OpenAlex `topics`、PubMed MeSH 等。**不必**为严格 URL 路径树（见 [方法论 §7](../knowledge/树形API数据源完备采集方法论.md) 2026-05-22 增补）。
 
 | 维度 | 验收口径 |
 |------|----------|
@@ -34,9 +36,10 @@
 
 ### 1.3 非目标
 
-- **不**改造 OpenAlex / CrossRef / PubMed 等查询驱动源（方法论 §7 已标明不适用）。
-- **不**承诺四源「物理全量数值入库」；与 EIA 相同，**目录完备 ≠ 全库观测完备**。
+- **不**在本轨（H3–T4）改造 OpenAlex / CrossRef 等**纯查询驱动**源；若需主题子版块，走 **§14.4 已有 Connector 加目录层**（与轨 T+ 分列）。
+- **不**承诺轨 T 五源「物理全量数值入库」；**目录完备 ≠ 全库观测完备**。
 - **不**在本轨实现望野行业 ontology（见 [行业维度接入设计方案](./行业维度接入设计方案.md)）；仅预留 `raw_json` 字段与 YAML 注释对齐。
+- **不**将轨 T+ 新 Connector 与 [波次 10 运维启用](./待接入数据源清单与波次方案.md#38-下一阶段-p1运维与平台2026-05-21) 混在同一 commit（新源按 §14.6 单独立项）。
 
 ### 1.4 实施铁律
 
@@ -44,7 +47,7 @@
 
 ---
 
-## 2. 现状差距（2026-05-21 代码审计）
+## 2. 现状差距（2026-05-22 代码审计）
 
 | 源 | 官方子方向规模（官网） | L0 | L1 代码真源 | 子方向数据是否覆盖 |
 |----|------------------------|-----|-------------|-------------------|
@@ -82,6 +85,27 @@ flowchart TB
 | **T4** | 2d | 无硬依赖 | `worldbank_indicator_catalog` + topic 驱动 YAML |
 
 **建议排期**：H3 与 T1 可并行（不同 Connector）；T2–T4 顺序实施，避免同时改 4 套 catalog 表。
+
+### 3.1 轨 T 完成后优先级（2026-05-22）
+
+| 优先级 | 动作 | 说明 |
+|--------|------|------|
+| **P0** | 轨 T 五源 **L1 加深** | L0 已全；扩 `config/*-routes.yml` Tier A + `verify-*`（OECD 拥塞时错峰） |
+| **P1** | 轨 **T+** 新 Connector | SDMX/发现式目录源：`imf` → `ecb` → `census` / `bea` / `faostat`（§14.3） |
+| **P2** | 已有源 **catalog 子命令** | `openalex` topics、`pubmed` MeSH 等（§14.4）；不新增 `sources.yml` id |
+
+```mermaid
+flowchart LR
+  Tdone[轨 T L0+L1 PoC]
+  deepen[五源扩 YAML Tier]
+  Tplus[轨 T+ 新 Connector]
+  enrich[已有源加 catalog]
+  Tdone --> deepen
+  deepen --> Tplus
+  Tplus --> enrich
+```
+
+详表与官网依据 → **§14**。
 
 ---
 
@@ -267,13 +291,87 @@ flowchart TB
 | OECD dataflow 列表变更 | 周级 L0；YAML diff CI |
 | World Bank 全国家 × 多指标膨胀 | YAML 限制 `countries` + `mrv`；Tier C 仅目录 |
 | 多 Phase 并行 merge 冲突 | 串行 T1→T4；H3 可与 T1 并行 |
+| IMF API 限速 | 10 req/5s/IP；catalog sync 与 collect 分 job；复用 OECD 礼貌间隔 |
+| Census ~1780 dataset | Discovery API 分页；按 Aggregate/Microdata/Timeseries 分表或 `dataset_type` 字段 |
+| 宏观簇重复 | T+ 立项时对照 `fred`/`worldbank`/`eurostat`/`oecd`/`eia` YAML，同概念 **显式选型** |
 
 ---
 
-## 13. §变更记录
+## 14. 轨 T+：子版块扩展候选（规划）
+
+> **状态**：□ 未实施（2026-05-22 评估入库）  
+> **与轨 T 关系**：轨 T 五源优先 **L1 加深**；T+ 为**新 Connector** 或**已有 Connector 加 L0**，复用 §9 模块模板。  
+> **排期真源**：[待接入数据源清单与波次方案.md](./待接入数据源清单与波次方案.md) §4.2（`imf`/`census` 由「按需」提升为 P1 候选）
+
+### 14.1 轨 T 五源：后续动作（非新源）
+
+| 源 | 子版块规模（官网） | 下一步 |
+|----|-------------------|--------|
+| EIA | 14 顶层 / 232 叶子 | 对照 L0 扩 `eia-routes.yml`；高 facet route 补白名单 |
+| Eurostat | ~5.5k dataset | 按 `theme_path`（`nrg_*`、`env_*`…）扩 Tier A |
+| FRED | category 树 | 按顶层/叶类扩 `fred-series.yml`；可选登记 `fred/releases` |
+| OECD | ~1.5k dataflow | 扩非 KEI flow；API 拥塞时 `verify-oecd-series` 间隔重跑 |
+| World Bank | 16 topic × 1.6 万+ indicator | 按 topic 扩 `worldbank-indicators.yml` |
+
+### 14.2 新 Connector 候选（宏观/指标 · 可复用 T 轨模板）
+
+| 优先级 | 规划 `id` | 子版块形态 | 官方目录入口 | profile / 备注 | 估工时 |
+|--------|-----------|------------|--------------|----------------|--------|
+| **P0** | `imf` | SDMX **dataflow**（WEO、CPI、BOP…） | [IMF Data APIs](https://data.imf.org/en/Resource-Pages/IMF-API) · `…/structure/dataflow` | `sdmx_json`（扩 base_url） | 2–3d（≈ T3） |
+| **P0** | `ecb` | SDMX **dataflow**（EXR、BSI、MIR…） | [ECB API](https://data.ecb.europa.eu/help/api/data) · `GET …/service/dataflow` | `sdmx_json` | 2–3d |
+| **P1** | `census` | **~1 780** dataset endpoint（Aggregate / Microdata / Timeseries） | [Census API Discovery](https://www.census.gov/data/developers/guidance.html) | 新 profile 或 `rest_query_param_key` + Key | 3–4d |
+| **P1** | `bea` | **~15 dataset** → 内层 **TableName**（NIPA、Regional…） | `GETDATASETLIST` · [BEA API](https://www.bea.gov/resources/developer-tools) | `rest_query_param_key` + `BEA_API_KEY` | 2–3d |
+| **P1** | `faostat` | **domain / dataflow**（QCL、FBS、RL…） | FAOSTAT SDMX · `…/rest/dataflow/all` | `sdmx_json`；农业垂直 | 3–4d |
+| **P2** | `ilo` | SDMX dataflow | [ILOSTAT SDMX](https://sdmx.ilo.org/rest) | `sdmx_json` | 2d |
+| **P2** | `bis` | SDMX dataflow | `https://stats.bis.org/api/v1` | `sdmx_json` | 2d |
+| **P2** | `unsd` | SDMX（含 SDG） | UN `data.un.org` WS | `sdmx_json` | 2–3d |
+
+**偏弱子版块（慎承诺 L0 完备）**：
+
+| 规划 `id` | 子版块能到哪一层 | 局限 |
+|-----------|-----------------|------|
+| `bls` | **`/surveys`** + popular series | [BLS FAQ](https://www.bls.gov/developers/api_faqs.htm)：无全量 series 目录；宜 survey 级 L0 + YAML 代表 id |
+
+**T+ 单源最小交付**（与 §1.4 一致）：migration + `catalogCrawl` + `pnpm cli <id> catalog sync|list` + `config/<id>-*.yml` + collect YAML 驱动 + `verify-*.mjs` + 单测 + `data-sources.md` + `sources.yml` +（若有 Key）`.env.example`。
+
+### 14.3 已有 Connector：加目录层（不新增 `sources.yml` id）
+
+| 已有 `id` | 可枚举子版块 | 官网依据 | 与行业维度 | 工作量 |
+|-----------|-------------|----------|------------|--------|
+| `openalex` | `/topics`、`/concepts` | [OpenAlex API](https://api.openalex.org) | 学术主题子版块 | 中 |
+| `pubmed` | **MeSH** 树 | NCBI `einfo` / MeSH | 生物医学 | 中 |
+| `clinicaltrials` | 条件、阶段、研究类型等 facet | [CT.gov API v2](https://clinicaltrials.gov/data-api/api) | 临床试验垂直 | 低–中 |
+| `sec_edgar` | 表单类型（10-K/10-Q/8-K）+ SIC | SEC submissions | 监管文档 | 低 |
+| `patentsview` / `epo_ops` / `google_patents` | CPC/IPC 分类 | 专利局体系 | 技术子版块 | 中 |
+| `chembl` | target / mechanism 类型 | ChEMBL API | 医药化学 | 中 |
+| `uniprot` | taxonomy、keyword | UniProt REST | 蛋白/物种 | 中 |
+| `fred`（加深） | **`fred/releases`**（扩维） | FRED API | 宏观发布日历 | 低 |
+| `github` / `youtube` | topic、`videoCategoryId` | 社区 API | 扁平标签，树浅 | 低 |
+
+**不适配子版块目录完备**（保持查询/时间窗采集）：`crossref`、`semanticscholar`、`arxiv`/`arxiv_oai`、`hackernews`、`reddit`、`yahoo_finance`、`opencitations`、`core`。
+
+### 14.4 建议实施顺序
+
+1. **五源 L1 加深**（无新 migration，与运维可并行）。
+2. **`imf` → `ecb`**：复用 `src/connectors/oecd/`、`sdmx_json` profile、`catalogSchedules.ts` 错峰 cron。
+3. **`census` / `bea`**：补美国宏观三角（与 `fred`、`eia` 显式去重）。
+4. **`faostat`**：农业垂直；与 `materials_project` 行业栈协同。
+5. **已有源 catalog**：若推进 [行业维度方案](./行业维度接入设计方案.md)，优先 **OpenAlex topics + PubMed MeSH**。
+
+### 14.5 与待接入清单的衔接
+
+| 文档条目 | 本方案处置 |
+|----------|------------|
+| [待接入 §4.2](./待接入数据源清单与波次方案.md) `imf`、`census`「按需」 | 提升为 **轨 T+ P1**；单独立项，不并入波次 10 |
+| 波次 10 `chembl`/`pubchem` 启用 | 与 T+ **无依赖**；勿在同一 commit 混宏观 catalog migration |
+
+---
+
+## 15. §变更记录
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| v2.0 | 2026-05-22 | **§14 轨 T+**：子版块术语、新 Connector/已有源候选、排期与风险；§1.3/§3.1 修订；链方法论 §7 |
 | v1.9 | 2026-05-22 | **L0 cron**：`catalogSchedules.ts` 统一注册五源 maintenance；`sources.yml` 各 `*_catalog_sync_enabled` + 错峰周日 cron |
 | v1.8 | 2026-05-22 | **L1 深化**：EIA 19 · Eurostat 9 · FRED 18 · OECD 7 · World Bank 21 条；verify 除 OECD API 拥塞外通过 |
 | v1.7 | 2026-05-22 | T4 落地：World Bank L0 `worldbank_catalog_indicators` · CLI · YAML 15 条 · 可配置 `countries` · verify |
