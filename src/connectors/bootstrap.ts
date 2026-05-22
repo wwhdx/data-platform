@@ -2,7 +2,7 @@ import type { Scheduler } from "../scheduler";
 import { resolveConnectorConfig } from "./factory";
 import { OpenAlexConnector } from "./openalex";
 import { CrossRefConnector } from "./crossref";
-import { WorldBankConnector } from "./worldbank";
+import { WorldBankConnector, WORLD_BANK_META } from "./worldbank";
 import { PubMedConnector, PUBMED_META } from "./pubmed";
 import {
   SemanticScholarConnector,
@@ -54,7 +54,6 @@ import { UniprotConnector, UNIPROT_META } from "./uniprot";
 import { WipoConnector, WIPO_META } from "./wipo";
 import { OPENALEX_META } from "./openalex";
 import { CROSSREF_META } from "./crossref";
-import { WORLD_BANK_META } from "./worldbank";
 
 export {
   OPENALEX_META,
@@ -355,6 +354,12 @@ export async function registerVirtualConnectors(
         await resolveConnectorConfig(raw.id, OPENALEX_META, {
           apiKey: process.env.OPENALEX_API_KEY,
         }),
+      );
+      scheduler.registerConnector({ id: raw.id, create: () => c });
+      registered.push(raw.id);
+    } else if (base === "worldbank") {
+      const c = new WorldBankConnector(
+        await resolveConnectorConfig(raw.id, WORLD_BANK_META, {}),
       );
       scheduler.registerConnector({ id: raw.id, create: () => c });
       registered.push(raw.id);

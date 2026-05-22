@@ -703,6 +703,28 @@ sources:
       subreddits: [MachineLearning, technology, science]
       listing: hot
 
+  # ── U-L1 宏观锚（indicator 白名单 + industry_tag；勿与全库 worldbank cron 混为 L1 验收）──
+  - id: worldbank_医疗
+    connector: worldbank
+    profile: rest_none
+    name: World Bank 医疗 L1
+    enabled: true
+    industry_tag: "医疗"
+    base_url: https://api.worldbank.org/v2/
+    rate_limit: "unlimited"
+    license: "CC BY"
+    commercial_use: true
+    schedule:
+      cron: "0 5 * * 1"
+    description: "U-L1 医疗宏观锚；health Tier A 指标白名单，见 config/industry-l1.yml"
+    options:
+      collect_max_items: 200
+      worldbank_indicators_file: config/worldbank-indicators.yml
+      worldbank_tier_filter: "A"
+      worldbank_indicator_codes: "SP.DYN.LE00.IN,SH.XPD.CHEX.GD.ZS"
+      worldbank_countries: "US,CN,IN,JP,DE,GB"
+      worldbank_mrv: 5
+
   # ── U-L1 弱信号文本（query + industry_tag；勿与全库 openalex cron 混为 L1 验收）──
   - id: pubmed_医疗
     connector: pubmed

@@ -174,6 +174,47 @@ describe("World Bank connector helpers", () => {
       expect(codes.has("NY.GDP.PCAP.CD")).toBe(true);
       expect(global.fetch).toHaveBeenCalled();
     });
+
+    it("worldbank_indicator_codes 仅采集白名单指标", async () => {
+      vi.mocked(global.fetch).mockImplementation(async (input) => {
+        const url = String(input);
+        if (url.includes("SP.DYN.LE00.IN")) {
+          return {
+            ok: true,
+            json: async () => [wbMeta, obsBatch("SP.DYN.LE00.IN", 12)],
+          } as Response;
+        }
+        if (url.includes("SH.XPD.CHEX.GD.ZS")) {
+          return {
+            ok: true,
+            json: async () => [wbMeta, obsBatch("SH.XPD.CHEX.GD.ZS", 8)],
+          } as Response;
+        }
+        if (url.includes("NY.GDP.MKTP.CD")) {
+          return {
+            ok: true,
+            json: async () => [wbMeta, obsBatch("NY.GDP.MKTP.CD", 99)],
+          } as Response;
+        }
+        return { ok: true, json: async () => [wbMeta, []] } as Response;
+      });
+
+      const c = new WorldBankConnector({
+        sourceOptions: {
+          worldbank_indicator_codes: "SP.DYN.LE00.IN,SH.XPD.CHEX.GD.ZS",
+          worldbank_tier_filter: "A",
+        },
+      });
+      const docs = [];
+      for await (const d of c.collect({ maxItems: 200 })) {
+        docs.push(d);
+      }
+      expect(docs.length).toBe(20);
+      const codes = new Set(docs.map((d) => String(d.rawJson.indicator_code)));
+      expect(codes.has("SP.DYN.LE00.IN")).toBe(true);
+      expect(codes.has("SH.XPD.CHEX.GD.ZS")).toBe(true);
+      expect(codes.has("NY.GDP.MKTP.CD")).toBe(false);
+    });
   });
 
   describe("indicator search", () => {

@@ -23,6 +23,9 @@ describe("industryL1 config", () => {
     );
     expect(config).not.toBeNull();
     expect(config!.industries["医疗"]?.macro.source).toBe("worldbank");
+    expect(config!.industries["医疗"]?.macro.virtual_source_id).toBe(
+      "worldbank_医疗",
+    );
     expect(config!.industries["能源"]?.text.virtual_source_id).toBe(
       "openalex_能源",
     );
@@ -48,6 +51,11 @@ describe("industryL1 config", () => {
     expect(pubmedL1?.industry_tag).toBe("医疗");
     expect(pubmedL1?.schedule).toBe("0 6 * * 1");
     expect(pubmedL1?.schedule_query).toContain("diabetes");
+
+    const wbL1 = expanded.find((s) => s.id === "worldbank_医疗");
+    expect(wbL1?.connector).toBe("worldbank");
+    expect(wbL1?.industry_tag).toBe("医疗");
+    expect(wbL1?.options?.worldbank_indicator_codes).toContain("SP.DYN.LE00.IN");
   });
 });
 

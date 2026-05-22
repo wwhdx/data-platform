@@ -171,10 +171,17 @@ export class WorldBankConnector extends BaseConnector {
     yaml: WorldbankIndicatorYamlEntry[],
   ): WorldbankIndicatorYamlEntry[] {
     const tiers = new Set(this.wbOpts.tierFilter.map((t) => t.toUpperCase()));
+    const codeFilter = this.wbOpts.indicatorCodeFilter;
+    const allowedCodes =
+      codeFilter && codeFilter.length > 0
+        ? new Set(codeFilter.map((c) => c.toUpperCase()))
+        : null;
+
     return yaml.filter((s) => {
       const tier = s.tier.toUpperCase();
       if (!tiers.has(tier)) return false;
       if (s.collect_enabled === false) return false;
+      if (allowedCodes && !allowedCodes.has(s.code.toUpperCase())) return false;
       return true;
     });
   }

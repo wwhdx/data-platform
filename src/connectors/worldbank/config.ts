@@ -22,6 +22,8 @@ export interface WorldbankIndicatorsFile {
 export interface WorldbankConnectorOptions {
   indicatorsFile: string;
   tierFilter: string[];
+  /** 非空时仅采集 listed code（U-L1 宏观虚拟源） */
+  indicatorCodeFilter: string[] | null;
   defaultCountries: string[];
   defaultMrv: number;
 }
@@ -71,11 +73,23 @@ export function parseWorldbankConnectorOptions(
       ? parseInt(String(mrvRaw), 10) || 5
       : 5;
 
+  const codesRaw =
+    process.env.WORLD_BANK_INDICATOR_CODES ??
+    sourceOptions.worldbank_indicator_codes;
+  const indicatorCodeFilter =
+    codesRaw != null && String(codesRaw).trim() !== ""
+      ? String(codesRaw)
+          .split(/[,;]/)
+          .map((s) => s.trim().toUpperCase())
+          .filter(Boolean)
+      : null;
+
   return {
     indicatorsFile: String(
       sourceOptions.worldbank_indicators_file ?? DEFAULT_INDICATORS_FILE,
     ),
     tierFilter,
+    indicatorCodeFilter,
     defaultCountries,
     defaultMrv,
   };

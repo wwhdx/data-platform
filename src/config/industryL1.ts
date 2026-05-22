@@ -4,6 +4,8 @@ import * as yaml from "js-yaml";
 
 export interface IndustryL1MacroConfig {
   source: string;
+  /** U-L1 宏观虚拟源（sources.yml connector 指向 macro.source 实现） */
+  virtual_source_id?: string;
   tier: string;
 }
 

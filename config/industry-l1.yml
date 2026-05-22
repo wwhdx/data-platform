@@ -10,6 +10,7 @@ industries:
   医疗:
     macro:
       source: worldbank
+      virtual_source_id: worldbank_医疗
       tier: A
     text:
       source: pubmed
