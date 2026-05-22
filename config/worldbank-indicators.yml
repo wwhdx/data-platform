@@ -149,3 +149,39 @@ indicators:
     collect_enabled: true
     title: Energy imports net % of energy use
     topic_id: "5"
+
+  # topic 6 — Environment
+  - code: AG.LND.FRST.ZS
+    tier: A
+    collect_enabled: true
+    title: Forest area % of land area
+    topic_id: "6"
+    # industry_tag: 环境
+
+  # topic 7 — Financial Sector
+  - code: BX.KLT.DINV.WD.GD.ZS
+    tier: A
+    collect_enabled: true
+    title: FDI net inflows % of GDP
+    topic_id: "7"
+
+  - code: BM.KLT.DINV.CD.WD
+    tier: A
+    collect_enabled: true
+    title: FDI net outflows BoP current US$
+    topic_id: "7"
+
+  # topic 13 — Public Sector
+  - code: GC.TAX.TOTL.GD.ZS
+    tier: A
+    collect_enabled: true
+    title: Tax revenue % of GDP
+    topic_id: "13"
+    # industry_tag: 财政
+
+  # topic 15 — Social Protection
+  - code: MS.MIL.XPND.GD.ZS
+    tier: A
+    collect_enabled: true
+    title: Military expenditure % of GDP
+    topic_id: "15"

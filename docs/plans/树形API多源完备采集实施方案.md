@@ -1,7 +1,7 @@
 # 树形 API 多源完备采集实施方案
 
-> **状态**：轨 T 已落地（H3 ✅ · T1–T4 ✅ · L1 深化 v1.8）；**轨 T+ 为规划**（§14）  
-> **版本**：v2.0（2026-05-22）  
+> **状态**：轨 T 已落地（H3 ✅ · T1–T4 ✅ · **P0 L1 加深 v2.1**）；**轨 T+ 为规划**（§14）  
+> **版本**：v2.1（2026-05-22）  
 > **进度真源**：[实施进度总览.md](./实施进度总览.md) §4.11（轨 T）  
 > **方法论**：[树形API数据源完备采集方法论.md](../knowledge/树形API数据源完备采集方法论.md)  
 > **样板**：[EIA完备采集方案.md](./EIA完备采集方案.md)（✅ H0–H2 MVP）  
@@ -51,11 +51,11 @@
 
 | 源 | 官方子方向规模（官网） | L0 | L1 代码真源 | 子方向数据是否覆盖 |
 |----|------------------------|-----|-------------|-------------------|
-| EIA | 14 顶层 / **232** 叶子 | ✅ `pnpm cli eia catalog sync` | `config/eia-routes.yml` **19** 条（+3 油气 route） | 🟡 目录全、L1 加深 |
-| Eurostat | TOC **~5 466** dataset | ✅ `pnpm cli eurostat catalog sync` | `config/eurostat-datasets.yml` **9** 条 Tier A | 🟡 目录全、L1 加深 |
-| FRED | Category 树 + **80 万+** series | ✅ `pnpm cli fred catalog sync` | `config/fred-series.yml` **18** 条 Tier A | 🟡 目录 BFS、L1 加深 |
-| OECD | 多 agency **dataflow** ~1.5k | ✅ `pnpm cli oecd catalog sync` | `config/oecd-series.yml` **7** 条 Tier A（+DEU/JPN KEI） | 🟡 目录全；API 拥塞时需重验 |
-| World Bank | **16 000+** indicator × topic | ✅ `pnpm cli worldbank catalog sync` | `config/worldbank-indicators.yml` **21** 条 Tier A | 🟡 目录全、L1 加深 |
+| EIA | 14 顶层 / **232** 叶子 | ✅ `pnpm cli eia catalog sync` | `config/eia-routes.yml` **23** 条（油气价/产量/储运） | 🟡 目录全、L1 加深 |
+| Eurostat | TOC **~5 466** dataset | ✅ `pnpm cli eurostat catalog sync` | `config/eurostat-datasets.yml` **13** 条 | 🟡 目录全、L1 加深 |
+| FRED | Category 树 + **80 万+** series | ✅ `pnpm cli fred catalog sync` | `config/fred-series.yml` **24** 条 Tier A | 🟡 目录 BFS、L1 加深 |
+| OECD | 多 agency **dataflow** ~1.5k | ✅ `pnpm cli oecd catalog sync` | `config/oecd-series.yml` **7** 条 Tier A（+DEU/JPN KEI） | 🟡 目录全；API 拥塞时需错峰 `verify-oecd-series` |
+| World Bank | **16 000+** indicator × topic | ✅ `pnpm cli worldbank catalog sync` | `config/worldbank-indicators.yml` **26** 条 | 🟡 目录全、L1 加深 |
 
 **EIA 路由内 facet**：仅 `electricity/retail-sales` 声明 `sectorid`×`stateid` 白名单；其余已采 route 多为无 facet 默认页。
 
@@ -90,7 +90,7 @@ flowchart TB
 
 | 优先级 | 动作 | 说明 |
 |--------|------|------|
-| **P0** | 轨 T 五源 **L1 加深** | L0 已全；扩 `config/*-routes.yml` Tier A + `verify-*`（OECD 拥塞时错峰） |
+| **P0** | 轨 T 五源 **L1 加深** | ✅ v2.1：EIA **23** · Eurostat **13** · FRED **24** · WB **26** · verify 通过；OECD **7** 未扩（SDMX 500/429） |
 | **P1** | 轨 **T+** 新 Connector | SDMX/发现式目录源：`imf` → `ecb` → `census` / `bea` / `faostat`（§14.3） |
 | **P2** | 已有源 **catalog 子命令** | `openalex` topics、`pubmed` MeSH 等（§14.4）；不新增 `sources.yml` id |
 
@@ -371,6 +371,7 @@ flowchart LR
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| v2.1 | 2026-05-22 | **P0 L1 第二轮加深**：五源 YAML +4~+6 条/源；`verify-*` 23/13/24/26 OK；OECD 维持 7 条（API 拥塞） |
 | v2.0 | 2026-05-22 | **§14 轨 T+**：子版块术语、新 Connector/已有源候选、排期与风险；§1.3/§3.1 修订；链方法论 §7 |
 | v1.9 | 2026-05-22 | **L0 cron**：`catalogSchedules.ts` 统一注册五源 maintenance；`sources.yml` 各 `*_catalog_sync_enabled` + 错峰周日 cron |
 | v1.8 | 2026-05-22 | **L1 深化**：EIA 19 · Eurostat 9 · FRED 18 · OECD 7 · World Bank 21 条；verify 除 OECD API 拥塞外通过 |

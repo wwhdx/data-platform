@@ -95,3 +95,39 @@ datasets:
     params:
       geo: EU27_2020
       lastTimePeriod: "1"
+
+  - code: nrg_ind_ei
+    tier: A
+    collect_enabled: true
+    title: Energy intensity EU27
+    # industry_tag: 能源
+    params:
+      geo: EU27_2020
+      lastTimePeriod: "1"
+
+  - code: sts_inpr_m
+    tier: A
+    collect_enabled: true
+    title: Industrial production index EU27 (STS)
+    # industry_tag: 生产
+    params:
+      geo: EU27_2020
+      lastTimePeriod: "1"
+
+  - code: tec00115
+    tier: A
+    collect_enabled: true
+    title: R&D expenditure % of GDP EU27
+    # industry_tag: 科技
+    params:
+      geo: EU27_2020
+      lastTimePeriod: "1"
+
+  - code: isoc_ci_ifp_iu
+    tier: B
+    collect_enabled: true
+    title: Individuals using the internet EU27
+    # industry_tag: 科技
+    params:
+      geo: EU27_2020
+      lastTimePeriod: "1"

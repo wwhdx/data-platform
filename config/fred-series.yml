@@ -120,3 +120,45 @@ series:
     collect_enabled: true
     title: Continued Claims (Insured Unemployment)
     category_id: 10
+
+  # industry_tag: 价格
+  - series_id: PPIACO
+    tier: A
+    collect_enabled: true
+    title: Producer Price Index All Commodities
+    category_id: 9
+
+  # industry_tag: 金融
+  - series_id: T10Y2Y
+    tier: A
+    collect_enabled: true
+    title: 10-Year Treasury Minus 2-Year Treasury Spread
+    category_id: 32991
+
+  # industry_tag: 国际
+  - series_id: DEXUSEU
+    tier: A
+    collect_enabled: true
+    title: U.S. / Euro Foreign Exchange Rate
+    category_id: 13
+
+  # industry_tag: 消费
+  - series_id: TOTALSA
+    tier: A
+    collect_enabled: true
+    title: Total Vehicle Sales
+    category_id: 33039
+
+  # industry_tag: 金融
+  - series_id: BUSLOANS
+    tier: A
+    collect_enabled: true
+    title: Commercial and Industrial Loans
+    category_id: 32991
+
+  # industry_tag: 生产
+  - series_id: MANEMP
+    tier: A
+    collect_enabled: true
+    title: Manufacturing Employment
+    category_id: 1
