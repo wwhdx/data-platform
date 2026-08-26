@@ -122,7 +122,9 @@ describe("EurostatConnector", () => {
   });
 
   it("search 按 query 过滤核心序列", async () => {
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    // search() internally issues multiple fetches (catalog + per-dataset);
+    // a one-shot queue leaves later calls unresolved -> backoff retries -> timeout.
+    vi.mocked(global.fetch).mockResolvedValue({
       ok: true,
       json: async () => SAMPLE_DATASET,
     } as Response);

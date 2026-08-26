@@ -27,13 +27,19 @@ describe("wipoHelpers", () => {
   });
 
   it("buildWipoCollectQuery 无关键词时用相对 DP", () => {
-    expect(buildWipoCollectQuery({ since: "2026-05-20" })).toBe(
+    const yesterday = new Date(Date.now() - 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    expect(buildWipoCollectQuery({ since: yesterday })).toBe(
       "DP:[TODAY-1DAY TO TODAY]",
     );
   });
 
   it("buildWipoRelativeDpFilter 近 1 日 → TODAY-1DAY", () => {
-    expect(buildWipoRelativeDpFilter("2026-05-20")).toBe(
+    const yesterday = new Date(Date.now() - 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    expect(buildWipoRelativeDpFilter(yesterday)).toBe(
       "DP:[TODAY-1DAY TO TODAY]",
     );
   });

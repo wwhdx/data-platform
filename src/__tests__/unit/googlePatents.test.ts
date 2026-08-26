@@ -51,7 +51,7 @@ describe("googlePatents helpers", () => {
     expect(rawJson.title).toBe("ML system");
     expect(rawJson.type).toBe("patent");
     expect(rawJson.data_source).toBe("google_patents_bq");
-    expect(String(rawJson.url)).toContain("US-9876543-B2");
+    expect(String(rawJson.url)).toContain("US9876543B2");
   });
 
   it("validateGooglePatentsEnv 缺 GCP_PROJECT_ID", () => {
