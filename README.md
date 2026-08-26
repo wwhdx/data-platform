@@ -1,5 +1,7 @@
 # data-platform
 
+data-platform — TypeScript 数据管道服务（采集 / 存储 / RAG 检索）。
+
 > 望野数据采集 / 存储 / RAG 引擎——多源数据聚合，语义混合检索。
 
 ## 架构
