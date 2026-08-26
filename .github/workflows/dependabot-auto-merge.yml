@@ -1,0 +1,100 @@
+name: dependabot-auto-merge
+
+# Automatically squash-merges pull requests opened by Dependabot once every
+# check on the head commit has succeeded (in particular the CI `test` step).
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  check_suite:
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: PR number to evaluate
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  # statusCheckRollup in the GraphQL query needs read access to checks/statuses;
+  # without these the whole query fails with "Resource not accessible by integration"
+  checks: read
+  statuses: read
+
+jobs:
+  dependabot-auto-merge:
+    name: dependabot-auto-merge
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate and merge eligible Dependabot PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          EVENT_PR: ${{ github.event.pull_request.number || github.event.inputs.pr }}
+          SELF_CHECK_NAME: dependabot-auto-merge
+        run: |
+          set -euo pipefail
+
+          candidates() {
+            if [ -n "" ]; then
+              echo "$EVENT_PR"
+              return
+            fi
+            # check_suite events carry no PR number: evaluate open Dependabot PRs
+            gh pr list --repo "$REPO" --state open --base master --author "app/dependabot" --json number --jq '.[].number'
+          }
+
+          for pr in $(candidates); do
+            echo "::group::PR #$pr"
+            if ! data=$(gh api graphql -F owner="${REPO%/*}" -F name="${REPO#*/}" -F pr="$pr" -f query='
+              query($owner:String!, $name:String!, $pr:Int!) {
+                repository(owner:$owner, name:$name) {
+                  pullRequest(number:$pr) {
+                    state isDraft mergeable mergeStateStatus baseRefName title
+                    author { login }
+                    labels(first:50) { nodes { name } }
+                    commits(last:1) { nodes { commit { statusCheckRollup {
+                      contexts(first:100) { nodes {
+                        __typename
+                        ... on CheckRun { name status conclusion }
+                        ... on StatusContext { context state }
+                      } }
+                    } } } }
+                  }
+                }
+              }'); then
+              echo "could not query PR #$pr — skipping"
+              echo "::endgroup::"
+              continue
+            fi
+
+            verdict=$(echo "$data" | jq -r --arg self "$SELF_CHECK_NAME" '
+              .data.repository.pullRequest as $p
+              | ($p.labels.nodes | map(.name)) as $labels
+              | [ $p.commits.nodes[0].commit.statusCheckRollup.contexts.nodes[]?
+                  | select((.__typename == "CheckRun" and .name != $self and .name != "auto-merge") or .__typename == "StatusContext") ] as $checks
+              | [ if $p.author.login != "dependabot[bot]" then "not opened by Dependabot" else empty end,
+                  if $p.state != "OPEN" then "PR is not open" else empty end,
+                  if $p.isDraft then "PR is a draft" else empty end,
+                  if $p.baseRefName != "master" then "base branch is not master" else empty end,
+                  if ($labels | any(. == "do-not-merge" or . == "wip" or . == "blocked")) then "blocking label present" else empty end,
+                  if ($p.title | ascii_downcase | test("\\bwip\\b|\\bdraft\\b")) then "title marks the PR as WIP/DRAFT" else empty end,
+                  if ($checks | length) == 0 then "no checks on the head commit" else empty end,
+                  if ($checks | any(.__typename == "CheckRun" and .status != "COMPLETED")) then "checks still running" else empty end,
+                  if ($checks | any((.__typename == "CheckRun" and (.conclusion | IN("SUCCESS","NEUTRAL","SKIPPED") | not))
+                                    or (.__typename == "StatusContext" and .state != "SUCCESS")))
+                    then "at least one check did not succeed" else empty end,
+                  if $p.mergeable != "MERGEABLE" or ($p.mergeStateStatus | IN("DIRTY","BLOCKED","BEHIND")) then "not cleanly mergeable (\($p.mergeStateStatus))" else empty end
+                ] | join("; ")')
+
+            if [ -z "$verdict" ]; then
+              echo "all criteria met — squash-merging"
+              gh pr merge "$pr" --repo "$REPO" --squash --delete-branch
+              gh pr comment "$pr" --repo "$REPO" --body ":robot: Auto-merged by the \`dependabot-auto-merge\` workflow: Dependabot PR and all checks succeeded on the head commit."
+            else
+              echo "not merging: $verdict"
+            fi
+            echo "::endgroup::"
+          done
