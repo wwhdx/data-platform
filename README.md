@@ -10,22 +10,38 @@ data-platform — TypeScript 数据管道服务（采集 / 存储 / RAG 检索�
 ┌─────────────────────────────────────────────┐
 │  CLI / API (:3400)                          │
 │  search · collect · sources · jobs · stats  │
+│  industry-* · opportunity-{weights,vectors, │
+│  outcomes} · /api/admin/*                   │
 ├─────────────────────────────────────────────┤
 │  RAG 检索层                                 │
 │  pgvector 语义 + tsvector 关键词 → RRF 融合 │
+│  （searchFilters + domainSignal）           │
 ├─────────────────────────────────────────────┤
 │  处理层                                     │
-│  去重 → 分块 → Embedding (OpenAI)           │
+│  dedup → chunk → embed (ollama/openai/      │
+│  voyage/mock) → 富化（arxiv 全文 / Unpaywall│
+│  / SEC 文本）                               │
 ├─────────────────────────────────────────────┤
 │  采集层                                     │
-│  OpenAlex · CrossRef · arXiv OAI · World Bank │
-│  · PubMed · Semantic Scholar（6 源运行时注册）  │
-│  BaseConnector · RateLimiter · Backoff      │
+│  30+ 数据源（按 interface_profiles 注册）    │
+│  学术 / 文献 / 专利 / 临床 / 代码 / 论坛 /  │
+│  经济 / 统计 / 化工 / 材料（详见下方清单）   │
+│  BaseConnector · RateLimiter · Backoff ·   │
+│  industry_tag 三层兜底                      │
+├─────────────────────────────────────────────┤
+│  UODE 机遇引擎                              │
+│  opportunity_vectors / outcomes / weights   │
+│  + 主动学习校准                             │
 ├─────────────────────────────────────────────┤
 │  PostgreSQL 16 + pgvector                   │
 │  raw_documents · document_chunks · jobs     │
+│  + 10 catalog 表 + industry_dimension       │
 └─────────────────────────────────────────────┘
 ```
+
+> 30+ 采集层数据源（按 interface_profiles 分组）：学术文献（OpenAlex · CrossRef · arXiv/bioRxiv/medRxiv OAI · PubMed · Semantic Scholar · CORE · OpenCitations）、专利与标准（PatentsView · WIPO · EPO · Google Patents）、临床与生命科学（ClinicalTrials · UniProt · ChEMBL · PubChem · Materials Project）、代码与社区（GitHub · HN · Reddit · YouTube）、公司与监管（SEC EDGAR）、经济与统计（FRED · Yahoo Finance · World Bank · EIA · Eurostat · OECD · IMF · ECB · Census · BEA · FAO）。
+
+> 架构真源 → [docs/design.md §零](./docs/design.md#零设计大纲当前态摘要)；当前实现进度（Connector 数 / 迁移 / 测试）→ [docs/plans/实施进度总览.md §2](./docs/plans/实施进度总览.md)。
 
 ## 快速开始
 
@@ -83,10 +99,11 @@ pnpm dev
 | 变量 | 必填 | 说明 |
 |------|------|------|
 | `DATA_PLATFORM_DATABASE_URL` | 是 | PostgreSQL 连接（独立数据库，不共享父项目） |
-| `EMBED_BACKEND` | 否 | ollama（默认）/ voyage / openai |
+| `EMBED_BACKEND` | 否 | `ollama`（默认）/ `openai` / `voyage` / `mock`（I 轨集成测试用，确定性 1024d） |
 | `EMBED_API_URL` | 否 | Embedding 服务地址（默认 `http://localhost:11434`） |
 | `OPENALEX_API_KEY` | 否 | OpenAlex API Key（无 Key 可用但速率低） |
 | `SEMANTIC_SCHOLAR_API_KEY` | 否 | Semantic Scholar `x-api-key`（推荐；无 Key 易 402） |
+| `DATA_PLATFORM_RAW_MIRROR` | 否 | 采集镜像目录（启用 D2 镜像采集原始响应；见 [`docs/plans/原始数据本地导出与镜像方案.md`](docs/plans/原始数据本地导出与镜像方案.md)） |
 | `PORT` | 否 | 服务端口（默认 3400） |
 
 默认使用 **bge-m3**（Ollama 本地），无需任何外部 API Key。
@@ -168,13 +185,20 @@ pnpm test:live              # migrate → serve → health/schedules/search
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/search` | POST | 混合检索（语义 + 关键词 + RRF 融合） |
+| `/api/search` | POST | 混合检索（语义 + 关键词 + RRF 融合；支持 `industryTag` / `industryStrict`） |
 | `/health` | GET | 健康检查 + 数据源状态 |
 | `/api/sources` | GET | 已注册数据源列表 |
 | `/api/admin/collect` | POST | 手动触发采集 |
 | `/api/admin/jobs` | GET | 采集任务历史 |
-| `/api/admin/schedules` | GET | 运行中 cron 调度（B14 live） |
+| `/api/admin/schedules` | GET | 运行中 cron 调度 |
 | `/api/admin/stats` | GET | 文档/数据源/任务统计 |
+| `/api/admin/industry-tags` | POST | 行业标签同步（`/sync`） |
+| `/api/admin/industry-coverage` | GET | 行业 L1 覆盖度 |
+| `/api/opportunity-vectors` | POST/GET | UODE 机遇向量（`/distance` · `/upsert` · `/stats`） |
+| `/api/opportunity-outcomes` | POST | UODE 机遇结果（`/report`） |
+| `/api/opportunity-weights` | GET | UODE 机遇权重（`/:industryTag` · `/:industryTag/history`；主动学习校准） |
+
+> 字段级 HTTP 契约 → [docs/knowledge/数据平台API协议.md](./docs/knowledge/数据平台API协议.md)；行业维度 → [docs/plans/行业维度接入设计方案.md](./docs/plans/行业维度接入设计方案.md)；UODE → [docs/plans/UODE-data-platform-L2信号与机会向量设计方案.md](./docs/plans/UODE-data-platform-L2信号与机会向量设计方案.md)。
 
 ### POST /api/search
 
@@ -235,11 +259,16 @@ dedup                 (sourceId, externalId) 去重
     ↓
 insertRawDocuments    PostgreSQL raw_documents
     ↓
-embedDocuments        OpenAI → document_chunks (pgvector)
+富化（可选）           arxivFulltext / secFilingText / unpaywallEnrich
+    ↓
+chunk                 文本分块
+    ↓
+embedDocuments        EMBED_BACKEND=ollama|openai|voyage|mock → document_chunks (pgvector)
     ↓
 POST /api/search      混合检索
     ├── pgvector       cosine_similarity (语义)
     ├── tsvector       ts_rank (关键词)
+    ├── searchFilters  sourceId / commercialUse / date / industry
     └── RRF            融合排序 → 返回 topK
 ```
 
@@ -247,33 +276,75 @@ POST /api/search      混合检索
 
 ```
 src/
-├── cli/index.ts               CLI 入口
-├── index.ts                   服务入口
-├── types.ts                   类型定义
-├── connectors/                数据源连接器
-│   ├── base.ts                BaseConnector（速率 / 重试 / 分页）
-│   ├── rateLimiter.ts         令牌桶
-│   ├── backoff.ts             指数退避
-│   ├── openalex.ts            OpenAlex
-│   ├── crossref.ts            CrossRef
-│   ├── worldbank.ts           World Bank
-│   ├── pubmed.ts              PubMed (NCBI)
-│   └── semanticscholar.ts     Semantic Scholar (A4)
-├── processors/
-│   └── dedup.ts               去重 → 入库 → 自动 Embedding
+├── index.ts                   服务入口（启动 DB / 配置 / 调度 / API）
+├── types.ts                   公共类型（Connector / RawDocument / SearchResult …）
+├── cli/                       CLI（search · collect · sources · jobs · schedules
+│   · stats · health · doctor · config · db-clear · export · serve · 10 个 per-source
+│   命令 + 1 个 `industry` 行业维度命令）
+├── api/                       HTTP 服务（Fastify）
+│   ├── server.ts              buildApp / createServer（inject 测试友好）
+│   ├── collectRunner.ts       采集执行上下文
+│   ├── middleware/            JSON:API 错误 / 鉴权
+│   └── routes/                search · health · admin · industryCoverage · industryTags
+│                                opportunity{Vectors,Outcomes,Weights}
+├── connectors/                数据源生态（30+ 运行时 Connector）
+│   ├── base.ts                BaseConnector（速率 / 退避 / 超时 / User-Agent /
+│   │                           industry_tag 三层兜底 / HTTP 捕获）
+│   ├── bootstrap.ts           registerDefaultConnectors / registerVirtualConnectors
+│   ├── rateLimiter.ts · backoff.ts · credentials.ts · factory.ts
+│   └── <30+ connector>.ts (+ helpers/ + 各源 catalog 子目录)
+├── processors/                处理流水线
+│   ├── dedup.ts               去重 → 入库 → 自动 Embedding
+│   ├── chunk.ts               分块
+│   ├── arxivFulltext.ts       arXiv HTML 正文补全
+│   ├── secFilingText.ts       SEC 文本清洗
+│   └── unpaywallEnrich.ts     Unpaywall 富化
+├── rag/                       RAG 检索
+│   ├── embed.ts               Embedding（ollama/openai/voyage/mock）
+│   ├── vectorStore.ts         pgvector CRUD
+│   ├── retriever.ts           hybridSearch + RRF 融合
+│   ├── searchFilters.ts       sourceId / commercialUse / date / industry 过滤
+│   └── domainSignal.ts        引用 / 域信号（DP-2 透传到 engine-core）
 ├── storage/                   持久化
 │   ├── db.ts                  PostgreSQL 连接池
-│   ├── migrations/            迁移 SQL
-│   └── models/                CRUD + keywordSearch
-├── rag/                       RAG 检索
-│   ├── embed.ts               Embedding 生成（OpenAI）
-│   ├── vectorStore.ts         pgvector CRUD
-│   └── retriever.ts           混合检索（RRF）
-├── api/                       HTTP 服务
-│   ├── server.ts              Fastify 启动
-│   └── routes/                search · health · admin
-├── scheduler/index.ts         Cron 定时采集
-└── adapters/engineCore.ts     engine-core SearchProvider 适配
+│   ├── migrations/            37 个迁移（001_init → 037_opportunity_weights）
+│   └── models/                rawDocument · collectionJob(_Event) · collectionSchedule
+│                                + 10 个 catalog（bea/census/ecb/eia/eurostat/faostat/fred/
+│                                imf/oecd/worldbank） + industryTag
+├── scheduler/                 Cron 调度
+│   ├── index.ts               Scheduler
+│   ├── bootstrap.ts           registerSchedulesFromConfig（YAML）
+│   ├── catalogSchedules.ts    catalog 维护任务
+│   ├── opportunityWeightsSchedule.ts   UODE 权重标定
+│   ├── cronNext.ts            下次执行时刻
+│   ├── progress.ts · scheduleReport.ts  采集进度与报告
+├── collect/                   采集编排
+│   ├── duplicateScan.ts       重复扫描
+│   ├── industryTag.ts         industry_tag 三层兜底实现
+│   ├── logWriter.ts           NDJSON 采集日志（L 轨）
+│   ├── maxItems.ts            采集上限
+│   ├── postProcessProgress.ts  post-process 进度
+│   └── env.ts · progressFormat.ts
+├── industry/                  行业维度
+│   ├── coverage.ts            L1 覆盖度
+│   └── backfill.ts            回填
+├── uode/                      UODE 机遇引擎
+│   ├── computeNovelty.ts      新颖度
+│   └── calibrateOpportunityWeights.ts   主动学习校准
+├── export/                    原始数据落盘（D1 导出 / D2 镜像）
+├── client/                    父仓 HTTP 客户端 + types
+│   ├── dataPlatformClient.ts  DataPlatformClient.fromEnv()
+│   └── types.ts
+├── adapters/engineCore.ts     engine-core SearchProvider 适配（createDataPlatformSearchProvider）
+├── config/                    YAML 配置 v1.1
+│   ├── loader.ts · expand.ts · sync.ts · runtime.ts · types.ts
+│   ├── industryL1.ts          industry-l1.yml
+│   └── loadEnv.ts             .env 加载（仅项目根目录）
+└── lib/                       通用工具
+    ├── logger.ts · httpCapture.ts · jsonApiErrors.ts
+    ├── sourceProbe.ts · probeReport.ts   探活
+    ├── doctor.ts              本地 .env / DB / YAML / 外网一键体检
+    └── oauth2ClientCredentials.ts
 ```
 
 ## 文档与进度
@@ -311,6 +382,35 @@ pnpm cli config list              # 按 DB 查看源状态
 
 **Commit**：仅用户明确要求时提交；收尾自检见 `ai-task-integration.mdc` §2。
 
+## 运维与发布
+
+### 每日数据报表（GitHub Pages）
+
+`.github/workflows/report.yml` 方案 B：每日 20:00 UTC（北京时间次日 04:00，避开整点高峰）跑
+
+1. `pnpm cli config validate`（与 app 门闸同源）
+2. `node --import tsx scripts/generate-report.mjs` → 产出 `reports/data.json` + 自包含 HTML
+3. `actions/upload-pages-artifact` → 部署到 GitHub Pages
+
+`push master` 与 `workflow_dispatch` 也触发。同一时间 `concurrency: pages` 防并发。详见 `scripts/generate-report.mjs` 与 `docs/plans/实施进度总览.md` 中对应任务条目。
+
+### CI / 自动合并
+
+- `ci.yml`：`pnpm install --frozen-lockfile` → `typecheck` → `test:run`。
+- `auto-merge.yml` / `dependabot-auto-merge.yml`：OpenHands PR 与 Dependabot 自动合入。
+
+### 文档同步
+
+增删目录结构、新增 API / 数据源 / 后端 / 调度任务 → 同步更新 **本 README**；架构/设计变更 → [docs/design.md](./docs/design.md)；进度/任务编号 → [docs/plans/实施进度总览.md](./docs/plans/实施进度总览.md) §2–§4。规则见 [`.cursor/rules/doc-progress-sync.mdc`](.cursor/rules/doc-progress-sync.mdc)。
+
 ## 许可
 
 内部项目。数据源许可见各 Connector 元数据（OpenAlex: CC0, Semantic Scholar: 非商业, PatentsView: 公共领域）。
+
+## 变更记录
+
+| 日期 | 说明 |
+|------|------|
+| 2026-08-29 (v0.2) | 文档同步：架构图补 30+ 源 / UODE 机遇引擎 / 10 catalog + industry_dimension；目录树同步 15 个子系统（cli/api/connectors/processors/rag/storage/scheduler/collect/industry/uode/export/client/adapters/config/lib）；API 端点表补 `industry-*` / `opportunity-*`；EMBED 后端补 `mock`；新增 `运维与发布` 章节（Pages 报表 / CI / 文档同步）。代码与设计真源仍以 [docs/design.md §零](./docs/design.md#零设计大纲当前态摘要) / [docs/plans/实施进度总览.md](./docs/plans/实施进度总览.md) 为准。 |
+| 2026-08-26 (#2) | 顶部一行 overview 句子 |
+| 2026-05-18 | 初版（6 源运行时） |
