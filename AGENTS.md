@@ -2,7 +2,7 @@
 
 > 望野数据采集/存储/RAG 子包。TypeScript + PostgreSQL(pgvector) + Fastify，pnpm。
 
-OpenCode 通过**本目录** `opencode.json` → `instructions` 机械加载 `.cursor/rules/*.mdc`（`AGENTS.md` **无** `@import` 语法，勿与 Claude Code 混淆）。
+OpenCode 通过**本目录** `opencode.json` → `instructions` 机械加载三个 `.cursor/rules/*.mdc`（`AGENTS.md` **无** `@import` 语法，勿与 Claude Code 混淆）。
 
 ## 快速命令
 
@@ -38,12 +38,12 @@ docker compose up -d --build   # API :3400, PG :5433
 | 主设计 | `docs/design.md` |
 | **实施进度（代码↔任务）** | `docs/plans/实施进度总览.md` |
 | 实施/改造方案 | `docs/plans/`（见 `docs/plans/README.md`） |
-| 原始数据落盘 | `docs/plans/原始数据本地导出与镜像方案.md`（D1 导出 / D2 镜像，待实施） |
+| 原始数据落盘 | `docs/plans/原始数据本地导出与镜像方案.md`（D1 导出 / D2 镜像 / D5 溯源，已实施 ✅） |
 | 共识知识（API 分类、协议） | `docs/knowledge/`（见 `docs/knowledge/README.md`） |
 | 数据源速查 | `docs/data-sources.md` |
 | Phase1 | `docs/phase1-plan.md` |
 | **集成测试（I 轨）** | `docs/plans/集成测试最小闭环方案.md` |
-| engine-core 对接 | `../engine-core/ENGINE_CONTRACTS.md` |
+| engine-core 对接 | `../engine-core/ENGINE_CONTRACTS.md`（monorepo 部署路径） |
 | 父仓 API 协议 | `../../docs/knowledge/数据平台API协议.md` |
 
 ## 规则文件

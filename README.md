@@ -70,9 +70,9 @@ curl http://localhost:3400/health
 # 1. 创建独立数据库
 psql -U lumina -h localhost -c "CREATE DATABASE data_platform OWNER lumina;"
 
-# 2. 执行迁移（推荐 CLI 按序执行 001–006）
+# 2. 执行迁移（CLI 按序执行 001–037）
 pnpm cli migrate
-# 或手动：psql … -f src/storage/migrations/001_init.sql … 006_worldbank.sql
+# 或手动：psql … -f src/storage/migrations/001_init.sql … 037_opportunity_weights.sql
 
 # 3. 启动 Ollama（如未安装）
 ollama pull bge-m3          # 拉取 bge-m3 模型（2.2 GB）
@@ -287,12 +287,12 @@ src/
 │   ├── middleware/            JSON:API 错误 / 鉴权
 │   └── routes/                search · health · admin · industryCoverage · industryTags
 │                                opportunity{Vectors,Outcomes,Weights}
-├── connectors/                数据源生态（30+ 运行时 Connector）
+├── connectors/                数据源生态（48 id = 实体 35 + 虚拟 13；见实施进度 §2.1）
 │   ├── base.ts                BaseConnector（速率 / 退避 / 超时 / User-Agent /
 │   │                           industry_tag 三层兜底 / HTTP 捕获）
 │   ├── bootstrap.ts           registerDefaultConnectors / registerVirtualConnectors
 │   ├── rateLimiter.ts · backoff.ts · credentials.ts · factory.ts
-│   └── <30+ connector>.ts (+ helpers/ + 各源 catalog 子目录)
+│   └── <source>.ts (+ <source>Helpers.ts + 树形源 catalog 子目录)
 ├── processors/                处理流水线
 │   ├── dedup.ts               去重 → 入库 → 自动 Embedding
 │   ├── chunk.ts               分块

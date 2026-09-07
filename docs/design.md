@@ -1,7 +1,7 @@
 # data-platform 数据平台设计方案
 
-> **v0.3** — 设计大纲 + 架构真源（2026-05-21）  
-> 基于望野 UODE 理念与多源 API 协议；**实现进度/Connector 数量/测试数** → [plans/实施进度总览.md](plans/实施进度总览.md) §2（本文不维护进度表）  
+> **v0.4** — 设计大纲 + 架构真源（2026-09-07）  
+> 基于望野 UODE 理念与多源 API 协议；**实现进度/Connector 数量/测试数** → [plans/实施进度总览.md](plans/实施进度总览.md) §2（本文不维护进度表与数字快照）  
 > **文档地图** → [README.md](./README.md) · **短入口** → [overview.md](./overview.md)
 
 ---
@@ -23,7 +23,7 @@
 
 ```
 L1 调度   node-cron + YAML sources.yml → Scheduler.trigger
-L2 采集   29× BaseConnector → RawDocument（不可变 JSONB）
+L2 采集   BaseConnector 生态 → RawDocument（不可变 JSONB；数量与清单见实施进度 §2.1）
 L3 存储   PostgreSQL 16 + pgvector（向量与关系数据同库）
 L4 处理   dedup → 富化/全文补全 → chunk → embed
 L5 RAG     hybridSearch（pgvector 语义 + tsvector 关键词 → RRF）
@@ -32,16 +32,18 @@ L6 API     Fastify：/api/search · /api/sources · /api/admin/*
 
 数据主路径：`调度 → Connector.collect → dedup → postProcess → embedDocuments → document_chunks → hybridSearch → API`。
 
-### 0.3 实现快照（链真源，不复制全表）
+### 0.3 实现快照（指针表 · 数字唯一归属实施进度 §2）
 
-| 项 | 当前态 | 详情 |
-|----|--------|------|
-| Connector | **29** 运行时类 · YAML **30** 登记（含 Legacy `arxiv`） | [实施进度 §2.1](plans/实施进度总览.md#21-connector-运行时) |
-| 定时采集 | **22** 源 cron 开 · **7** 源策略关（含 reddit ⏸） | `config/sources.yml` |
-| 迁移 | `001`–`022` · pgvector + 配置审计表 | `src/storage/migrations/` |
-| CLI | 10 顶层命令 + `config` 子命令 | `src/cli/index.ts` |
-| 测试 | L0 单元 + **I 轨** L2-fast 闭环 | [§十一](#十一集成测试与质量门禁i-轨) · 实施进度 §2.5 |
-| 下一动作 | **波次 10**：运维启用 + 父仓 C2/C3 | [实施进度 §4.10](plans/实施进度总览.md#410-波次-10运维启用--父仓对接p1-重评估2026-05-21) |
+> 本表**不维护具体数字**（防双头漂移）；每行指向实施进度总览的唯一真源小节。
+
+| 项 | 现状口径 | 唯一数字真源 |
+|----|----------|--------------|
+| Connector 运行时（实体 + 虚拟行业源） | 已注册 + Legacy 占位 | [实施进度 §2.1](plans/实施进度总览.md#21-connector-运行时) |
+| 定时采集（cron 开/关分层） | YAML `sources.yml` 对齐 | [实施进度 §2.1](plans/实施进度总览.md#21-connector-运行时) |
+| 迁移 | `001` 起连续编号至当前 HEAD | [实施进度 §2.4](plans/实施进度总览.md#24-存储与-rag) |
+| CLI（通用 / per-source / 行业） | `src/cli/index.ts` 命令表 | [实施进度 §2.3](plans/实施进度总览.md#23-cli13-通用顶层命令--10-per-source-命令--industry--config-子命令) |
+| 测试（L0 / I 轨分层） | L0 单元 + L2-fast 闭环 | [实施进度 §2.5](plans/实施进度总览.md#25-测试) |
+| 下一动作 | 波次 10（运维启用 + 父仓对接） | [实施进度 §4.10](plans/实施进度总览.md#410-波次-10运维启用--父仓对接--p1-重评估-2026-05-21) |
 
 ### 0.4 模块地图（代码 ↔ 设计章节）
 
@@ -74,7 +76,7 @@ L6 API     Fastify：/api/search · /api/sources · /api/admin/*
 |-------|------|------|
 | **1** MVP 骨架（3 源闭环 → 扩展） | PG + 搜索 API + Scheduler | ✅ |
 | **2** RAG（pgvector + 混合检索 + 分块） | Embedding 多后端 | ✅ |
-| **2+** 多源波次 5a–9 | 29 Connector · D5 · 全文加深 | ✅ 2026-05-21 |
+| **2+** 多源波次 5a–9 | Connector 生态扩展 · D5 · 全文加深（数量见实施进度 §2.1） | ✅ 2026-05-21 |
 | **3** 知识图谱（Neo4j + 实体关系） | 图检索 | □ |
 | **4** 平台化 | 仪表盘 · Webhook · BullMQ | 🟡 Connector 已超原 16+ 目标；调度/监控待做 |
 
@@ -143,7 +145,7 @@ data-platform 是望野三层架构（平台 → engine-core → data-platform�
 2. **原始数据不可变**：RawDocument 只追加不修改，保证审计可追溯
 3. **异步流水线**：采集 → 去重 → 富化 → 分块 → Embedding 独立阶段
 4. **多消费者复用**：同一数据集供 engine-core、前端仪表盘、管理员查询消费
-5. **先窄后宽**：MVP 3 源跑通闭环，再波次扩展（当前 **29** 运行时 Connector，见 [实施进度 §2.1](plans/实施进度总览.md#21-connector-运行时)）
+5. **先窄后宽**：MVP 3 源跑通闭环，再波次扩展（当前 Connector 数量见 [实施进度 §2.1](plans/实施进度总览.md#21-connector-运行时)）
 
 ---
 
@@ -161,7 +163,7 @@ data-platform 是望野三层架构（平台 → engine-core → data-platform�
 ├──────────────────────────────────────────────────────────┤
 │ L3 存储层       │ PostgreSQL 16 + pgvector (+ Neo4j Phase3) │
 ├──────────────────────────────────────────────────────────┤
-│ L2 采集层       │ 29 Connector → 标准化 RawDocument      │
+│ L2 采集层       │ Connector 生态 → 标准化 RawDocument        │
 ├──────────────────────────────────────────────────────────┤
 │ L1 调度层       │ Cron 定时 + Webhook 事件 + 手动触发   │
 └──────────────────────────────────────────────────────────┘
@@ -915,7 +917,7 @@ ctx.state.dataPlatformResults = data.results.map(r => ({
 
 - [x] 项目初始化：tsconfig, package.json, vitest
 - [x] BaseConnector + RateLimiter + ExponentialBackoff + `paginateOffset`
-- [x] OpenAlexConnector + CrossRefConnector + WorldBankConnector（Phase 1 MVP）；**扩展至 29 运行时 Connector**（见 [实施进度总览](plans/实施进度总览.md) §2.1）
+- [x] OpenAlexConnector + CrossRefConnector + WorldBankConnector（Phase 1 MVP）；**扩展至多源波次**（数量见 [实施进度总览](plans/实施进度总览.md) §2.1）
 - [x] PostgreSQL 数据模型 + 迁移 `001`–`006`
 - [x] 去重处理器（Stage 1）+ Scheduler 200 条批量
 - [x] 搜索 API（`/api/search`，混合检索非纯关键词）
@@ -951,7 +953,7 @@ ctx.state.dataPlatformResults = data.results.map(r => ({
 
 - [ ] 采集仪表盘（Grafana / 内置页面）
 - [ ] Webhook 事件驱动采集
-- [x] 扩展 Connector 至 29 源（波次 5a–9 ✅；cron 分层见实施进度 §2.1）
+- [x] 扩展 Connector 生态（波次 5a–9 ✅；数量与 cron 分层见实施进度 §2.1）
 - [ ] BullMQ 替换 node-cron（生产级 repeatable jobs）
 - [ ] 开放 API Key 管理（第三方接入）
 - [ ] BullMQ 生产级调度
@@ -1029,6 +1031,7 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 | 日期 | 版本 | 变更 |
 |------|------|------|
 | 2026-05-22 | v0.3.2 | U-L1 / G1-5 链至 `plans/UODE-L1行业数据采集前置方案.md`；实施进度 §2.8 |
+| 2026-09-07 | v0.4 | §零 0.3 快照表去数字化（改指针表，数字唯一归属实施进度 §2）；0.2 L2 去具体数；版本说明同步「不维护数字快照」 |
 | 2026-05-22 | v0.3.1 | §七 增补 G1/UODE HTTP 路由、`domainSignal` 响应字段；链 UODE 详案 |
 | 2026-05-21 | v0.3 | 新增 **§零 设计大纲**（六层/模块地图/横切轨/Phase）；修正 Qdrant→pgvector、Prisma→pg 池、Connector 29、Phase 4 勾选 |
 | 2026-05-19 | v0.2.8 | `patentsview` 迁至 ODP（`api.uspto.gov` + `USPTO_ODP_API_KEY`）；废弃 PatentSearch / `PATENTSVIEW_API_KEY` |
@@ -1042,7 +1045,7 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 | 2025-05-15 | v0.1 | 初始草案 |
 | 2026-05-15 | v0.2 | 职责边界澄清：移除 `/api/context`（LLM 摘要生成 → engine-core）；§9.1 接入点从 3 个精简为 2 个；§1.2 边界表新增 LLM 摘要/实体抽取行；Phase 4 移除 `/api/context` |
 
-> **版本**: v0.3.1 | **状态**: Phase 1/2 + U 轨 G1/U1/U2 + 29 Connector · 波次 10 进行中 | **最后更新**: 2026-05-22
+> **版本**: v0.4 | **状态**: 架构真源（数字见实施进度 §2）· 波次 10 进行中 | **最后更新**: 2026-09-07
 >
 > 相关文档：
 > - 实施进度总览：`docs/plans/实施进度总览.md`
