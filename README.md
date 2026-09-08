@@ -397,7 +397,7 @@ pnpm cli config list              # 按 DB 查看源状态
 ### CI / 自动合并
 
 - `ci.yml`：`pnpm install --frozen-lockfile` → `typecheck` → `test:run`。
-- `auto-merge.yml` / `dependabot-auto-merge.yml`：OpenHands PR 与 Dependabot 自动合入。
+- `auto-merge.yml` / `dependabot-auto-merge.yml`：OpenHands PR 与 Dependabot 自动合入。评估前轮询等待 head commit 上所有非 automerge check 收敛（8 分钟超时）；`workflow_dispatch` 可指定 `pr` 定向评估；`*/30` cron 兜底扫描，避免「全绿后无事件再评估」死锁。
 
 ### 文档同步
 
@@ -411,6 +411,7 @@ pnpm cli config list              # 按 DB 查看源状态
 
 | 日期 | 说明 |
 |------|------|
+| 2026-09-08 (#7) | 运维：`auto-merge` / `dependabot-auto-merge` 竞态修复说明补入「CI / 自动合并」小节（收敛等待 / 定向 dispatch / cron 兜底）。 |
 | 2026-08-29 (v0.2) | 文档同步：架构图补 30+ 源 / UODE 机遇引擎 / 10 catalog + industry_dimension；目录树同步 15 个子系统（cli/api/connectors/processors/rag/storage/scheduler/collect/industry/uode/export/client/adapters/config/lib）；API 端点表补 `industry-*` / `opportunity-*`；EMBED 后端补 `mock`；新增 `运维与发布` 章节（Pages 报表 / CI / 文档同步）。代码与设计真源仍以 [docs/design.md §零](./docs/design.md#零设计大纲当前态摘要) / [docs/plans/实施进度总览.md](./docs/plans/实施进度总览.md) 为准。 |
 | 2026-08-26 (#2) | 顶部一行 overview 句子 |
 | 2026-05-18 | 初版（6 源运行时） |
