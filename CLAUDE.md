@@ -17,55 +17,42 @@ TypeScript 数据平台，负责多源数据采集、清洗存储、知识图谱
 | 运行时 | Node.js 20+, TypeScript 5.x |
 | 数据库 | PostgreSQL 16+ (主存储) |
 | 向量扩展 | pgvector (PostgreSQL 扩展) |
-| 图数据库 | Neo4j (知识图谱，Phase 3+) |
-| 调度 | node-cron (MVP) → BullMQ (生产) |
-| HTTP 框架 | Express / Fastify |
+| 图数据库 | Neo4j (知识图谱，Phase 3，未实装) |
+| 调度 | node-cron (实装)；BullMQ 为 Phase 4 生产规划（未实装） |
+| HTTP 框架 | Fastify（`express` 未采用） |
 | 包管理 | pnpm |
 | 测试 | vitest |
 
 ## 目录结构
 
+> 逐文件明细与设计定位 → [README.md](./README.md)「目录结构」；本节为 agent 速查骨架（Connector 清单唯一真源：`src/connectors/bootstrap.ts` `REGISTERED_CONNECTOR_IDS` + `config/sources.yml`）。
+
 ```
 src/
-├── index.ts              # 公共 API 导出
-├── types.ts              # 全部类型定义
-├── connectors/           # 数据源 Connector（每个平台一个文件）
-│   ├── base.ts           # BaseConnector 抽象类 + 速率控制/分页/重试
-│   ├── openalex.ts       # OpenAlex Connector
-│   ├── semanticscholar.ts # Semantic Scholar Connector
-│   ├── pubmed.ts         # PubMed E-utilities Connector
-│   ├── crossref.ts       # CrossRef Connector
-│   ├── arxiv.ts          # arXiv OAI-PMH Connector
-│   ├── patentsview.ts    # PatentsView Connector
-│   ├── secEdgar.ts       # SEC EDGAR Connector
-│   ├── fred.ts           # FRED Connector
-│   ├── worldbank.ts      # World Bank Connector
-│   ├── clinicaltrials.ts # ClinicalTrials.gov Connector
-│   └── github.ts         # GitHub Connector
-├── processors/           # 数据处理流水线
-│   ├── dedup.ts          # 去重（source+externalId 唯一键）
-│   ├── enrich.ts         # 富化（实体抽取、分类标注）
-│   ├── chunk.ts          # 文本分块（用于 Embedding）
-│   └── index.ts          # 流水线编排
-├── rag/                  # RAG 检索系统 (pgvector)
-│   ├── embed.ts          # Embedding 生成（OpenAI text-embedding-3-small）
-│   ├── vectorStore.ts    # pgvector CRUD + 语义搜索
-│   ├── retriever.ts      # 混合检索器（语义 + 关键词 + RRF）
-│   └── index.ts          # 导出
-├── api/                  # REST API 服务
-│   ├── server.ts         # HTTP 服务启动
-│   ├── routes/
-│   │   ├── search.ts     # GET/POST /search → RAG 检索
-│   │   ├── sources.ts    # GET /sources → 数据源状态
-│   │   └── admin.ts      # POST /admin/collect → 手动触发采集
-│   └── middleware.ts     # 认证/日志/限流
-├── scheduler/            # 定时采集调度
-│   ├── index.ts          # 调度器入口
-│   └── jobs.ts           # Cron 任务定义
-└── storage/              # 数据持久化
-    ├── db.ts             # PostgreSQL 连接池
-    ├── models/           # 数据模型（RawDocument, EnrichedDocument, Entity, etc.）
-    └── migrations/       # 数据库迁移
+├── index.ts               # 公共 API 导出
+├── types.ts               # 全部类型定义
+├── connectors/            # 数据源生态（<源>.ts + <源>Helpers.ts；树形源含 <源>/ catalog 子目录）
+│   ├── base.ts            # BaseConnector 抽象类（速率/分页/重试/User-Agent/industry_tag 兜底）
+│   ├── bootstrap.ts       # REGISTERED_CONNECTOR_IDS + registerDefault/VirtualConnectors
+│   ├── provenance/        # D5 溯源（attachProvenance + 各源 meta）
+│   ├── rateLimiter.ts · backoff.ts · credentials.ts · factory.ts
+│   └── hackernewsUrlFulltext.ts 等纯工具模块
+├── config/                # sources.yml 加载（v1.1 profile 分层）· expand · sync · runtime · industryL1
+├── collect/               # 采集编排（dedupScan · industryTag · logWriter · maxItems · progress）
+├── processors/            # 处理流水线：dedup · chunk · arxivFulltext · secFilingText · unpaywallEnrich
+├── rag/                   # 检索：embed · vectorStore · retriever（RRF）· searchFilters · domainSignal
+├── scheduler/             # node-cron 调度：index · jobs · catalogSchedules · scheduleReport
+├── storage/               # db.ts（pg 池）· clearData · migrations/（001 起连续编号）· models/
+├── api/                   # Fastify：server.ts（buildApp）· middleware/ · routes/（search/health/admin/
+│                          #   industryCoverage/industryTags/opportunity{Vectors,Outcomes,Weights}）
+├── cli/                   # index.ts（通用命令）+ industryCommands + 10 个 per-source Commands
+├── industry/              # 行业维度：backfill（G1-P3）· coverage
+├── uode/                  # UODE：computeNovelty · calibrateOpportunityWeights
+├── adapters/              # engineCore.ts（SearchProvider 适配 + industry/domainSignal 透传）
+├── client/                # dataPlatformClient.ts（engine-core 侧消费客户端）
+├── export/                # D1 原始导出：runExport · envelope · mirror · writer
+├── lib/                   # doctor · sourceProbe · logger · httpCapture · jsonApiErrors · oauth2
+└── __tests__/             # unit/ · integration/（api inject + pipeline + I 轨 harness）
 ```
 
 ## engine-core 对接协议
@@ -146,8 +133,8 @@ export class XxxConnector extends BaseConnector {
 # 创建数据库
 psql -U lumina -h localhost -c "CREATE DATABASE data_platform OWNER lumina;"
 
-# 执行迁移
-psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.sql
+# 执行迁移（推荐；迁移 001 起连续编号，共 37 个）
+pnpm cli migrate
 ```
 
 ## 环境变量
@@ -155,6 +142,9 @@ psql -U lumina -h localhost -d data_platform -f src/storage/migrations/001_init.
 | 变量 | 必须 | 说明 |
 |------|------|------|
 | `DATA_PLATFORM_DATABASE_URL` | 是 | 独立数据库，不共享父项目 |
+| `EMBED_BACKEND` | 否 | Embedding 后端：`ollama`（默认）/ `openai` / `voyage` / `mock`（测试）· 详见 [bge-m3-deployment.md](docs/bge-m3-deployment.md) |
+| `EMBED_API_URL` | 否 | Embedding API 地址（openai/voyage 时必填） |
+| `CROSSREF_MAILTO` | 否 | CrossRef polite pool 邮箱（提升限额，无强制） |
 | `OPENALEX_API_KEY` | 否 | OpenAlex API Key（无 Key 可用但速率低） |
 | `SEMANTIC_SCHOLAR_API_KEY` | 否 | Semantic Scholar `x-api-key`（推荐；无 Key 易 402/低 RPS） |
 | `USPTO_ODP_API_KEY` | 是（patentsview） | ODP `X-API-KEY` → `api.uspto.gov`；[getting-started](https://data.uspto.gov/apis/getting-started) |
@@ -262,22 +252,32 @@ docker compose down
 ## CLI
 
 ```bash
-# 开发模式（tsx）
+# 通用命令（tsx 开发模式）
 pnpm cli search --query "machine learning"
 pnpm cli collect --source openalex
 pnpm cli sources
 pnpm cli jobs
 pnpm cli stats
 pnpm cli health
+pnpm cli doctor          # 本地 .env / DB / YAML / 外网一键体检（无需 API）
+pnpm cli schedules       # cron live 对照（--offline 仅 YAML）
 pnpm cli migrate
+pnpm cli export --help
 pnpm cli serve --port 3400
+
+# per-source 命令（10 个，轨 T/H3/T+ catalog 与 verify）
+pnpm cli eia --help      # 同构：eurostat / fred / oecd / imf / ecb / census / bea / faostat / worldbank
+
+# 行业维度（U-L1 / G1-P3）
+pnpm cli industry sync-tags
+pnpm cli industry collect-l1
 
 # 生产模式（编译后）
 data-platform search --query "transformer"
 data-platform collect --all
 ```
 
-**8 个命令**：`search` / `collect` / `sources` / `jobs` / `stats` / `health` / `migrate` / `serve`。
+**命令全表** → [docs/plans/实施进度总览.md](./docs/plans/实施进度总览.md) §2.3（唯一真源）；概览：13 个通用顶层命令 + 10 个 per-source 命令 + `industry` + `config` 子命令。
 
 ## 常用命令
 
@@ -288,10 +288,8 @@ pnpm exec tsc --noEmit     # 类型检查
 pnpm test                  # 运行测试
 pnpm test -- --run         # 单次运行
 
-# 本地数据库（不使用 Docker 时）
-psql -U lumina -h localhost -d data_platform \
-  -f src/storage/migrations/001_init.sql \
-  -f src/storage/migrations/002_pgvector.sql
+# 本地数据库（不使用 Docker 时）：迁移用 CLI 而非手工 psql
+pnpm cli migrate
 ```
 
 ## Commit / 自检 / Shell
@@ -301,8 +299,8 @@ psql -U lumina -h localhost -d data_platform \
 ## 参考文档
 
 - Agent 工作流索引：`docs/agent-workflow.md`
-- engine-core 接口协议：`../engine-core/ENGINE_CONTRACTS.md`
+- engine-core 接口协议：`../engine-core/ENGINE_CONTRACTS.md`（monorepo 部署路径；独立 checkout 时无父仓）
 - 数据源清单：`docs/data-sources.md`
-- 主设计文档：`docs/design.md`
+- 主设计文档：`docs/design.md`；实现状态真源：`docs/plans/实施进度总览.md` §2
 - 共识知识：`docs/knowledge/`（API 协议、接口分类）；项目设计：`docs/plans/`
 - 父仓 API 协议（monorepo）：`../../docs/knowledge/数据平台API协议.md`

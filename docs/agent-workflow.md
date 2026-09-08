@@ -1,6 +1,6 @@
 # data-platform · AI Agent 工作流
 
-> v1.1（2026-05-22）· 与望野主仓 Cursor/OpenCode/Claude Code 策略对齐。
+> v1.2（2026-09-07）· 与望野主仓 Cursor/OpenCode/Claude Code 策略对齐。
 
 ## 规则真源（L0）
 
@@ -25,7 +25,7 @@
 | `docs/plans/集成测试最小闭环方案.md` | **I 轨**：子包内 collect→search 自动化（不依赖父仓） |
 | `CLAUDE.md` | 领域说明（Connector/RAG/Docker/CLI）+ 顶部 `@import` 规则 |
 | `AGENTS.md` | OpenCode 主入口：命令、索引、commit 策略摘要 |
-| `opencode.json` | `instructions` 机械加载两个 `.mdc`（**非**父仓根目录） |
+| `opencode.json` | `instructions` 机械加载三个 `.mdc`（**非**父仓根目录） |
 
 ## 本包接入点（常忘）
 
@@ -50,7 +50,7 @@
 |------|----------|------|------|
 | **A1–A12** | [实施进度 §3](./plans/实施进度总览.md#3-任务矩阵a--b--c) | Connector / 流水线矩阵 | 勿把 U-L1 运维步骤叫「A2」 |
 | **U-L1-1～10** | [U-L1 方案 §四](./plans/UODE-L1行业数据采集前置方案.md#四分阶段实施) | 设计阶段任务（代码/配置/工具） | U-L1-5 = 虚拟源**实现** |
-| **U-L1-A*** | [U-L1 §4.1](./plans/UODE-L1行业数据采集前置方案.md#41--运维灌库子任务u-l1-a) · [§2.7](./plans/实施进度总览.md#27-uodeu1--u2--data-platform-侧) | **运维灌库 + coverage 验收**（collect 达标） | 须带 `U-L1-` 前缀 |
+| **U-L1-A*** | [U-L1 §4.1](./plans/UODE-L1行业数据采集前置方案.md#阶段-41--运维灌库子任务u-l1-a) · [§2.7](./plans/实施进度总览.md#27-uodeu1--u2--data-platform-侧) | **运维灌库 + coverage 验收**（collect 达标） | 须带 `U-L1-` 前缀 |
 | **U-L1-accept** | 同上 | 两行业 `l1Ready` 汇总门闸 | 依赖 U-L1-A2/A3 完成后跑 §四 完成定义 |
 
 **当前 U-L1 运维链**：`U-L1-A1` macro ✅ → `U-L1-A2` 医疗 text → `U-L1-A3` 能源 text → `U-L1-accept` → engine-core E1 联调。
@@ -88,3 +88,4 @@
 | v1.0 | 2026-05-19 | 初稿：规则真源、接入点、commit |
 | v1.1 | 2026-05-22 | **任务编号空间**（U-L1-A* vs §3 A 轨）；U-L1-A2/A3 未定义根因与 Agent 强制登记规则 |
 | v1.1.1 | 2026-05-22 | 编号规则升格至 `.cursor/rules/ai-task-integration.mdc` §7；本文作人类索引 |
+| v1.2 | 2026-09-07 | 修正 `opencode.json` 描述：机械加载**三个** `.mdc`（与文件实际一致）；全链同步本轮文档修订 |
