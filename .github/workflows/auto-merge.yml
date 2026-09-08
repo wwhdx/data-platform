@@ -11,6 +11,11 @@ on:
     types: [submitted]
   check_suite:
     types: [completed]
+  # GITHUB_TOKEN recursion protection means Actions-created check suites never
+  # fire this event, so a PR can end up fully green with nothing left to
+  # evaluate it. The cron is the deadlock escape hatch.
+  schedule:
+    - cron: "*/30 * * * *"
   workflow_dispatch:
     inputs:
       pr:
@@ -39,17 +44,55 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Wait until every non-automerge check on the head commit reaches a
+          # final state. Evaluating immediately after a trigger races against
+          # sibling workflows (dependabot-auto-merge) that are still running
+          # and always yields "checks still running".
+          wait_for_checks_settled() {
+            local pr="$1" waited=0
+            while [ "$waited" -lt 480 ]; do
+              pending=$(gh api graphql -F owner="${REPO%/*}" -F name="${REPO#*/}" -F pr="$pr" -f query='
+                query($owner:String!, $name:String!, $pr:Int!) {
+                  repository(owner:$owner, name:$name) {
+                    pullRequest(number:$pr) {
+                      commits(last:1) { nodes { commit { statusCheckRollup {
+                        contexts(first:100) { nodes {
+                          __typename
+                          ... on CheckRun { name status }
+                          ... on StatusContext { context state }
+                        } }
+                      } } } }
+                    }
+                  }
+                }' \
+                | jq -r --arg self "$SELF_CHECK_NAME" '
+                [ .data.repository.pullRequest.commits.nodes[0].commit.statusCheckRollup.contexts.nodes[]?
+                  | select((.__typename == "CheckRun" and .name != $self and (.name | endswith("-auto-merge") | not)) or .__typename == "StatusContext")
+                  | select((.__typename == "CheckRun" and .status != "COMPLETED") or (.__typename == "StatusContext" and .state == "PENDING")) ]
+                | length' || echo 1)
+              [ "$pending" -eq 0 ] && return 0
+              sleep 15
+              waited=$((waited + 15))
+            done
+            return 1
+          }
+
           candidates() {
-            if [ -n "" ]; then
+            if [ -n "$EVENT_PR" ]; then
               echo "$EVENT_PR"
               return
             fi
-            # check_suite events carry no PR number: evaluate open PRs on the suite's branch
+            # check_suite/schedule events carry no PR number: evaluate open PRs on master
             gh pr list --repo "$REPO" --state open --base master --json number --jq '.[].number'
           }
 
           for pr in $(candidates); do
             echo "::group::PR #$pr"
+            if ! wait_for_checks_settled "$pr"; then
+              echo "not merging: check runs did not settle within 8m"
+              echo "::endgroup::"
+              continue
+            fi
             if ! data=$(gh api graphql -F owner="${REPO%/*}" -F name="${REPO#*/}" -F pr="$pr" -f query='
               query($owner:String!, $name:String!, $pr:Int!) {
                 repository(owner:$owner, name:$name) {
@@ -77,7 +120,7 @@ jobs:
               .data.repository.pullRequest as $p
               | ($p.labels.nodes | map(.name)) as $labels
               | [ $p.commits.nodes[0].commit.statusCheckRollup.contexts.nodes[]?
-                  | select((.__typename == "CheckRun" and .name != $self) or .__typename == "StatusContext") ] as $checks
+                  | select((.__typename == "CheckRun" and .name != $self and (.name | endswith("-auto-merge") | not)) or .__typename == "StatusContext") ] as $checks
               | [ if $p.state != "OPEN" then "PR is not open" else empty end,
                   if $p.isDraft then "PR is a draft" else empty end,
                   if $p.baseRefName != "master" then "base branch is not master" else empty end,
