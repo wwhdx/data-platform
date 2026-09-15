@@ -22,14 +22,14 @@ alwaysApply: false
 | 子包定位与边界（短） | `docs/overview.md` | 链接，≤80 行 |
 | 架构、表结构、Phase 设计目标 | `docs/design.md` | 链接 + 一句摘要 |
 | 代码现状、测试数、任务 ✅/□ | `docs/plans/实施进度总览.md` §2–§4 | 链接 |
-| 总排期、两周步骤 | `docs/plans/下一阶段实施方案.md` | 链接 |
+| 阶段排期（已归档，2026-05 工序） | `docs/plans/下一阶段实施方案.md` | 链接；**勿更新** |
 | 专题设计（Connector/RAG/配置/导出…） | `docs/plans/<专题>方案.md` | 链接 |
 | 对外 HTTP 契约 | `docs/knowledge/数据平台API协议.md` | 链接 |
 | 外部 API 按认证/协议分类 | `docs/knowledge/免费数据源接口分类分析.md` | 链接 |
 | Connector 端点/速率/字段 | `docs/data-sources.md` | 链接 |
 | 存储方案评估 | `docs/storage-strategy.md` | 链接 |
 | Embedding 运维 | `docs/bge-m3-deployment.md` | 链接 |
-| Phase 1 历史 | `docs/phase1-plan.md` | **不更新**（仅勘误） |
+| Phase 1 历史 | `docs/phase1-plan.md` | **不更新**（只读归档） |
 
 **反模式**：在 `overview.md` 或新「总览」里复制六层架构表、Connector 清单、任务矩阵。
 
@@ -85,10 +85,16 @@ alwaysApply: false
 
 禁止在未验证接入前勾 ✅。数字（测试数、源数量）**只写在实施进度总览 §2**，方案文用「见实施进度 §2.x」。
 
+**快照日期（强制）**：任何保留下来的数字/状态断言必须带日期，形如「**2026-05-22 快照**，真源 → §2.x」；无日期的数字按漂移源处理并删除。
+
+**状态标记唯一落点**：`✅/🟡/□/⏸` 只允许出现在 `实施进度总览.md`。方案文首「状态」行、`plans/README.md` 索引、`knowledge/` 一律写「见实施进度 §x」——**索引/导航文件不得成为第二份状态矩阵**（`scripts/doc-lint.sh` 会机械检查）。两处例外：①能力性标记（外部事实，如「上游是否提供摘要」）；②§变更记录 行（带日期的历史）。
+
+**锚点即指针**：改写标题必须同步入链，否则锚点静默失效。改完跑 `pnpm lint:docs`（⑥ = `scripts/doc-structure.py`：链接目标 + 锚点存在性 + 表格列数）。
+
 ## 6. 交叉引用
 
 - 使用相对路径：`[实施进度总览](./实施进度总览.md)`，不用裸文件名。
-- 指向章节：`§3.2` 或 `[§3.2](./实施进度总览.md#32-…)`（标题锚点与 GitHub 一致）。
+- 指向章节：`§3.2` 或 `[§3.2](./实施进度总览.md#32-…)`（标题锚点与 GitHub 一致；改写标题后必须重新生成锚点并检查入链）。
 - 代码用反引号：`` `src/connectors/openalex.ts` ``，不写臆测行号；若写行号须 `Read` 核对。
 
 ## 7. 代码实施后同步（与 doc-progress-sync 联动）
@@ -100,6 +106,8 @@ alwaysApply: false
 | 新 ENV | `.env.example`、`CLAUDE.md` 表、相关方案 §ENV |
 | 新 migration | 实施进度 §2.4、`design.md` §三（若改表） |
 | 任务完成 | 实施进度 §3/§4；**专题方案**文首状态或 §变更记录 |
+| 改任意标题 | 全库入链（`pnpm lint:docs` ⑥ 锚点检查） |
+| 归档某方案 | 文首「已归档（终态）」+ 现行真源链接；`plans/README.md` / `docs/README.md` 登记 |
 
 ## 8. 自审门闸（触发任一即执行）
 

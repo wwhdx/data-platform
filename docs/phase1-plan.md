@@ -8,7 +8,7 @@
 
 ## 零、当前状态（2026-05-19）
 
-> **与下一阶段规划对照**：[plans/实施进度总览.md](plans/实施进度总览.md) · [plans/下一阶段实施方案.md](plans/下一阶段实施方案.md)
+> **与后续规划对照**：[plans/实施进度总览.md](plans/实施进度总览.md)（现行真源）· 阶段排期已归档见 [plans/下一阶段实施方案.md](plans/下一阶段实施方案.md)
 
 ```
 data-platform/
@@ -51,7 +51,7 @@ data-platform/
 | 1.6 调度器 | ✅ | `src/scheduler/index.ts` |
 | 1.7 API | ✅ | `src/api/*`（search 已接 hybridSearch） |
 | 1.8 适配器 | ✅ | `src/adapters/engineCore.ts`（子包内；父仓 engine-core 未注入） |
-| 1.9 集成 + E2E | ✅ | 见 [§六 E2E 验收记录](#六e2e-验收记录-2026-05-19) |
+| 1.9 集成 + E2E | ✅ | 见 [§六 E2E 验收记录](#六e2e-验收记录2026-05-19) |
 
 **超前实现（原属 Phase 2，已落地）**：Embedding、`document_chunks`、RRF 混合检索、Docker Ollama、配置热更新 P0（B1–B5）、World Bank Connector（A2–A3）。
 

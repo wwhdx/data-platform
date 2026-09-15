@@ -1,42 +1,22 @@
 # data-platform 数据源接入与 RAG 库构建方案
 
-> **状态**：部分落地 · 2026-05-15 设计 · 2026-05-19 代码对照同步（v1.6）  
-> 聚焦：Connector 开发框架 → 采集协议 → RAG 库构建流水线  
-> **代码进度真源**：[实施进度总览.md](./实施进度总览.md) §2.1（12 Connector / 4 enabled / 测试 196）
+> **状态**：见 [实施进度总览.md](./实施进度总览.md) §2（本文不维护进度表；专题设计只写方案，不写落地状态）
+> 聚焦：Connector 开发框架 → 采集协议 → RAG 库构建流水线
+> **代码进度真源**：[实施进度总览.md](./实施进度总览.md) §2
 
 ---
 
 ## 1. 现状评估
 
-### 1.1 已具备的能力
+### 1.1 尚未具备的能力（设计路线图）
 
-| 组件 | 状态 | 说明 |
-|------|------|------|
-| BaseConnector 抽象类 | ✅ 完善 | fetch/fetchPost/paginate + RateLimiter + ExponentialBackoff |
-| OpenAlexConnector | ✅ | 搜索 + cursor 分页采集 |
-| CrossRefConnector | ✅ | Polite pool；单测 21 |
-| WorldBankConnector | ✅ | offset 分页；YAML **enabled**；单测 12 |
-| PubMedConnector | ✅ | esearch + esummary + efetch 摘要（A10）；D5 provenance |
-| SemanticScholarConnector | ✅ | Header `x-api-key`；abstract/tldr；单测 9（A4）；YAML disabled |
-| ArxivOaiConnector | ✅ A7 | OAI-PMH + Legacy Atom 搜索；D5；可选 HTML 全文（`arxivFulltext.ts`） |
-| PatentsViewConnector | ✅ | ODP PFW 检索；须 `USPTO_ODP_API_KEY`（`api.uspto.gov`） |
-| ClinicalTrialsConnector | ✅ | REST v2；单测 3 |
-| SecEdgarConnector | ✅ | 须 `SEC_EDGAR_USER_AGENT` |
-| GitHubConnector / HackerNewsConnector | ✅ | Bearer / Firebase；YAML disabled |
-| FredConnector | ✅ | 须 `FRED_API_KEY` |
-| dedup 处理器 | ✅ | (sourceId, externalId) 唯一键，自动触发 embedding |
-| RAG 混合检索 | ✅ | semantic + tsvector → RRF |
-| 多后端 Embedding | ✅ | Ollama bge-m3 / OpenAI / Voyage |
-| Scheduler 批量 dedup | ✅ A1 | `BUFFER_SIZE=200`；`scheduler/index.ts` |
-| 增量采集 `last_collected_at` | ✅ A5 | `007_incremental_schedule.sql`；collect 传 `since` |
-| 采集可观测性 | ✅ L1–L6 | `stats` / `collection_job_events` / NDJSON |
-| admin 动态源列表 | ✅ | `POST /admin/collect` 查 DB `status=active` |
-| 分块存储 | ✅ A8 | `processors/chunk.ts`；长 abstract / fulltext 多 chunk |
-| 富化流水线 | ❌ | `enrich.ts` 未实现（Stage 2 远期） |
-| Connector 覆盖 | ✅ **12/13** | 运行时 12 源；Legacy `arxiv` 仅 YAML（采集走 `arxiv_oai`） |
-| 默认采集（enabled） | 🟡 **4/12** | openalex、crossref、arxiv_oai、worldbank |
-| D5 采集溯源 | 🟡 **4/12** | openalex、crossref、pubmed、arxiv_oai |
-| 内容层 A10/A11 | ✅ | 新文档：PubMed `efetchAbstracts`、OpenAlex `uninvertAbstract`；**存量**见 A12 □ |
+> 已具备的组件（Connector 运行时清单、配置、CLI、存储/RAG、测试数）→ [实施进度总览.md](./实施进度总览.md) §2，**不在此复制**。本节只留**设计层面尚未具备**的能力：
+
+| 缺口 | 设计归属 |
+|------|----------|
+| 富化流水线（Stage 2 实体抽取） | 远期，见 §6.4 |
+| Embedding 队列化 + 重试（A9） | 暂缓，见 §4.3 |
+| 多粒度检索（chunk + document + entity） | 中期，见 §4.4 |
 
 ### 1.2 当前采集流程（端到端）
 
@@ -65,21 +45,17 @@
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.3 关键瓶颈（2026-05-19 代码对照）
+### 1.3 未解决的设计缺口
 
-| 瓶颈 | 影响 | 状态 / 根因 |
-|------|------|------------|
-| ~~逐条 dedup~~ | — | ✅ A1 已批量 200 |
-| ~~单 chunk 策略~~ | — | ✅ A8 `processors/chunk.ts` |
-| embedding 无队列重试 | 失败需手工重跑 | 🟡 `embed_fail` 事件已记；A9 明确暂缓 |
-| 存量向量缺摘要 | openalex/pubmed 旧库检索差 | □ A12 re-embed CLI 未做 |
-| `last_cursor` 未接线 | 采集中断从头开始 | 🟡 列在 `007`；scheduler/Connector 未读写 |
-| 无富化层 | 无法按实体过滤 | □ Stage 2 enrich（远期） |
-| BaseConnector 认证/分页模板 | 新源开发成本高 | 🟡 `credentials.ts` + 分源 helpers；LinkHeader 分页 □ |
-| ~~Connector 未齐~~ | — | ✅ 12 源已 `registerDefaultConnectors`；扩源改 YAML `enabled` + ENV |
-| D5 仅 4 源 | 审计 curl 不完整 | 🟡 其余 8 源 collect 未挂 `attachProvenance` |
+> 任务级状态（A/B/C/D/L/I/P 轨、波次）→ [实施进度总览.md](./实施进度总览.md) §3–§4，**不在本方案维护**。本节只留**设计尚未定案**的缺口：
 
----
+| 缺口 | 设计影响 | 待定内容 |
+|------|----------|----------|
+| Embedding 无队列重试（A9） | 失败需手工重跑 | 是否引入 `embedding_tasks` + worker，见 §4.3 |
+| `last_cursor` 断点续传 | 采集中断从头开始 | `007` 列已就位；调度/Connector 读写协议未定 |
+| BaseConnector 分页模板 | 新源开发成本高 | `paginateLinkHeader` 未实现（`paginateResumptionToken` 已有） |
+| Stage 2 富化层 | 无法按实体过滤 | 抽取方案未定，见 §6.4 |
+
 
 ## 2. Connector 开发框架
 
@@ -276,11 +252,11 @@ protected async *paginateResumptionToken<T>(
 
 ## 3. 采集协议设计
 
-### 3.1 协议演进（A1 ✅ · 2026-05-19）
+### 3.1 协议演进（A1）
 
 ~~逐条 dedup~~ 已改为 Scheduler 缓冲 200 条再调用 `dedup(docs[])`。OpenAlex 一次 API 200 条 → 约 1 次批量查重 + 1 次 INSERT。
 
-### 3.2 批量采集协议（✅ 已实现）
+### 3.2 批量采集协议
 
 ```
 connector.collect() → yield 单条 → buffer 累积 → buffer≥200 → dedup(batch) → embedBatch
@@ -587,38 +563,38 @@ const results = await dataPlatform.search(query, {
 
 ---
 
-## 6. 实施建议
+## 6. 实施建议（设计侧排序）
 
-> **2026-05-19**：§6.1–§6.2 主体项已落地；剩余见 §6.5。
+> **落地状态** → [实施进度总览.md](./实施进度总览.md) §3 任务矩阵 / §4 下一阶段计划。本节只保留**设计侧的实施顺序与依赖**。
 
-### 6.1 立即实施（本周）— ✅ 已完成
+### 6.1 立即实施（P0）
 
-| 优先级 | 改动 | 文件 | 状态 |
-|--------|------|------|------|
-| **P0** | Scheduler 批量消费（缓冲 200 条再 dedup） | `scheduler/index.ts` | ✅ A1 |
-| **P0** | admin 动态查询 `data_sources` | `api/routes/admin.ts` | ✅ |
-| **P0** | BaseConnector `paginateOffset()` | `connectors/base.ts` | ✅ A2 |
-| **P0** | CrossRef Connector | `connectors/crossref.ts` | ✅ |
+| 改动 | 文件 |
+|------|------|
+| Scheduler 批量消费（缓冲 200 条再 dedup） | `scheduler/index.ts` |
+| admin 动态查询 `data_sources` | `api/routes/admin.ts` |
+| BaseConnector `paginateOffset()` | `connectors/base.ts` |
+| CrossRef Connector | `connectors/crossref.ts` |
 
-### 6.2 短期实施（2 周内）— ✅ 已完成
+### 6.2 短期实施（P1）
 
-| 优先级 | 改动 | 文件 | 状态 |
-|--------|------|------|------|
-| **P1** | World Bank Connector | `connectors/worldbank.ts` | ✅ A3 |
-| **P1** | Semantic Scholar Connector | `connectors/semanticscholar.ts` | ✅ A4 |
-| **P1** | 增量 `last_collected_at` | `007` + `scheduler/index.ts` | ✅ A5 |
-| **P1** | PubMed Connector + efetch 摘要 | `connectors/pubmed.ts` | ✅ A6 + A10 |
-| **P1** | 采集错误写入 `collection_jobs.error_message` | `scheduler/index.ts` | ✅ |
+| 改动 | 文件 |
+|------|------|
+| World Bank Connector | `connectors/worldbank.ts` |
+| Semantic Scholar Connector | `connectors/semanticscholar.ts` |
+| 增量 `last_collected_at` | `007` + `scheduler/index.ts` |
+| PubMed Connector + efetch 摘要 | `connectors/pubmed.ts` |
+| 采集错误写入 `collection_jobs.error_message` | `scheduler/index.ts` |
 
-### 6.3 中期实施（1 个月内）
+### 6.3 中期实施（P2–P3）
 
-| 优先级 | 改动 | 说明 | 状态 |
-|--------|------|------|------|
-| **P2** | Stage 3 分块策略 | `processors/chunk.ts` | ✅ A8 |
-| **P2** | arXiv OAI-PMH Connector | `arxiv_oai` + ResumptionToken | ✅ A7 |
-| **P2** | 存量 re-embed 回填 | A10/A11 前入库 openalex/pubmed | □ A12（可选 CLI） |
-| **P3** | Embedding 队列化 + 重试 | `embedding_tasks` 表 + worker | ⏸ A9 暂缓 |
-| **P3** | `paginateResumptionToken` / `paginateLinkHeader` | BaseConnector 扩展 | 🟡 ResumptionToken ✅；LinkHeader □ |
+| 改动 | 说明 | 设计要点 |
+|------|------|----------|
+| Stage 3 分块策略 | `processors/chunk.ts` | §4.2 |
+| arXiv OAI-PMH Connector | `arxiv_oai` + ResumptionToken | §2.3 |
+| 存量 re-embed 回填 | A12（可选 CLI） | §7.3/§7.4 |
+| Embedding 队列化 + 重试 | `embedding_tasks` 表 + worker | §4.3（暂缓） |
+| `paginateLinkHeader` | BaseConnector 扩展 | §2.3 |
 
 ### 6.4 长期规划（2 个月+）
 
@@ -629,20 +605,9 @@ const results = await dataPlatform.search(query, {
 | Cross-encoder 重排序 | bge-reranker-v2-m3 |
 | 向量索引自动维护 | Cron REINDEX |
 
-### 6.5 剩余任务摘要（代码对照 · 2026-05-19）
+### 6.5 剩余任务
 
-| 轨 | ID | 条目 | 优先级 |
-|----|-----|------|--------|
-| RAG 质量 | **A12** | 存量 openalex/pubmed re-embed | P1 可选 |
-| RAG 架构 | **A8** | `processors/chunk.ts` 按类型分块 | ✅ |
-| Connector | **A7** | arXiv OAI-PMH（`arxiv_oai`） | ✅ |
-| 运维 | **B8** | `/health` 外部 API 探活 | ✅ |
-| Connector | 全部 12 源 ✅（除 Legacy `arxiv`） | SEC 全文 / HN 外链 | 增强 |
-| 协议 | — | `last_cursor` 断点续传接线 | P3 |
-| 平台 | **C2→C3** | 父仓 DataPlatformClient + SearchProvider | P0 |
-| 明确不做 | **A9** | Embedding 队列 | ⏸ |
-
----
+见 [实施进度总览.md](./实施进度总览.md) §3–§4（本方案不再另列任务表）。
 
 ## 7. 内容层评估与 RAG 可用性分析
 
@@ -655,33 +620,33 @@ const results = await dataPlatform.search(query, {
 `embedDocuments` 按 `chunkDocument()` 分块后写入 `document_chunks`（`src/rag/vectorStore.ts` + `processors/chunk.ts`）。
 `abstract` 来自 `rawDocument.ts` `mapInsertedRow` → `String(raw.abstract ?? "")`。
 
-**新采集文档（A10/A11 ✅ 后）**：
+**新采集文档（A10/A11 修复后）**：
 
-| 信源 | rawJson.abstract | 新文档 embedding | 状态 |
+| 信源 | rawJson.abstract | 新文档 embedding | 对应修复 |
 |------|------------------|-----------------|------|
-| **PubMed** | ✅ `efetch` 合并 `<AbstractText>` | title + abstract | ✅ A10 |
-| **OpenAlex** | ✅ `uninvertAbstract(inverted_index)` | title + abstract | ✅ A11 |
-| **Semantic Scholar** | ✅ 字符串 abstract + tldr | title + abstract | ✅ A4 |
+| **PubMed** | ✅ `efetch` 合并 `<AbstractText>` | title + abstract | A10 |
+| **OpenAlex** | ✅ `uninvertAbstract(inverted_index)` | title + abstract | A11 |
+| **Semantic Scholar** | ✅ 字符串 abstract + tldr | title + abstract | A4 |
 | **CrossRef** | 🟡 约 20% 有 abstract | 多数仅标题 | 接受，不单独修 |
-| **World Bank** | ✅ 指标描述 | 够用 | ✅ |
+| **World Bank** | ✅ 指标描述 | 够用 | — |
 
 **存量数据（A10/A11 前已入库）**：
 
 | 信源 | 问题 | 修复 |
 |------|------|------|
-| openalex / pubmed | 向量基于纯标题 | □ **A12** re-embed CLI（可选） |
+| openalex / pubmed | 向量基于纯标题 | **A12** re-embed CLI（可选） |
 
 **后果**：新采集质量已恢复；未跑 A12 的存量 openalex/pubmed 检索仍偏差。
 
 ### 7.2 各信源内容层级完整评估
 
-| 信源 | 元数据 | 摘要（API 可获取） | 全文 | RAG 适用性 | 修复优先级 |
+| 信源 | 元数据 | 摘要（API 可获取） | 全文 | RAG 适用性 | 对应修复 |
 |------|--------|-------------------|------|-----------|-----------|
-| **OpenAlex** | ✅ 丰富 | ✅ `abstract_inverted_index` → `uninvertAbstract` | ❌ | ⭐⭐⭐⭐ | ✅ A11 |
-| **PubMed** | ✅ | ✅ `efetch` `<AbstractText>` | ❌（PMC 全文另议） | ⭐⭐⭐⭐ | ✅ A10 |
+| **OpenAlex** | ✅ 丰富 | ✅ `abstract_inverted_index` → `uninvertAbstract` | ❌ | ⭐⭐⭐⭐ | A11 |
+| **PubMed** | ✅ | ✅ `efetch` `<AbstractText>` | ❌（PMC 全文另议） | ⭐⭐⭐⭐ | A10 |
 | ~~PubMed (esummary only)~~ | — | — | — | — | ~~历史问题，已由 A10 替代~~ |
-| **Semantic Scholar** | ✅ | ✅ `abstract`（直接字符串） + `tldr.text` | ❌ | ⭐⭐⭐⭐⭐ | ✅ A4（`semanticscholar.ts`） |
-| **arXiv (`arxiv_oai`)** | ✅ | ✅ OAI `<abstract>` | ✅ HTML（`ARXIV_FULLTEXT_ENABLED`） | ⭐⭐⭐⭐⭐ | ✅ A7 + fulltext |
+| **Semantic Scholar** | ✅ | ✅ `abstract`（直接字符串） + `tldr.text` | ❌ | ⭐⭐⭐⭐⭐ | A4（`semanticscholar.ts`） |
+| **arXiv (`arxiv_oai`)** | ✅ | ✅ OAI `<abstract>` | ✅ HTML（`ARXIV_FULLTEXT_ENABLED`） | ⭐⭐⭐⭐⭐ | A7 + fulltext |
 | **CrossRef** | ✅ | 🟡 20% 有 | ❌ | ⭐⭐ | 不单独修复 |
 | **PatentsView** | ✅ | ✅ `patent_abstract` | ❌ | ⭐⭐⭐ | P2 |
 | **SEC EDGAR** | ✅ | N/A | ✅ 财报全文（HTML） | ⭐⭐⭐⭐ | 需分块策略 |
@@ -718,15 +683,15 @@ function uninvertAbstract(
 }
 ```
 
-**修复方案（A11）** — ✅ 已落地：`OpenAlexConnector.toRawDocument()` 调用 `uninvertAbstract()` 写入 `rawJson.abstract`。
+**修复方案（A11）**：`OpenAlexConnector.toRawDocument()` 调用 `uninvertAbstract()` 写入 `rawJson.abstract`。
 
-**存量回填（A12）** — □ 可选：对 A11 前 openalex 记录从 `raw_json.abstract_inverted_index` 重算 abstract 并重跑 `embedDocuments`（尚无 CLI）。
+**存量回填（A12）** — 可选（尚未实施，见 [实施进度总览 §3 任务矩阵](./实施进度总览.md#3-任务矩阵a--b--c)）：对 A11 前 openalex 记录从 `raw_json.abstract_inverted_index` 重算 abstract 并重跑 `embedDocuments`（尚无 CLI）。
 
 ### 7.4 PubMed 两阶段采集方案
 
 **问题**：`esummary.fcgi` 是书目摘要端点（publication date/journal/authors），**不含** `AbstractText`。
 
-**修复方案（A10）** — ✅ 已落地：`pubmed.ts` `collect()` 在 esummary 后调用 `efetchAbstracts()`；`pubmedHelpers.ts` `parseEfetchAbstractXml`。
+**修复方案（A10）**：`pubmed.ts` `collect()` 在 esummary 后调用 `efetchAbstracts()`；`pubmedHelpers.ts` `parseEfetchAbstractXml`。
 
 ```
 esearch(term) → UIDs
@@ -755,22 +720,22 @@ rawJson = { ...esummaryRecord, abstract: "<AbstractText>" }
 
 **推荐架构（未来可选）**：RSS 作**哨兵**（感知新 PMID/arXiv ID） → API 做**正式摄取**（用 ID 调 efetch/abstract API 取完整摘要）。比纯定时轮询 API 更省配额，且可针对高价值 query 监控。
 
-**近期不实施**：当前 Connector 已有增量 `since` 参数（A5 ✅），RSS 优先级低于 A10/A11/A4。
+**近期不实施**：当前 Connector 已有增量 `since` 参数（A5），RSS 优先级低于 A10/A11/A4。
 
-### 7.6 内容充实优先级（2026-05-19 更新）
+### 7.6 内容充实优先级
+
+> 各条目的落地状态 → [实施进度总览.md](./实施进度总览.md) §3；此处只定**优先级与做法**。
 
 ```
-已完成（新文档质量）：
-  ✅ A11  OpenAlex uninvertAbstract → rawJson.abstract
-  ✅ A10  PubMed efetchAbstracts → rawJson.abstract
-  ✅ A4   Semantic Scholar abstract + tldr
+内容层修复（按 ROI）：
+  A11  OpenAlex uninvertAbstract → rawJson.abstract
+  A10  PubMed efetchAbstracts → rawJson.abstract
+  A4   Semantic Scholar abstract + tldr
+  arXiv HTML 正文  `processors/arxivFulltext.ts`；`ARXIV_FULLTEXT_ENABLED=1`；dedup 入库后同步 → `raw_json.fulltext` → chunk embed
 
-待做（按 ROI）：
+可选（历史数据）：
   A12  存量 openalex/pubmed re-embed（可选 CLI）
   PatentsView（专利摘要，P2）
-
-已完成（arXiv 正文 P1）：
-  ✅ arXiv HTML 正文  `processors/arxivFulltext.ts`；`ARXIV_FULLTEXT_ENABLED=1`；dedup 入库后同步 → `raw_json.fulltext` → chunk embed
 
 明确不做（近期）：
   A9 Embedding 队列 · RSS 哨兵 · CrossRef 摘要补全

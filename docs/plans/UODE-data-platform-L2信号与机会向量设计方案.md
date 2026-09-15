@@ -1,6 +1,6 @@
 # UODE · data-platform — L2 认知信号、机会向量与 L5 权重校准设计方案
 
-> **状态**：部分落地（G1 读 ✅ · **G1-5 ✅** · **U-L1 🟡**（macro 灌库 ✅ / text 验收中）· U1/U2 ✅；跨仓 E1/E3/P1/P2 待实施）  
+> **状态**：见 [实施进度总览.md](./实施进度总览.md) §2.7–§2.8（U 轨 / G 轨）；跨仓条目见本方案 §六
 > **版本**：v1.4.3（2026-05-22）  
 > **仓库**：`packages/data-platform`  
 > **职责层**：UODE L1（现有）+ **L2 认知信号**（本方案）+ **L5 权重校准**（本方案）  
@@ -621,7 +621,7 @@ app.register(opportunityWeightsRoutes,  { prefix: "/api/opportunity-weights" });
 
 | 任务 | 文件 / 说明 |
 |------|------|
-| U2-0 | `opportunityWeights.ts`：`GET /:tag` 改为内网可读（去掉 Admin Key）| ✅ |
+| U2-0 | `opportunityWeights.ts`：`GET /:tag` 改为内网可读（去掉 Admin Key） |
 | U2-1 | `036_opportunity_outcomes.sql` |
 | U2-2 | `037_opportunity_weights.sql` |
 | U2-3 | `src/api/routes/opportunityOutcomes.ts` |

@@ -796,5 +796,5 @@ def fetch_edgar(url: str) -> requests.Response:
 ---
 
 > **文档维护建议：** 速率限制与认证策略是变化最频繁的部分，建议每季度重新核查各平台官方文档（尤其是 CrossRef、Reddit、EPO Fair use、YouTube 配额）。  
-> **勘误（2026-05-20）**：Google Patents 数据集路径改为 `patents-public-data.*`；EPO REST Base 与 Token URL 分离、免费阈值 4 GB/周；Reddit 100 QPM；USPTO 速查表对齐 ODP `X-API-KEY`。初稿研究截止 2025-05。
+> **研究截止**：初稿 2025-05；2026-05-20 对齐官方文档（Google Patents 数据集 `patents-public-data.*`、EPO REST Base/Token URL 分离与 4 GB/周、Reddit 100 QPM、USPTO ODP `X-API-KEY`）。**本行即变更记录**，不再单列勘误小节。
 >

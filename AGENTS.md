@@ -27,6 +27,8 @@ docker compose up -d --build   # API :3400, PG :5433
 
 仅用户明确要求时 `git commit`；收尾自检见 `ai-task-integration.mdc` §2。
 
+**改动了 `docs/**` 或 `*.md` 时**，提交前跑 `pnpm lint:docs`——机械检查「状态/数字只留一处」（文首状态清单、无快照日期的数量断言、真源外的 commit 短哈希、独立勘误行）与**链接/锚点有效性**（`scripts/doc-lint.sh` + `scripts/doc-structure.py`；改标题必须同步入链）。
+
 ## 文档索引
 
 | 主题 | 路径 |
@@ -38,7 +40,7 @@ docker compose up -d --build   # API :3400, PG :5433
 | 主设计 | `docs/design.md` |
 | **实施进度（代码↔任务）** | `docs/plans/实施进度总览.md` |
 | 实施/改造方案 | `docs/plans/`（见 `docs/plans/README.md`） |
-| 原始数据落盘 | `docs/plans/原始数据本地导出与镜像方案.md`（D1 导出 / D2 镜像 / D5 溯源，已实施 ✅） |
+| 原始数据落盘 | `docs/plans/原始数据本地导出与镜像方案.md`（D 轨；状态见 `docs/plans/实施进度总览.md` §3） |
 | 共识知识（API 分类、协议） | `docs/knowledge/`（见 `docs/knowledge/README.md`） |
 | 数据源速查 | `docs/data-sources.md` |
 | Phase1 | `docs/phase1-plan.md` |
@@ -51,3 +53,4 @@ docker compose up -d --build   # API :3400, PG :5433
 - `CLAUDE.md` — Claude Code：`@import` 规则 + 本文件领域说明
 - `.cursor/rules/ai-task-integration.mdc` — 接入/commit/Shell
 - `.cursor/rules/doc-progress-sync.mdc` — 文档与 ENV 同步
+- `.agents/skills/dev-docset-design/SKILL.md` — 多会话文档集设计：四类信息归属、防漂移自查（skill）
