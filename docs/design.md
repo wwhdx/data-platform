@@ -1,6 +1,6 @@
 # data-platform 数据平台设计方案
 
-> **v0.4** — 设计大纲 + 架构真源（2026-09-07）  
+> **v0.5** — 设计大纲 + 架构真源（2026-09-15）  
 > 基于望野 UODE 理念与多源 API 协议；**实现进度/Connector 数量/测试数** → [plans/实施进度总览.md](plans/实施进度总览.md) §2（本文不维护进度表与数字快照）  
 > **文档地图** → [README.md](./README.md) · **短入口** → [overview.md](./overview.md)
 
@@ -53,7 +53,7 @@ L6 API     Fastify：/api/search · /api/sources · /api/admin/*
 | 配置 v1.1 | `src/config/` · `config/sources.yml` | [plans/数据源配置-interface-profile实施方案.md](plans/数据源配置-interface-profile实施方案.md) |
 | 采集编排 | `src/scheduler/` · `src/collect/` | [§八](#八调度系统) · [plans/采集日志与可观测性设计方案.md](plans/采集日志与可观测性设计方案.md) |
 | 处理流水线 | `src/processors/`（dedup · chunk · 全文/Unpaywall 富化） | [§五](#五处理流水线) |
-| RAG | `src/rag/`（embed · vectorStore · retriever） | [§六](#六rag-检索系统) |
+| RAG | `src/rag/`（embed · vectorStore · retriever） | [§五（5.5–5.6）](#五处理流水线) |
 | REST API | `src/api/` | [§七](#七api-设计) · [knowledge/数据平台API协议.md](./knowledge/数据平台API协议.md) |
 | engine-core 适配 | `src/adapters/engineCore.ts` | [§九](#九与-engine-core-对接) |
 | 导出/镜像 D1–D2 | `src/export/` | [plans/原始数据本地导出与镜像方案.md](plans/原始数据本地导出与镜像方案.md) |
@@ -72,13 +72,15 @@ L6 API     Fastify：/api/search · /api/sources · /api/admin/*
 
 ### 0.6 Phase 路线图
 
-| Phase | 目标 | 状态 |
-|-------|------|------|
+> 下表是 **2026-05-22 快照**（仅为阅读上下文；**真源** → [实施进度总览 §2](plans/实施进度总览.md) / §4，数字以真源为准）。
+
+| Phase | 目标 | 快照状态 |
+|-------|------|----------|
 | **1** MVP 骨架（3 源闭环 → 扩展） | PG + 搜索 API + Scheduler | ✅ |
 | **2** RAG（pgvector + 混合检索 + 分块） | Embedding 多后端 | ✅ |
 | **2+** 多源波次 5a–9 | Connector 生态扩展 · D5 · 全文加深（数量见实施进度 §2.1） | ✅ 2026-05-21 |
 | **3** 知识图谱（Neo4j + 实体关系） | 图检索 | □ |
-| **4** 平台化 | 仪表盘 · Webhook · BullMQ | 🟡 Connector 已超原 16+ 目标；调度/监控待做 |
+| **4** 平台化 | 仪表盘 · Webhook · BullMQ | 🟡 调度/监控待做 |
 
 ---
 
@@ -90,7 +92,6 @@ L6 API     Fastify：/api/search · /api/sources · /api/admin/*
 - [三、数据模型](#三数据模型)
 - [四、Connector 系统](#四connector-系统)
 - [五、处理流水线](#五处理流水线)
-- [六、RAG 检索系统](#六rag-检索系统)
 - [七、API 设计](#七api-设计)
 - [八、调度系统](#八调度系统)
 - [九、与 engine-core 对接](#九与-engine-core-对接)
@@ -503,7 +504,7 @@ async function hybridSearch(query: string, opts?: SearchOptions): Promise<Search
 // RRF: score = Σ 1/(k + rank_position), k=60
 ```
 
-### 6.3 SearchProvider 兼容适配
+### 5.7 SearchProvider 兼容适配
 
 ```typescript
 // data-platform RAG 结果 → engine-core SearchProvider 格式
@@ -1030,6 +1031,7 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-09-15 | v0.5 | §六 已并入 §五（5.5–5.6 RAG/检索），删失效目录项并把 `#六rag-检索系统` 入链改 `#五处理流水线`；原 §6.3 编号纠正为 §5.7；修 §4.10 锚点 |
 | 2026-05-22 | v0.3.2 | U-L1 / G1-5 链至 `plans/UODE-L1行业数据采集前置方案.md`；实施进度 §2.8 |
 | 2026-09-07 | v0.4 | §零 0.3 快照表去数字化（改指针表，数字唯一归属实施进度 §2）；0.2 L2 去具体数；版本说明同步「不维护数字快照」 |
 | 2026-05-22 | v0.3.1 | §七 增补 G1/UODE HTTP 路由、`domainSignal` 响应字段；链 UODE 详案 |
@@ -1045,7 +1047,7 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 | 2025-05-15 | v0.1 | 初始草案 |
 | 2026-05-15 | v0.2 | 职责边界澄清：移除 `/api/context`（LLM 摘要生成 → engine-core）；§9.1 接入点从 3 个精简为 2 个；§1.2 边界表新增 LLM 摘要/实体抽取行；Phase 4 移除 `/api/context` |
 
-> **版本**: v0.4 | **状态**: 架构真源（数字见实施进度 §2）· 波次 10 进行中 | **最后更新**: 2026-09-07
+> **版本**: v0.5 | **状态**: 架构真源（数字见实施进度 §2）· 波次 10 进行中 | **最后更新**: 2026-09-15
 >
 > 相关文档：
 > - 实施进度总览：`docs/plans/实施进度总览.md`

@@ -900,7 +900,17 @@ RAG 质量优先（遗留增强）：
 > **维护频率**：速率限制与认证策略每季度核查一次。最新变化见各平台官方文档。
 > **内容层评估**：2026-05-19 增补，详析见 [数据源接入与RAG构建方案.md §7](./plans/数据源接入与RAG构建方案.md#7-内容层评估与-rag-可用性分析)。
 > **A4 Semantic Scholar**：2026-05-19 落地 `semanticscholar.ts`；`SEMANTIC_SCHOLAR_API_KEY`；YAML 默认 `enabled: false`。  
-> **勘误（2026-05-20）**：§2.1–2.2 Google Patents / EPO OPS 对齐官方路径与限额；§5.3 Reddit 100 QPM。  
-> **配额评估（2026-05-21）**：新增 [附录 B](#附录-b已接入源配额与速率限制评估)（32 Connector + Unpaywall 富化；官方对照 + collect 举例 + [B.4 原始链接](#b4-官方文档原始链接按-runtime-id)）；§1.1 OpenAlex、§1.4 CrossRef 速率行更新；**代码同步** `openalex.ts`（10k/天）、`semanticscholar.ts`（1 RPS）；**DB** `001_init.sql` 种子 + 迁移 `023_rate_limit_openalex_s2.sql`。  
+> **配额评估（2026-05-21）**：新增 [附录 B](#附录-b已接入源配额与速率限制评估)（已接入源 + Unpaywall 富化；官方对照 + collect 举例 + [B.4 原始链接](#b4-官方文档原始链接按-runtime-id)）；§1.1 OpenAlex、§1.4 CrossRef 速率行更新；**代码同步** `openalex.ts`（10k/天）、`semanticscholar.ts`（1 RPS）；**DB** `001_init.sql` 种子 + 迁移 `023_rate_limit_openalex_s2.sql`。  
 > **collect 上限（2026-05-21）**：[附录 B.5](#b5-collect_max_items-默认上限collect---all--cron) + `config/sources.yml` `collect_max_items` + `src/collect/maxItems.ts`。  
-> **12 Connector 全景（2026-05-19）**：见 [实施进度总览 §2.1](./plans/实施进度总览.md#21-connector-运行时)。
+> **Connector 全景/数量**：见 [实施进度总览 §2.1](./plans/实施进度总览.md#21-connector-运行时)（本文按源分节，不维护计数）。
+
+---
+
+## §变更记录
+
+| 日期 | 说明 |
+|------|------|
+| 2026-09-15 | 去状态化：删除「12 Connector 全景」「32 Connector」计数断言，改为链 [实施进度总览 §2.1](./plans/实施进度总览.md#21-connector-运行时)；原「勘误（2026-05-20）」行折入本表 |
+| 2026-05-21 | 配额评估：新增附录 B；`collect_max_items` 上限与 `maxItems.ts` |
+| 2026-05-20 | 对齐官方文档：§2.1–2.2 Google Patents / EPO OPS 路径与限额；§5.3 Reddit 100 QPM |
+| 2026-05-19 | 内容层评估增补；A4 Semantic Scholar 落地 |

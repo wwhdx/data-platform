@@ -28,7 +28,8 @@
     "test:live": "bash scripts/live-probe.sh",
     "test:smoke": "pnpm test:api",
     "smoke:live": "pnpm test:live",
-    "e2e:loop": "bash scripts/e2e-loop.sh"
+    "e2e:loop": "bash scripts/e2e-loop.sh",
+    "lint:docs": "bash scripts/doc-lint.sh"
   },
   "dependencies": {
     "@google-cloud/bigquery": "^8.3.1",

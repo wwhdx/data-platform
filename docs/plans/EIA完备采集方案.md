@@ -1,6 +1,6 @@
 # EIA 完备采集方案
 
-> **状态**：部分落地（H0–H3 ✅；H4–H5 待实施）  
+> **状态**：见 [实施进度总览.md](./实施进度总览.md) §3 轨 H
 > **版本**：v1.2（2026-05-21）  
 > **进度真源**：[实施进度总览.md](./实施进度总览.md)（落地后 §3 增 **轨 H：EIA 全量采集**）  
 > **方法论（跨源参考）**：[树形API数据源完备采集方法论.md](../knowledge/树形API数据源完备采集方法论.md)  
@@ -123,7 +123,7 @@ flowchart LR
 
 | Tier | 范围 | 采集深度 | 调度 |
 |------|------|----------|------|
-| **A** | 手工维护 [`config/eia-routes.yml`](#64-configeia-routesyml) **priority: high** | L1 快照 + L2 年度历史（`start` 回溯 10 年） | 日/周 cron |
+| **A** | 手工维护 [`config/eia-routes.yml`](#83-configeia-routesyml) **priority: high** | L1 快照 + L2 年度历史（`start` 回溯 10 年） | 日/周 cron |
 | **B** | L0 目录中 `priority: medium`（按顶层子方向各选代表 dataset） | 仅 L1 快照（`length=12`） | 周 cron |
 | **C** | 其余叶子 route | 仅 L0 元数据；`collect_enabled: false` | 目录刷新时更新 |
 | **D** | API 返回 `error` / 无 `data` 列 / 仅 v1 的序列 | 记入 `eia_catalog_routes.skip_reason` | 不采集 |
