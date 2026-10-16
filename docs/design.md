@@ -1,6 +1,6 @@
 # data-platform 数据平台设计方案
 
-> **v0.5** — 设计大纲 + 架构真源（2026-09-15）  
+> **v0.5.1** — 设计大纲 + 架构真源（2026-10-16）  
 > 基于望野 UODE 理念与多源 API 协议；**实现进度/Connector 数量/测试数** → [plans/实施进度总览.md](plans/实施进度总览.md) §2（本文不维护进度表与数字快照）  
 > **文档地图** → [README.md](./README.md) · **短入口** → [overview.md](./overview.md)
 
@@ -194,7 +194,7 @@ RAG 检索 ──→ 语义搜索 + 关键词 ──→ 混合排序 ──→ A
 | 图数据库 | Neo4j (Phase 3) | 知识图谱建模标准选择 |
 | 调度 | node-cron → BullMQ | MVP 简单，生产可靠 |
 | HTTP | Fastify | 性能好，TypeScript 生态好 |
-| Embedding | Voyage AI / OpenAI | 文本嵌入质量高 |
+| Embedding | Ollama (bge-m3，默认) / Voyage AI / OpenAI | 默认本地 Ollama，多后端可切换 |
 | 数据访问 | `pg` 连接池 + 手写 SQL | 迁移在 `src/storage/migrations/`；无 ORM 层 |
 | 包管理 | pnpm | 与望野一致 |
 
@@ -204,37 +204,39 @@ RAG 检索 ──→ 语义搜索 + 关键词 ──→ 混合排序 ──→ A
 
 ### 3.1 核心实体
 
+> 状态标注（2026-10-16 对齐迁移 `001`–`037`）：未标注者均已建表；Phase 3 / 已废弃项见各行。
+
 ```
-DataSource ──── 数据源注册
+DataSource ──── 数据源注册                              # 已建表 001
   id, name, baseUrl, authType, rateLimit, license, commercialUse, status, createdAt
 
-CollectionJob ──── 采集任务
+CollectionJob ──── 采集任务                            # 已建表 001
   id, sourceId, query, status(pending/running/success/failed),
   itemsCollected, errorMessage, startedAt, finishedAt
 
-RawDocument ──── 原始文档 (不可变)
+RawDocument ──── 原始文档 (不可变)                    # 已建表 001；D5 溯源列 010
   id, sourceId, externalId, rawJson(JSONB), fetchedAt, collectionJobId,
   fetchProvenance(JSONB, 可选) ── HTTP 溯源，与 rawJson 独立；见 plans/原始数据本地导出与镜像方案.md §4.7 (D5)
   唯一键: (sourceId, externalId)
 
-EnrichedDocument ──── 富化文档
+EnrichedDocument ──── 富化文档                        # 未单表落地：富化字段并入 raw_json（Phase 3 再评估）
   id, rawDocId, title, abstract, fullText, contentType, language,
   authors[], publishedAt, entities(JSONB), metadata(JSONB), enrichedAt
 
-DocumentChunk ──── 文本分块
+DocumentChunk ──── 文本分块                           # 已建表 002（pgvector）
   id, docId, chunkIndex, text, tokenCount, embeddingModel
 
-Entity ──── 抽取实体
+Entity ──── 抽取实体                                  # Phase 3 规划（Neo4j + 抽取）
   id, type(PERSON/ORG/TECH/CONCEPT/…), name, aliases[], metadata(JSONB)
 
-EntityRelation ──── 实体关系
+EntityRelation ──── 实体关系                          # Phase 3 规划
   id, fromEntityId, toEntityId, relationType(cites/competes/depends/replaces/…),
   confidence, evidence[], createdAt
 
-CollectionSchedule ──── 定时采集
+CollectionSchedule ──── 定时采集                      # 已建表 001；增量字段 007
   id, sourceId, cronExpr, query, enabled, lastRunAt, nextRunAt
 
-DataSourceAuth ──── 凭证管理 (加密存储)
+DataSourceAuth ──── 凭证管理 (加密存储)                # 已废弃：凭证仅 process.env（见 AGENTS.md）
   id, sourceId, authType, credentials(encrypted), expiresAt
 ```
 
@@ -365,13 +367,15 @@ class ExponentialBackoff {
 }
 ```
 
-### 4.3 MVP 三源（Phase 1）
+### 4.3 首批 MVP 源（Phase 1，已实现）
 
 | Connector | 数据 | URL | 认证 | 速率 | 许可 |
 |-----------|------|-----|------|------|------|
-| `OpenAlexConnector` | 2.4亿论文元数据 | `api.openalex.org` | API Key (Query) | 100K/天 | CC0 |
-| `SemanticScholarConnector` | 2亿论文 + 引文图 | `api.semanticscholar.org` | `x-api-key` Header | 1-10 RPS | 非商业免费 |
-| `PatentsViewConnector` | USPTO ODP 专利 PFW | `api.uspto.gov` | `X-API-KEY` Header | — | 免费 |
+| `OpenAlexConnector` | 2.4亿论文元数据 | `api.openalex.org` | API Key (Query，可选) | 100K/天 | CC0 |
+| `CrossRefConnector` | DOI 元数据 + 引文 | `api.crossref.org` | Polite mailto | polite ≈50/s | varies（逐条 metadata） |
+| `WorldBankConnector` | 全球发展指标 | `api.worldbank.org` | 无需 | 无明确限制 | CC BY |
+
+> Semantic Scholar（A4）与 PatentsView 为后续波次加入，见 §4.4 与 [data-sources.md](./data-sources.md)。
 
 ### 4.4 扩展 Connector 清单（Phase 2+）
 
@@ -525,22 +529,26 @@ function toSearchProviderResult(
 
 ### 7.1 端点一览
 
+> 下列为 `src/api/server.ts` 注册的全部路由（2026-10-16 实测对齐）；完整请求/响应契约 → [knowledge/数据平台API协议.md](./knowledge/数据平台API协议.md) §0。
+
 ```
 POST   /api/search              # RAG 检索（核心接口）；body 可选 industry / industryStrict
-GET    /api/sources              # 数据源列表 + 状态
-GET    /api/sources/:id          # 单个数据源详情
-POST   /api/admin/collect        # 手动触发采集
-POST   /api/admin/collect/:id    # 手动触发单个源采集
+GET    /api/sources              # 数据源列表 + 状态（含 last_fetch）
+POST   /api/admin/collect        # 手动触发采集（body.sourceId 指定单源；stream=true 返回 NDJSON）
 GET    /api/admin/jobs           # 采集任务历史
+GET    /api/admin/jobs/:jobId/events   # 单任务事件流（L5）
+GET    /api/admin/schedules      # YAML cron 对照 + 下次执行（B14）
+PUT    /api/admin/sources/:id    # 数据源配置热更新 + 配置审计（内网路由；Admin Key 待评估）
 GET    /api/admin/stats          # 统计（文档数、向量数、采集量）
 POST   /api/admin/industry-tags/sync   # 行业标签同步（Admin Key；engine-core 代理）
+GET    /api/admin/industry-coverage    # 行业 coverage 汇总（Admin Key；U-L1 验收）
 POST   /api/opportunity-vectors/distance  # N(h) 新颖性（无 Admin Key）
 POST   /api/opportunity-vectors/upsert    # 机会向量 upsert（Admin Key）
 GET    /api/opportunity-vectors/stats     # 向量库统计（Admin Key）
 POST   /api/opportunity-outcomes/report   # 审核 outcome 上报（Admin Key）
 GET    /api/opportunity-weights/:tag      # 当前权重（内网可读，无 Key）
 GET    /api/opportunity-weights/:tag/history  # 校准历史（Admin Key）
-GET    /api/health               # 健康检查
+GET    /health                   # 健康检查（含各源探活）
 ```
 
 UODE 路由详案与鉴权分级 → [plans/UODE-data-platform-L2信号与机会向量设计方案.md](plans/UODE-data-platform-L2信号与机会向量设计方案.md) §五。
@@ -635,6 +643,8 @@ interface SourceInfo {
 | arXiv | 每日 | 预印本日更 |
 | PubMed | 每日 | 生物医学更新频繁 |
 | SEC EDGAR | 每日（财报季） | 上市公司季度申报 |
+
+> 本表为早期设计默认值；现行 cron 开关/频率一律以 `config/sources.yml` 为准（Semantic Scholar 已按 Lane A **W-AGG-1** 关闭 cron），分层见[实施进度 §2.1](plans/实施进度总览.md#21-connector-运行时)。
 
 ### 8.3 增量采集策略
 
@@ -1031,9 +1041,10 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-10-16 | v0.5.1 | §7.1 端点表对齐 `src/api/server.ts` 实测；§3.1 数据模型补落地状态标注；§4.3 首批 MVP 源修正（OpenAlex/CrossRef/WorldBank）；§8.2 补现行 cron 注记；§2.3 补 Ollama 默认（§六 并入 §五 的 v0.5 结构保持不变） |
 | 2026-09-15 | v0.5 | §六 已并入 §五（5.5–5.6 RAG/检索），删失效目录项并把 `#六rag-检索系统` 入链改 `#五处理流水线`；原 §6.3 编号纠正为 §5.7；修 §4.10 锚点 |
-| 2026-05-22 | v0.3.2 | U-L1 / G1-5 链至 `plans/UODE-L1行业数据采集前置方案.md`；实施进度 §2.8 |
 | 2026-09-07 | v0.4 | §零 0.3 快照表去数字化（改指针表，数字唯一归属实施进度 §2）；0.2 L2 去具体数；版本说明同步「不维护数字快照」 |
+| 2026-05-22 | v0.3.2 | U-L1 / G1-5 链至 `plans/UODE-L1行业数据采集前置方案.md`；实施进度 §2.8 |
 | 2026-05-22 | v0.3.1 | §七 增补 G1/UODE HTTP 路由、`domainSignal` 响应字段；链 UODE 详案 |
 | 2026-05-21 | v0.3 | 新增 **§零 设计大纲**（六层/模块地图/横切轨/Phase）；修正 Qdrant→pgvector、Prisma→pg 池、Connector 29、Phase 4 勾选 |
 | 2026-05-19 | v0.2.8 | `patentsview` 迁至 ODP（`api.uspto.gov` + `USPTO_ODP_API_KEY`）；废弃 PatentSearch / `PATENTSVIEW_API_KEY` |
@@ -1044,10 +1055,10 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 | 2026-05-19 | v0.2.3 | 新增 §十一 I 轨集成测试最小闭环；链至 `plans/集成测试最小闭环方案.md` |
 | 2026-05-19 | v0.2.2 | §十 Phase 1/2 勾选与代码对齐；链至 `docs/plans/实施进度总览.md` |
 | 2026-05-19 | v0.2.1 | **Agent 工作流**：新增 `.cursor/rules/*.mdc`、`opencode.json`、`AGENTS.md`、`docs/agent-workflow.md`；`CLAUDE.md` 改为 `@import` 规则；commit 须用户明确说明（与望野主仓对齐）。 |
-| 2025-05-15 | v0.1 | 初始草案 |
 | 2026-05-15 | v0.2 | 职责边界澄清：移除 `/api/context`（LLM 摘要生成 → engine-core）；§9.1 接入点从 3 个精简为 2 个；§1.2 边界表新增 LLM 摘要/实体抽取行；Phase 4 移除 `/api/context` |
+| 2025-05-15 | v0.1 | 初始草案 |
 
-> **版本**: v0.5 | **状态**: 架构真源（数字见实施进度 §2）· 波次 10 进行中 | **最后更新**: 2026-09-15
+> **版本**: v0.5.1 | **状态**: 架构真源（数字见实施进度 §2）· 波次 10 进行中
 >
 > 相关文档：
 > - 实施进度总览：`docs/plans/实施进度总览.md`
