@@ -1,6 +1,6 @@
 # data-platform 数据平台设计方案
 
-> **v0.5.1** — 设计大纲 + 架构真源（2026-10-16）  
+> **v0.5.2** — 设计大纲 + 架构真源（2026-10-16）  
 > 基于望野 UODE 理念与多源 API 协议；**实现进度/Connector 数量/测试数** → [plans/实施进度总览.md](plans/实施进度总览.md) §2（本文不维护进度表与数字快照）  
 > **文档地图** → [README.md](./README.md) · **短入口** → [overview.md](./overview.md)
 
@@ -1041,6 +1041,7 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-10-16 | v0.5.2 | 登记测试限速缩放 ENV `DATA_PLATFORM_RATE_LIMIT_SCALE`（vitest 0.001；见 `.env.example` / `CLAUDE.md` 环境变量表） |
 | 2026-10-16 | v0.5.1 | §7.1 端点表对齐 `src/api/server.ts` 实测；§3.1 数据模型补落地状态标注；§4.3 首批 MVP 源修正（OpenAlex/CrossRef/WorldBank）；§8.2 补现行 cron 注记；§2.3 补 Ollama 默认（§六 并入 §五 的 v0.5 结构保持不变） |
 | 2026-09-15 | v0.5 | §六 已并入 §五（5.5–5.6 RAG/检索），删失效目录项并把 `#六rag-检索系统` 入链改 `#五处理流水线`；原 §6.3 编号纠正为 §5.7；修 §4.10 锚点 |
 | 2026-09-07 | v0.4 | §零 0.3 快照表去数字化（改指针表，数字唯一归属实施进度 §2）；0.2 L2 去具体数；版本说明同步「不维护数字快照」 |
@@ -1058,7 +1059,7 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 | 2026-05-15 | v0.2 | 职责边界澄清：移除 `/api/context`（LLM 摘要生成 → engine-core）；§9.1 接入点从 3 个精简为 2 个；§1.2 边界表新增 LLM 摘要/实体抽取行；Phase 4 移除 `/api/context` |
 | 2025-05-15 | v0.1 | 初始草案 |
 
-> **版本**: v0.5.1 | **状态**: 架构真源（数字见实施进度 §2）· 波次 10 进行中
+> **版本**: v0.5.2 | **状态**: 架构真源（数字见实施进度 §2）· 波次 10 进行中
 >
 > 相关文档：
 > - 实施进度总览：`docs/plans/实施进度总览.md`
