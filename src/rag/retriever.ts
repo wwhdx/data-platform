@@ -7,6 +7,7 @@ import { semanticSearch } from "./vectorStore";
 import { keywordSearch } from "../storage/models/rawDocument";
 import { query } from "../storage/db";
 import { citationFromRaw, enrichSearchResults } from "./domainSignal";
+import { extractDocumentUrl } from "../lib/documentUrl";
 import type { SearchResult, SearchOptions } from "../types";
 import type { InternalSearchHit } from "../storage/models/rawDocument";
 
@@ -161,6 +162,7 @@ async function fetchDocumentsById(
     SELECT
       rd.id AS doc_id,
       rd.source_id,
+      rd.external_id,
       rd.raw_json,
       rd.industry_tag,
       ds.name AS source_name,
@@ -185,7 +187,10 @@ async function fetchDocumentsById(
     const raw = row.raw_json as Record<string, unknown>;
     out.push({
       title: String(raw.title ?? "Untitled"),
-      url: extractUrl(raw),
+      url: extractDocumentUrl(raw, {
+        sourceId: String(row.source_id),
+        externalId: String(row.external_id ?? ""),
+      }),
       snippet: String(raw.abstract ?? "").slice(0, 300),
       sourceId: String(row.source_id),
       sourceName: String(row.source_name),
@@ -198,11 +203,4 @@ async function fetchDocumentsById(
     });
   }
   return out;
-}
-
-function extractUrl(raw: Record<string, unknown>): string {
-  if (typeof raw.doi === "string" && raw.doi) return `https://doi.org/${raw.doi}`;
-  const location = raw.primary_location as Record<string, unknown> | undefined;
-  if (location?.landing_page_url) return String(location.landing_page_url);
-  return String(raw.id ?? "");
 }
