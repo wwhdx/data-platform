@@ -16,7 +16,7 @@ docker compose up -d --build   # API :3400, PG :5433
 
 ## 必须遵守
 
-- TypeScript strict；Connector 继承 `BaseConnector`；单文件 ≤200 行
+- TypeScript strict；Connector 继承 `BaseConnector`；**新增/重写文件 ≤200 行**（存量超限文件豁免：`src/cli/index.ts`、`src/scheduler/index.ts`、`src/lib/sourceProbe.ts` 等；拆分时按规则 §7 登记编号）
 - **独立库** `DATA_PLATFORM_DATABASE_URL`，禁止父仓 `DATABASE_URL`
 - 凭证仅 `process.env`；API 带 User-Agent
 - 新 Connector → `src/connectors/index.ts` + 运行时 `registerConnector`（见规则 §3）
@@ -46,7 +46,8 @@ docker compose up -d --build   # API :3400, PG :5433
 | Phase1 | `docs/phase1-plan.md` |
 | **集成测试（I 轨）** | `docs/plans/集成测试最小闭环方案.md` |
 | engine-core 对接 | `../engine-core/ENGINE_CONTRACTS.md`（monorepo 部署路径） |
-| 父仓 API 协议 | `../../docs/knowledge/数据平台API协议.md` |
+| 子包 HTTP 契约（真源） | `docs/knowledge/数据平台API协议.md` |
+| 父仓 API 协议（索引） | `../../docs/knowledge/数据平台API协议.md` |
 
 ## 规则文件
 
