@@ -147,7 +147,7 @@ industries:
 
 | ID | 通道 | 任务 | 命令 / 动作 | 完成标准 | 关联 |
 |----|------|------|-------------|----------|------|
-| **U-L1-A1** | macro | 医疗宏观虚拟源 + health 指标白名单灌库 | `pnpm cli config sync` → `collect --source worldbank_医疗` | 医疗 macro≥10 | U-L1-5 · `8b086d0` ✅ |
+| **U-L1-A1** | macro | 医疗宏观虚拟源 + health 指标白名单灌库 | `pnpm cli config sync` → `collect --source worldbank_医疗` | 医疗 macro≥10 | U-L1-5 · ✅（登记见实施进度 §2.7） |
 | **U-L1-A2** | text | 医疗弱信号灌库 | `pnpm cli collect --source pubmed_医疗`（可重复至达标） | 医疗 text≥50 | U-L1-5 · U-L1-8 ✅ |
 | **U-L1-A3** | text | 能源弱信号灌库 | `pnpm cli collect --source openalex_能源` | 能源 text≥50 | U-L1-5 · U-L1-8 ✅ |
 | **U-L1-accept** | 汇总 | 试点 coverage 全门槛 | `pnpm cli industry coverage` + §四 检索/trend | 医疗/能源 `l1Ready: true` | U-L1-8 ✅ |

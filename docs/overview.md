@@ -69,8 +69,6 @@ data-platform 是望野 monorepo 中的**数据层子包**（`packages/data-plat
 
 与 [README.md](./README.md) 一致；日常维护优先更新 **实施进度总览** 与对应 **plans/** 专题稿，勿在本文件复制进度表。
 
----
-
 ## 变更记录
 
 | 版本 | 日期 | 说明 |
