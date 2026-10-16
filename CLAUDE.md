@@ -226,6 +226,7 @@ pnpm cli migrate
 | `COLLECT_DUPLICATE_SCAN_MIN_FETCHED` | 否 | 重复扫描判定最少抓取条数（默认 50） |
 | `COLLECT_DUPLICATE_SCAN_RATIO` | 否 | 重复扫描重复率阈值（默认 0.95，即 skippedDuplicate/fetched） |
 | `COLLECT_DUPLICATE_SCAN_STOP_BATCHES` | 否 | 连续整批全重复则 abort（默认 3；`0`=仅告警） |
+| `DATA_PLATFORM_RATE_LIMIT_SCALE` | 否 | 限速/目录等待按比例缩放（默认 1；vitest 设 `0.001` 加速单测，生产勿设） |
 
 **禁止从父项目 `DATABASE_URL` 回退**——`db.ts` 只读 `DATA_PLATFORM_DATABASE_URL`。
 

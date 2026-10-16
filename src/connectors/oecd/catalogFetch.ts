@@ -4,6 +4,7 @@ import {
   type SdmxDataflowListResponse,
 } from "./catalogCrawl";
 import { parseDataflowXml } from "./catalogXmlParse";
+import { scaledDelayMs } from "../rateLimiter";
 
 const OECD_DATAFLOW_BASE = "https://sdmx.oecd.org/public/rest/dataflow";
 const ACCEPT_JSON = "application/vnd.sdmx.structure+json;version=1.0";
@@ -75,7 +76,7 @@ function agencyIntervalMs(): number {
   const raw = process.env.OECD_CATALOG_AGENCY_INTERVAL_MS?.trim();
   if (!raw) return DEFAULT_AGENCY_INTERVAL_MS;
   const n = parseInt(raw, 10);
-  return Number.isFinite(n) && n >= 500 ? n : DEFAULT_AGENCY_INTERVAL_MS;
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_AGENCY_INTERVAL_MS;
 }
 
 export function parseCatalogBody(text: string): SdmxDataflowListResponse {
@@ -114,7 +115,7 @@ async function fetchText(
     lastText = await res.text();
     if (res.ok) return { ok: true, status: res.status, text: lastText };
     if (res.status === 500 && attempt < attempts - 1) {
-      await sleep(RETRY_BASE_MS * (attempt + 1));
+      await sleep(scaledDelayMs(RETRY_BASE_MS * (attempt + 1)));
       continue;
     }
     return { ok: false, status: res.status, text: lastText };
@@ -166,7 +167,7 @@ async function fetchByAgencies(
 
   for (let i = 0; i < agencies.length; i++) {
     const agency = agencies[i]!;
-    if (i > 0) await sleep(interval);
+    if (i > 0) await sleep(scaledDelayMs(interval));
 
     const url = `${OECD_DATAFLOW_BASE}/${encodeURIComponent(agency)}?references=none`;
     const { ok, status, text } = await fetchText(

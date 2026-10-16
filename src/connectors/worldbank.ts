@@ -31,13 +31,36 @@ export const WORLD_BANK_META: ConnectorMeta = {
   description: "16,000+ 经济时间序列（L0 指标目录 + YAML Tier A）",
 };
 
-interface ObservationItem {
+export interface ObservationItem {
   indicator: { id: string; value: string };
   country: { id: string; value: string };
   countryiso3code: string;
   date: string;
   value: number | null;
   unit?: string;
+}
+
+/** externalId：indicator/country/date 三元组（供 collect 与单测共用） */
+export function worldbankExternalId(obs: ObservationItem): string {
+  return `${obs.indicator.id}/${obs.country.id}/${obs.date}`;
+}
+
+/** rawJson 映射（供 collect 与单测共用） */
+export function worldbankRawJson(
+  obs: ObservationItem,
+  tier: string,
+): Record<string, unknown> {
+  return {
+    indicator_name: obs.indicator.value,
+    indicator_code: obs.indicator.id,
+    collect_tier: tier,
+    value: obs.value,
+    unit: obs.unit ?? "",
+    date: obs.date,
+    country: obs.country.value,
+    country_code: obs.country.id,
+    country_iso3: obs.countryiso3code,
+  };
 }
 
 export class WorldBankConnector extends BaseConnector {
@@ -232,22 +255,11 @@ export class WorldBankConnector extends BaseConnector {
     obs: ObservationItem,
     entry: WorldbankIndicatorYamlEntry,
   ): RawDocument {
-    const extId = `${obs.indicator.id}/${obs.country.id}/${obs.date}`;
     return this.withIndustryTag(
       {
         sourceId: WORLD_BANK_META.id,
-        externalId: extId,
-        rawJson: {
-          indicator_name: obs.indicator.value,
-          indicator_code: obs.indicator.id,
-          collect_tier: entry.tier,
-          value: obs.value,
-          unit: obs.unit ?? "",
-          date: obs.date,
-          country: obs.country.value,
-          country_code: obs.country.id,
-          country_iso3: obs.countryiso3code,
-        },
+        externalId: worldbankExternalId(obs),
+        rawJson: worldbankRawJson(obs, entry.tier),
         fetchedAt: new Date(),
       },
       entry.industry_tag,

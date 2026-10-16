@@ -1,11 +1,17 @@
 /**
  * World Bank Connector 单元测试
  *
- * 测试字段映射、null value 过滤、indicator/observation 数据转换。
+ * 直测 `worldbank.ts` 导出的真实映射函数（worldbankExternalId / worldbankRawJson），
+ * 以及真实 `collect`（null 过滤、maxItems）与 `search`（名称匹配）路径。
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { WorldBankConnector } from "../../connectors/worldbank";
+import {
+  WorldBankConnector,
+  worldbankExternalId,
+  worldbankRawJson,
+  type ObservationItem,
+} from "../../connectors/worldbank";
 import { WORLD_BANK_CORE_INDICATORS } from "../../connectors/worldbank/config";
 
 // ── 模拟 World Bank API 响应格式 ──
@@ -14,7 +20,14 @@ function makeIndicator(name: string, id: string, note?: string) {
   return { id, name, unit: "", source: { id: "2", value: "WDI" }, sourceNote: note ?? "" };
 }
 
-function makeObservation(indicatorId: string, indicatorName: string, countryId: string, countryName: string, date: string, value: number | null) {
+function makeObservation(
+  indicatorId: string,
+  indicatorName: string,
+  countryId: string,
+  countryName: string,
+  date: string,
+  value: number | null,
+): ObservationItem {
   return {
     indicator: { id: indicatorId, value: indicatorName },
     country: { id: countryId, value: countryName },
@@ -25,91 +38,77 @@ function makeObservation(indicatorId: string, indicatorName: string, countryId: 
   };
 }
 
-// ── 字段映射 helpers（与 worldbank.ts 同逻辑）──
-
-function extId(obs: ReturnType<typeof makeObservation>): string {
-  return `${obs.indicator.id}/${obs.country.id}/${obs.date}`;
-}
-
-function toRawJson(obs: ReturnType<typeof makeObservation>): Record<string, unknown> {
-  return {
-    indicator_name: obs.indicator.value,
-    indicator_code: obs.indicator.id,
-    value: obs.value,
-    unit: obs.unit ?? "",
-    date: obs.date,
-    country: obs.country.value,
-    country_code: obs.country.id,
-    country_iso3: obs.countryiso3code,
-  };
-}
-
 // ═══════════════════════════════════════════════════════════════
 describe("World Bank connector helpers", () => {
   // ── externalId 构造 ──
 
-  describe("externalId", () => {
+  describe("worldbankExternalId", () => {
     it("combines indicator/country/date", () => {
-      expect(extId(makeObservation("NY.GDP.MKTP.CD", "GDP", "CN", "China", "2024", 1234)))
+      expect(worldbankExternalId(makeObservation("NY.GDP.MKTP.CD", "GDP", "CN", "China", "2024", 1234)))
         .toBe("NY.GDP.MKTP.CD/CN/2024");
     });
 
     it("handles aggregate region codes", () => {
-      expect(extId(makeObservation("SP.POP.TOTL", "Population", "XD", "High income", "2024", null)))
+      expect(worldbankExternalId(makeObservation("SP.POP.TOTL", "Population", "XD", "High income", "2024", null)))
         .toBe("SP.POP.TOTL/XD/2024");
     });
   });
 
   // ── rawJson 映射 ──
 
-  describe("toRawJson", () => {
+  describe("worldbankRawJson", () => {
     it("maps indicator fields", () => {
-      const json = toRawJson(makeObservation("NY.GDP.MKTP.CD", "GDP (current US$)", "CN", "China", "2024", 1.79e13));
+      const json = worldbankRawJson(
+        makeObservation("NY.GDP.MKTP.CD", "GDP (current US$)", "CN", "China", "2024", 1.79e13),
+        "A",
+      );
       expect(json.indicator_name).toBe("GDP (current US$)");
       expect(json.indicator_code).toBe("NY.GDP.MKTP.CD");
+      expect(json.collect_tier).toBe("A");
     });
 
     it("maps country fields", () => {
-      const json = toRawJson(makeObservation("SP.POP.TOTL", "Population", "CN", "China", "2024", 1.4e9));
+      const json = worldbankRawJson(
+        makeObservation("SP.POP.TOTL", "Population", "CN", "China", "2024", 1.4e9),
+        "A",
+      );
       expect(json.country).toBe("China");
       expect(json.country_code).toBe("CN");
       expect(json.country_iso3).toBe("CHN");
     });
 
     it("maps value and date", () => {
-      const json = toRawJson(makeObservation("IT.NET.USER.ZS", "Internet", "CN", "China", "2023", 75.6));
+      const json = worldbankRawJson(
+        makeObservation("IT.NET.USER.ZS", "Internet", "CN", "China", "2023", 75.6),
+        "B",
+      );
       expect(json.value).toBe(75.6);
       expect(json.date).toBe("2023");
     });
 
     it("handles null value", () => {
-      const json = toRawJson(makeObservation("SL.UEM.TOTL.ZS", "Unemployment", "CN", "China", "2022", null));
+      const json = worldbankRawJson(
+        makeObservation("SL.UEM.TOTL.ZS", "Unemployment", "CN", "China", "2022", null),
+        "A",
+      );
       expect(json.value).toBeNull();
     });
 
     it("handles zero value", () => {
-      const json = toRawJson(makeObservation("FP.CPI.TOTL.ZG", "Inflation", "CN", "China", "2020", 0));
+      const json = worldbankRawJson(
+        makeObservation("FP.CPI.TOTL.ZG", "Inflation", "CN", "China", "2020", 0),
+        "A",
+      );
       expect(json.value).toBe(0);
     });
 
     it("handles quarter date format", () => {
-      const json = toRawJson(makeObservation("NY.GDP.MKTP.CD", "GDP", "US", "United States", "2024Q1", 7.1e12));
+      const json = worldbankRawJson(
+        makeObservation("NY.GDP.MKTP.CD", "GDP", "US", "United States", "2024Q1", 7.1e12),
+        "A",
+      );
       expect(json.date).toBe("2024Q1");
       expect(json.value).toBe(7.1e12);
-    });
-  });
-
-  // ── null value 过滤 ──
-
-  describe("null value filtering", () => {
-    it("filters null values from observation array", () => {
-      const obs = [
-        makeObservation("NY.GDP.MKTP.CD", "GDP", "CN", "China", "2024", 1.79e13),
-        makeObservation("NY.GDP.MKTP.CD", "GDP", "CN", "China", "2023", null),
-        makeObservation("NY.GDP.MKTP.CD", "GDP", "CN", "China", "2022", 1.62e13),
-      ];
-      const filtered = obs.filter(o => o.value !== null);
-      expect(filtered.length).toBe(2);
     });
   });
 
@@ -124,13 +123,13 @@ describe("World Bank connector helpers", () => {
     });
   });
 
-  // ── search: indicator name matching ──
+  // ── collect：真实路径（fetch mock） ──
 
-  describe("WorldBankConnector.collect maxItems", () => {
+  describe("WorldBankConnector.collect", () => {
     const originalFetch = global.fetch;
     const wbMeta = { page: 1, pages: 1, per_page: "50", total: 30 };
 
-    function obsBatch(code: string, n: number, start = 0): ReturnType<typeof makeObservation>[] {
+    function obsBatch(code: string, n: number, start = 0): ObservationItem[] {
       return Array.from({ length: n }, (_, i) =>
         makeObservation(code, `Ind ${code}`, `C${start + i}`, `Country ${start + i}`, "2024", i + 1),
       );
@@ -215,26 +214,76 @@ describe("World Bank connector helpers", () => {
       expect(codes.has("SH.XPD.CHEX.GD.ZS")).toBe(true);
       expect(codes.has("NY.GDP.MKTP.CD")).toBe(false);
     });
+
+    it("过滤 value 为 null 的观测（真实 collect 路径）", async () => {
+      vi.mocked(global.fetch).mockImplementation(async () => {
+        return {
+          ok: true,
+          json: async () => [
+            wbMeta,
+            [
+              makeObservation("SP.DYN.LE00.IN", "Life expectancy", "CN", "China", "2022", 78.2),
+              makeObservation("SP.DYN.LE00.IN", "Life expectancy", "CN", "China", "2021", null),
+            ],
+          ],
+        } as Response;
+      });
+
+      const c = new WorldBankConnector({
+        sourceOptions: {
+          worldbank_indicator_codes: "SP.DYN.LE00.IN",
+          worldbank_tier_filter: "A",
+        },
+      });
+      const docs = [];
+      for await (const d of c.collect({ maxItems: 10 })) {
+        docs.push(d);
+      }
+      expect(docs).toHaveLength(1);
+      expect(docs[0]!.rawJson.value).toBe(78.2);
+    });
   });
 
-  describe("indicator search", () => {
-    it("filters indicators by name substring match", () => {
-      const indicators = [
-        makeIndicator("GDP (current US$)", "NY.GDP.MKTP.CD"),
-        makeIndicator("GDP per capita (current US$)", "NY.GDP.PCAP.CD"),
-        makeIndicator("Population, total", "SP.POP.TOTL"),
-        makeIndicator("Inflation, consumer prices (annual %)", "FP.CPI.TOTL.ZG"),
-      ];
-      const query = "gdp";
-      const matches = indicators.filter(i => i.name.toLowerCase().includes(query));
-      expect(matches.length).toBe(2);
-      expect(matches[0]!.id).toBe("NY.GDP.MKTP.CD");
+  // ── search：名称子串匹配（真实路径，DB catalog 不可用时走 API） ──
+
+  describe("WorldBankConnector.search", () => {
+    const originalFetch = global.fetch;
+    const wbMeta = { page: 1, pages: 1, per_page: "50", total: 4 };
+
+    beforeEach(() => {
+      global.fetch = vi.fn(async () => {
+        return {
+          ok: true,
+          json: async () => [
+            wbMeta,
+            [
+              makeIndicator("GDP (current US$)", "NY.GDP.MKTP.CD"),
+              makeIndicator("GDP per capita (current US$)", "NY.GDP.PCAP.CD"),
+              makeIndicator("Population, total", "SP.POP.TOTL"),
+              makeIndicator("Inflation, consumer prices (annual %)", "FP.CPI.TOTL.ZG"),
+            ],
+          ],
+        } as Response;
+      });
     });
 
-    it("returns empty for no match", () => {
-      const indicators = [makeIndicator("GDP", "NY.GDP.MKTP.CD")];
-      const matches = indicators.filter(i => i.name.toLowerCase().includes("xyzzy"));
-      expect(matches.length).toBe(0);
+    afterEach(() => {
+      global.fetch = originalFetch;
+      vi.restoreAllMocks();
+    });
+
+    it("filters indicators by name substring match", async () => {
+      const c = new WorldBankConnector({});
+      const results = await c.search("gdp", { maxResults: 10 });
+      expect(results).toHaveLength(2);
+      expect(results[0]!.title).toContain("NY.GDP.MKTP.CD");
+      expect(results[0]!.sourceId).toBe("worldbank");
+    });
+
+    it("returns empty for no match", async () => {
+      const c = new WorldBankConnector({});
+      const results = await c.search("xyzzy", { maxResults: 10 });
+      expect(results).toHaveLength(0);
     });
   });
 });
