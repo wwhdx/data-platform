@@ -1,11 +1,13 @@
-# 主流数据平台 API 交互协议总结
+# data-platform 服务 HTTP 契约 与 外部数据源 API 协议总览
 
-> 通过网络实时采集分析，整理于 2025 年 5 月。涵盖学术、专利、金融、政府、社交等六大类别的核心平台数据交互协议，包含认证方式、速率限制、请求格式与响应结构。
+> **维护约定**：data-platform 服务 HTTP 契约变更时**先改本文件 §零**（与实现同步），再同步父仓索引 `../../docs/knowledge/数据平台API协议.md`。
+> 外部数据源（§一–§七）为协议参考存档：通过公开文档整理于 2025 年 5 月；实现态字段/速率真源为 [data-sources.md](../data-sources.md)。
 
 ---
 
 ## 目录
 
+* [零、data-platform 服务 HTTP 契约（真源）](#零data-platform-服务-http-契约)
 * [一、学术与科研平台]()
 * [二、专利与知识产权平台]()
 * [三、金融与市场数据平台]()
@@ -13,6 +15,127 @@
 * [五、社交与舆情平台]()
 * [六、协议模式对比速查表]()
 * [七、工程接入建议]()
+
+---
+
+## 零、data-platform 服务 HTTP 契约（真源）
+
+> 本子包自身服务的对外契约（与 `src/api/server.ts` 实测对齐，2026-10-16）；外部数据源协议见 §一–§七。
+
+### 0.1 服务身份
+
+| 项 | 值 |
+|----|----|
+| 服务名 | data-platform（望野数据层） |
+| 默认 Base URL | `http://localhost:3400`（Docker 内网常用 `http://dp-app:3400`） |
+| 消费方环境变量 | `DATA_PLATFORM_URL` |
+| 数据库 | 独立 `DATA_PLATFORM_DATABASE_URL`，**禁止**使用主平台 `DATABASE_URL` |
+| 实现入口 | `src/api/server.ts`（`buildApp`）；类型真源 `src/types.ts` |
+
+### 0.2 鉴权分级（Admin Bearer）
+
+| 路由 | Admin Key | 调用方 |
+|------|-----------|--------|
+| `POST /api/search` · `GET /api/sources` · `GET /health` · `POST /api/opportunity-vectors/distance` · `GET /api/opportunity-weights/:tag` | 否（内网可读） | engine-core / 运维 |
+| `POST /api/opportunity-vectors/upsert` · `POST /api/opportunity-outcomes/report` · `GET /api/opportunity-vectors/stats` · `GET /api/opportunity-weights/:tag/history` · `POST /api/admin/industry-tags/sync` · `GET /api/admin/industry-coverage` | **是** | 仅 engine-core / 运维 CLI |
+| `POST /api/admin/collect` · `GET /api/admin/jobs` · `GET /api/admin/jobs/:jobId/events` · `GET /api/admin/schedules` · `PUT /api/admin/sources/:id` · `GET /api/admin/stats` | 否（内网运维路由，未挂 `requireAdminKey`） | 运维 / CLI / 管理后台 |
+
+**Admin Bearer**：`Authorization: Bearer ${DATA_PLATFORM_ADMIN_KEY}`。
+未配置 key 时需 Key 路由返回 `503 {error:"DATA_PLATFORM_ADMIN_KEY not configured"}`；不匹配返回 `401 {error:"unauthorized"}`。
+密钥持有方：**data-platform 服务端 + engine-core runtime**（wangye 主平台**不**配置；行业同步经 engine-core 代理）。
+
+### 0.3 端点总表
+
+```text
+POST   /api/search              # RAG 检索（核心）；可选 industry / industryStrict
+GET    /api/sources              # 数据源列表 + total_docs / last_fetch
+POST   /api/admin/collect        # 手动采集（body.sourceId 单源；stream=true → NDJSON 进度）
+GET    /api/admin/jobs           # 采集任务历史
+GET    /api/admin/jobs/:jobId/events   # 单任务事件（L5）
+GET    /api/admin/schedules      # YAML cron 对照 + 下次执行（B14）
+PUT    /api/admin/sources/:id    # 数据源配置热更新 + `config_audit_log` 审计
+GET    /api/admin/stats          # 文档数 / 向量数 / 采集量
+POST   /api/admin/industry-tags/sync      # 行业标签同步（Admin Key；engine-core 代理）
+GET    /api/admin/industry-coverage       # 行业 coverage 汇总（Admin Key；U-L1 验收）
+POST   /api/opportunity-vectors/distance  # N(h) 新颖性
+POST   /api/opportunity-vectors/upsert    # 机会向量 upsert
+GET    /api/opportunity-vectors/stats     # 向量库统计
+POST   /api/opportunity-outcomes/report   # 审核 outcome 上报
+GET    /api/opportunity-weights/:tag      # 当前权重（内网可读）
+GET    /api/opportunity-weights/:tag/history  # 校准历史
+GET    /health                   # 健康检查（200/503，含逐源探活）
+```
+
+UODE 端点请求/响应详案与鉴权分级 → [UODE 详案 §五](../plans/UODE-data-platform-L2信号与机会向量设计方案.md#54-鉴权分级v14)。
+
+### 0.4 POST /api/search（核心接口）
+
+```typescript
+// Request（src/types.ts SearchRequest）
+interface SearchRequest {
+  query: string;
+  maxResults?: number;          // 默认 10
+  industry?: string;            // G1：按行业标签过滤
+  industryStrict?: boolean;     // true 时无 industry_tag 行排除
+  filters?: {
+    sourceIds?: string[];
+    contentType?: string[];
+    dateFrom?: string;
+    dateTo?: string;
+    commercialUse?: boolean;
+  };
+}
+
+// Response（src/types.ts SearchResponse / SearchResult）
+interface SearchResponse {
+  results: SearchResult[];
+  totalCount: number;
+  tookMs: number;
+  error?: string;               // 400 缺 query 时返回
+}
+interface SearchResult {
+  title: string;
+  url: string;                  // 无 DOI 时按源回退（如 PubMed external_id）
+  snippet: string;
+  sourceId: string;
+  sourceName: string;
+  publishedAt?: string;
+  score: number;
+  license: string;
+  commercialUse: boolean;
+  citationCount?: number;
+  industryTag?: string | null;
+  domainSignal?: {              // U1：L2 认知信号
+    citationCount?: number;
+    trendScore?: number;
+    recentDocCount?: number;
+    industryTag?: string;
+    trlHint?: string;
+  };
+}
+```
+
+```bash
+curl -sS -X POST "${DATA_PLATFORM_URL:-http://localhost:3400}/api/search" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"transformer attention","maxResults":10}'
+```
+
+检索策略：`hybrid` = pgvector 语义 + tsvector 关键词 → RRF 融合；语义失败自动降级为纯关键词（`src/rag/retriever.ts`）。
+
+### 0.5 GET /api/sources 与 GET /health
+
+- `GET /api/sources` → `data_sources.*` 行 + `total_docs`、`last_fetch`（表未建时返回 `[]`）。
+- `GET /health` → `{ ok, uptime, sources: SourceStatus[], db }`；逐源 `status` ∈ `healthy|degraded|error|disabled`，含 `probe` 明细（探活实现 `src/lib/sourceProbe.ts`）；DB 异常时 HTTP `503`。
+
+### 0.6 错误码
+
+| 码 | 场景 |
+|----|------|
+| 400 | `POST /api/search` 缺 `query`（响应含 `error` + 空结果） |
+| 401 | Admin 路由 Bearer 不匹配 |
+| 503 | Admin 路由未配置 `DATA_PLATFORM_ADMIN_KEY`；`GET /health` DB 不可用 |
+| 5xx | 未捕获异常（Fastify 默认处理） |
 
 ---
 
