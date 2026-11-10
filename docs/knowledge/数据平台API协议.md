@@ -7,7 +7,7 @@
 
 ## 目录
 
-* [零、data-platform 服务 HTTP 契约（真源）](#零data-platform-服务-http-契约)
+* [零、data-platform 服务 HTTP 契约（真源）](#零data-platform-服务-http-契约真源)
 * [一、学术与科研平台]()
 * [二、专利与知识产权平台]()
 * [三、金融与市场数据平台]()

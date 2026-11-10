@@ -367,7 +367,7 @@ class ExponentialBackoff {
 }
 ```
 
-### 4.3 首批 MVP 源（Phase 1，已实现）
+### 4.3 首批 MVP 源（Phase 1）
 
 | Connector | 数据 | URL | 认证 | 速率 | 许可 |
 |-----------|------|-----|------|------|------|
