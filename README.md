@@ -411,6 +411,7 @@ pnpm report -- --out reports   # 本地生成 reports/report.json + 静态 UI
 
 | 日期 | 说明 |
 |------|------|
+| 2026-11-10 | 报表：GitHub Pages → `report.farview.cn` 内部站点（Authentik；tx-cloud Docker 生成；每源 3 样本；REP 轨）。 |
 | 2026-09-08 (#7) | 运维：`auto-merge` / `dependabot-auto-merge` 竞态修复说明补入「CI / 自动合并」小节（收敛等待 / 定向 dispatch / cron 兜底）。 |
 | 2026-08-29 (v0.2) | 文档同步：架构图补 30+ 源 / UODE 机遇引擎 / 10 catalog + industry_dimension；目录树同步 15 个子系统（cli/api/connectors/processors/rag/storage/scheduler/collect/industry/uode/export/client/adapters/config/lib）；API 端点表补 `industry-*` / `opportunity-*`；EMBED 后端补 `mock`；新增 `运维与发布` 章节（Pages 报表 / CI / 文档同步）。代码与设计真源仍以 [docs/design.md §零](./docs/design.md#零设计大纲当前态摘要) / [docs/plans/实施进度总览.md](./docs/plans/实施进度总览.md) 为准。 |
 | 2026-08-26 (#2) | 顶部一行 overview 句子 |
