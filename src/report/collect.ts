@@ -34,7 +34,7 @@ const SLOW_SOURCE_TIMEOUT_MS = 90_000;
 const TIMEOUT_MS = 10_000;
 const SLOW_TIMEOUT_MS = 20_000;
 const SLOW_SOURCES = new Set(["arxiv_oai", "biorxiv_oai", "medrxiv_oai", "wipo", "oecd", "faostat"]);
-const SLOW_SOURCE_IDS = new Set(["arxiv_oai", "biorxiv_oai", "medrxiv_oai", "ecb", "ecb_农业", "eurostat_食品安全", "oecd", "faostat", "wipo"]);
+const SLOW_SOURCE_IDS = new Set(["arxiv_oai", "biorxiv_oai", "medrxiv_oai", "ecb", "ecb_农业", "eurostat_食品安全", "oecd", "faostat", "wipo", "hackernews"]);
 
 interface ReportOptions {
   root: string;

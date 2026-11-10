@@ -835,7 +835,7 @@ sources:
     name: Eurostat 食品安全 L1
     enabled: true
     industry_tag: "食品安全"
-    base_url: https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/
+    base_url: https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/
     rate_limit: "polite"
     license: Eurostat terms
     commercial_use: true
