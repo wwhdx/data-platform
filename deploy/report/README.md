@@ -88,6 +88,20 @@ curl -sSI https://report.farview.cn/ | head
 
 登录后应看到 KPI、筛选和每个源的 3 条样本（无凭证/失败的源显示原因）。
 
+### 常见故障：登录后 404
+
+按顺序检查：
+
+```bash
+docker exec openhands-caddy ls -lh /data/farview-report
+docker exec openhands-caddy grep 'root \* /data/farview-report' /etc/caddy/Caddyfile
+```
+
+- 卷内没有文件 → 先跑 `run-report.sh`；
+- root 不是 `/data/farview-report` → 更新 Caddyfile；
+- 宿主机已改但容器内仍是旧配置 → Caddyfile 是单文件 bind mount，`sed -i` 会替换 inode；执行 `docker restart openhands-caddy` 后再 validate/reload；
+- 仍未解决 → 查 `/data/access-report.log`：`Server: Caddy` + `size:0` 多为静态文件未命中，带 `X-Authentik-Id` 则为 Authentik 侧返回。
+
 ## 7. 安全
 
 - `.env.report` 仅服务器、`600`；
