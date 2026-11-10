@@ -50,9 +50,12 @@ docker exec openhands-caddy ls -lh /data/farview-report
 
 ```text
 /data/farview-report/index.html
-/data/farview-report/assets/app.js
-/data/farview-report/assets/styles.css
+/data/farview-report/assets/{app.js,render.js,styles.css,article.css}
 /data/farview-report/report.json
+/data/farview-report/sources/<id>.html      # 每源可读文章页
+/data/farview-report/api/v1/index.json      # API 索引
+/data/farview-report/api/v1/sources/<id>.json
+/data/farview-report/api/v1/samples.ndjson
 cache/report.json      # 上次成功样本，不对外
 ```
 
@@ -89,7 +92,8 @@ curl -sSI https://report.farview.cn/ | head
 # 未登录应 302 到 auth.farview.cn
 ```
 
-登录后应看到 KPI、筛选和每个源的 3 条样本（无凭证/失败的源显示原因）。
+登录后应看到 KPI、筛选和每个源的 3 条样本（无凭证/失败的源显示原因）；源卡片默认全部展开，
+点击样本标题进入 `/sources/<id>.html` 文章页。脚本接口见 `/api/v1/index.json`。
 
 ### 常见故障：登录后 404
 
@@ -108,7 +112,7 @@ docker exec openhands-caddy grep 'root \* /data/farview-report' /etc/caddy/Caddy
 ## 7. 安全
 
 - `.env.report` 仅服务器、`600`；
-- `report.json` 不含 Key；URL/错误已脱敏；
+- `report.json` 不含 Key；URL/错误已脱敏（含 BEA `UserID`）；API URL 不作为样本外链；
 - 容器 `--read-only`、`--cap-drop ALL`、非 root；
 - 不挂 Docker socket；
 - 日志不记录 Key。
