@@ -1,7 +1,12 @@
-import { describe, it, expect, vi } from "vitest";
-import { RateLimiter } from "../../connectors/rateLimiter";
+import { describe, it, expect, beforeEach } from "vitest";
+import { RateLimiter, scaledDelayMs } from "../../connectors/rateLimiter";
 
 describe("RateLimiter", () => {
+  beforeEach(() => {
+    // 本文件断言真实等待时长：强制不缩放（vitest 全局默认 0.001）
+    process.env.DATA_PLATFORM_RATE_LIMIT_SCALE = "1";
+  });
+
   it("应初始化为满令牌桶", () => {
     const rl = new RateLimiter(100, 1);
     // 令牌桶初始化为 maxTokens
@@ -45,5 +50,13 @@ describe("RateLimiter", () => {
     await rl.sleepMinInterval();
     const elapsed = Date.now() - start;
     expect(elapsed).toBeGreaterThanOrEqual(90);
+  });
+
+  it("scaledDelayMs 按环境变量缩放且非法值回退", () => {
+    process.env.DATA_PLATFORM_RATE_LIMIT_SCALE = "0.001";
+    expect(scaledDelayMs(2000)).toBe(2);
+    process.env.DATA_PLATFORM_RATE_LIMIT_SCALE = "bad";
+    expect(scaledDelayMs(2000)).toBe(2000);
+    process.env.DATA_PLATFORM_RATE_LIMIT_SCALE = "1";
   });
 });

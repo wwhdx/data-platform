@@ -95,7 +95,7 @@ ctx.state.knowledgeContext = knowledge.results.map(r => `[${r.title}] ${r.snippe
 3. Connector 不直接写数据库，返回标准化 `RawDocument[]` 由 processor 层处理
 4. 所有 API 调用带 `User-Agent` Header 标识
 5. 凭证从 `process.env` 读取，不硬编码
-6. 单文件 ≤ 200 行
+6. **新增/重写文件 ≤ 200 行**；存量超限文件（`src/cli/index.ts`、`src/scheduler/index.ts`、`src/lib/sourceProbe.ts` 等）豁免，拆分时按 `.cursor/rules/ai-task-integration.mdc` §7 登记编号
 7. 新增 Connector 在 `src/connectors/index.ts` 注册
 
 ## Connector 开发模板
@@ -226,6 +226,7 @@ pnpm cli migrate
 | `COLLECT_DUPLICATE_SCAN_MIN_FETCHED` | 否 | 重复扫描判定最少抓取条数（默认 50） |
 | `COLLECT_DUPLICATE_SCAN_RATIO` | 否 | 重复扫描重复率阈值（默认 0.95，即 skippedDuplicate/fetched） |
 | `COLLECT_DUPLICATE_SCAN_STOP_BATCHES` | 否 | 连续整批全重复则 abort（默认 3；`0`=仅告警） |
+| `DATA_PLATFORM_RATE_LIMIT_SCALE` | 否 | 限速/目录等待按比例缩放（默认 1；vitest 设 `0.001` 加速单测，生产勿设） |
 
 **禁止从父项目 `DATABASE_URL` 回退**——`db.ts` 只读 `DATA_PLATFORM_DATABASE_URL`。
 

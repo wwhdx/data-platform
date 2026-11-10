@@ -54,9 +54,9 @@
 | [数据平台API协议.md](./knowledge/数据平台API协议.md) | 对外 HTTP 契约（与父仓同步） |
 | [免费数据源接口分类分析.md](./knowledge/免费数据源接口分类分析.md) | 按协议/认证分类；映射 `interface_profiles` |
 
-### `docs/archive/` — 非文档
+### `docs/archive/` — 归档
 
-运行时/对话导出等，**不参与**文档互链。
+已终结的历史文档快照（如[实施进度-波次6-9工单与历史变更.md](./archive/实施进度-波次6-9工单与历史变更.md)）与运行时/对话导出；**不再更新**，仅由真源文档单向下链。
 
 ---
 
@@ -83,8 +83,9 @@
 
 | 日期 | 说明 |
 |------|------|
-| 2026-09-07 | 文档修订同步：design.md v0.4（§零 0.3 去数字化）· overview.md v2.2 · 实施进度 §2 追平代码真源（48 id/40 cron/001–037/96 files·398）· CLAUDE.md 目录树与 CLI 重写 · AGENTS.md 引擎路径注记 |
+| 2026-10-16 | 收敛修复：knowledge 文件前置 HTTP 契约 §零（父仓真源指针复位）· design.md v0.5.1–v0.5.2（端点表/数据模型/首批源/限速 ENV；§六并入 §五沿用 v0.5）· plans/README 状态行对齐 · 波次 6–9 工单+历史变更归档 `archive/` · `documentUrl` 收敛 |
 | 2026-09-15 | 下一阶段实施方案.md 标为已归档（现行排期 → 实施进度 §4）；文档地图补充 ⑥ 结构检查（`scripts/doc-structure.py`） |
+| 2026-09-07 | 文档修订同步：design.md v0.4（§零 0.3 去数字化）· overview.md v2.2 · 实施进度 §2 追平代码真源（48 id/40 cron/001–037/96 files·398）· CLAUDE.md 目录树与 CLI 重写 · AGENTS.md 引擎路径注记 |
 | 2026-05-21 | design.md v0.3：§零 设计大纲；overview v2.1 链入 §零 |
 | 2026-05-19 | 增补 doc-writing-guide 与 doc-writing.mdc 索引 |
 | 2026-05-19 | 初版：建立文档索引；总览瘦身并重命名为 `overview.md` |

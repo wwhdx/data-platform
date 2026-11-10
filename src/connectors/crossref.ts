@@ -26,7 +26,7 @@ export const CROSSREF_META: ConnectorMeta = {
   description: "1.8亿+ DOI 元数据记录，覆盖学术出版物、会议论文、书籍章节",
 };
 
-interface CRWork {
+export interface CRWork {
   title?: string[];
   subtitle?: string[];
   abstract?: string;
@@ -190,17 +190,17 @@ export class CrossRefConnector extends BaseConnector {
   }
 }
 
-function pickTitle(work: CRWork): string {
+export function pickTitle(work: CRWork): string {
   if (work.title && work.title.length > 0) return work.title[0]!;
   return "Untitled";
 }
 
-function cleanAbstract(raw?: string): string {
+export function cleanAbstract(raw?: string): string {
   if (!raw) return "";
   return raw.replace(/<[^>]+>/g, "").trim();
 }
 
-function pickDate(work: CRWork): string | undefined {
+export function pickDate(work: CRWork): string | undefined {
   const parts =
     work["published-print"]?.["date-parts"]?.[0] ??
     work["published-online"]?.["date-parts"]?.[0] ??
@@ -214,7 +214,7 @@ function pad(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-function pickLicense(work: CRWork): string {
+export function pickLicense(work: CRWork): string {
   const licenses = work.license;
   if (!licenses || licenses.length === 0) return "unknown";
   const first = licenses[0]!;

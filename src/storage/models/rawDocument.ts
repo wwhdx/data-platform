@@ -1,6 +1,7 @@
 import type { DocumentProvenance, RawDocument, SearchResult, SearchOptions } from "../../types";
 import { query } from "../db";
 import { buildDocumentFilterClause } from "../../rag/searchFilters";
+import { extractDocumentUrl } from "../../lib/documentUrl";
 import type { ExportFilters, RawDocumentRow } from "../../export/types";
 
 // ── CRUD ──
@@ -235,6 +236,7 @@ export async function keywordSearch(
     SELECT
       rd.id AS doc_id,
       rd.source_id,
+      rd.external_id,
       ds.name AS source_name,
       ds.license,
       ds.commercial_use,
@@ -254,7 +256,10 @@ export async function keywordSearch(
     return {
       docId: Number(row.doc_id),
       title: String(raw.title ?? "Untitled"),
-      url: extractUrl(raw),
+      url: extractDocumentUrl(raw, {
+        sourceId: String(row.source_id),
+        externalId: String(row.external_id ?? ""),
+      }),
       snippet: String(raw.abstract ?? "").slice(0, 300),
       sourceId: String(row.source_id),
       sourceName: String(row.source_name),
@@ -264,11 +269,4 @@ export async function keywordSearch(
       commercialUse: Boolean(row.commercial_use),
     };
   });
-}
-
-function extractUrl(raw: Record<string, unknown>): string {
-  if (typeof raw.doi === "string" && raw.doi) return `https://doi.org/${raw.doi}`;
-  const location = raw.primary_location as Record<string, unknown> | undefined;
-  if (location?.landing_page_url) return String(location.landing_page_url);
-  return String(raw.id ?? "");
 }

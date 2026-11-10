@@ -8,3 +8,4 @@ data/logs/
 data/catalog/
 secrets/
 reports/
+.report-cache.json

@@ -96,21 +96,14 @@ commit 前抽 5 处 `rg` 反证路径与函数名；遍历 `§` 交叉引用；c
 | **U-L1-A*** | 实施进度 §2.7 + U-L1 §4.1 | **运维灌库 + coverage 验收**（须带 `U-L1-` 前缀） |
 | **U-L1-accept** | 同上 | 试点 `l1Ready` 汇总门闸 |
 
-**当前 U-L1 运维链**（2026-05-22 HEAD）：
-
-| ID | 状态 | 动作 | 完成标准 |
-|----|------|------|----------|
-| U-L1-A1 | ✅ | `collect --source worldbank_医疗` | 医疗 macro≥10 |
-| U-L1-A2 | ✅ | `collect --source pubmed_医疗` | 医疗 text 200/50 |
-| U-L1-A3 | ✅ | `collect --source openalex_能源` | 能源 text 200/50 |
-| U-L1-accept | ✅ | `pnpm cli industry coverage` + U-L1 §四 | 七行业 `l1Ready` |
+**U-L1 运维链（已完结）**：状态/验收真源 → `docs/plans/UODE-L1行业数据采集前置方案.md` §4.1 + `docs/plans/实施进度总览.md` §2.7；本文件**不复制状态表**（防三处漂移）。
 
 虚拟源 collect 前：`pnpm cli config sync`；API collect 须 `serve` 已注册虚拟 connector。
 
 ### 7.2 强制动作（评估/排期/汇报「下一步」时）
 
 1. 新代号（A2、步骤 N、阶段 B）→ **同一主题**内在 §2.7 或专题方案 **增表行**（ID · 命令 · 完成标准）；禁止只在对话/变更记录裸写。
-2. **`rg` 查冲突**：`rg '^\| \*\*A2\*\*' docs/plans/实施进度总览.md` — §3 已占用则必须用 **`U-L1-A2`** 等同轨前缀。
+2. **`rg` 查冲突**：`rg -n '^\| (\*\*)?A2\b' docs/plans/实施进度总览.md`（ID 加粗与未加粗均可命中；勿用只配粗体的旧式命令）— §3 已占用则必须用 **`U-L1-A2`** 等同轨前缀。
 3. 代码 commit 引用了未登记 ID → **doc-progress-sync 违规**；须同批或紧邻 docs commit。
 4. 运维任务勾 ✅ 须附验收命令（如 `pnpm cli industry coverage --tag 医疗`）；**U-L1-8 工具 ✅ ≠ 灌库 ✅**。
 

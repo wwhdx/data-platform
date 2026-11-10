@@ -1,4 +1,5 @@
 {
+  "$schema": "https://opencode.ai/config.json",
   "instructions": [
     ".cursor/rules/ai-task-integration.mdc",
     ".cursor/rules/doc-progress-sync.mdc",

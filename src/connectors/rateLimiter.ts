@@ -23,7 +23,7 @@ export class RateLimiter {
 
     if (this.tokens < 1) {
       const waitMs = Math.ceil(((1 - this.tokens) / this.refillRate) * 1000);
-      await sleep(Math.max(waitMs, this.minIntervalMs));
+      await sleep(scaledDelayMs(Math.max(waitMs, this.minIntervalMs)));
       this.refill();
     }
 
@@ -32,7 +32,7 @@ export class RateLimiter {
 
   async sleepMinInterval(): Promise<void> {
     if (this.minIntervalMs > 0) {
-      await sleep(this.minIntervalMs);
+      await sleep(scaledDelayMs(this.minIntervalMs));
     }
   }
 
@@ -57,4 +57,16 @@ export class RateLimiter {
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * 按 `DATA_PLATFORM_RATE_LIMIT_SCALE` 缩放等待毫秒（未设/非法 = 1）。
+ * 用于测试/压测加速：vitest 全局设 0.001，使连接器限速等待从秒级降到毫秒级。
+ */
+export function scaledDelayMs(ms: number): number {
+  if (ms <= 0) return 0;
+  const raw = process.env.DATA_PLATFORM_RATE_LIMIT_SCALE?.trim();
+  const scale = raw ? Number(raw) : 1;
+  const effective = Number.isFinite(scale) && scale > 0 ? scale : 1;
+  return effective === 1 ? ms : Math.max(1, Math.ceil(ms * effective));
 }

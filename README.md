@@ -384,15 +384,15 @@ pnpm cli config list              # 按 DB 查看源状态
 
 ## 运维与发布
 
-### 每日数据报表（GitHub Pages）
+### 内部数据报表（report.farview.cn）
 
-`.github/workflows/report.yml` 方案 B：每日 20:00 UTC（北京时间次日 04:00，避开整点高峰）跑
+报表由 tx-cloud 上的 `farview-report` 容器生成，Caddy + Authentik 托管，**不再使用 GitHub Pages**：
 
-1. `pnpm cli config validate`（与 app 门闸同源）
-2. `node --import tsx scripts/generate-report.mjs` → 产出 `reports/data.json` + 自包含 HTML
-3. `actions/upload-pages-artifact` → 部署到 GitHub Pages
+```bash
+pnpm report -- --out reports   # 本地生成 reports/report.json + 静态 UI
+```
 
-`push master` 与 `workflow_dispatch` 也触发。同一时间 `concurrency: pages` 防并发。详见 `scripts/generate-report.mjs` 与 `docs/plans/实施进度总览.md` 中对应任务条目。
+部署、DNS 与鉴权见 [`deploy/report/README.md`](deploy/report/README.md)、[`docs/plans/数据报表站点设计方案.md`](docs/plans/数据报表站点设计方案.md)。
 
 ### CI / 自动合并
 
@@ -411,6 +411,7 @@ pnpm cli config list              # 按 DB 查看源状态
 
 | 日期 | 说明 |
 |------|------|
+| 2026-11-10 | 报表：GitHub Pages → `report.farview.cn` 内部站点（Authentik；tx-cloud Docker 生成；每源 3 样本；REP 轨）。 |
 | 2026-09-08 (#7) | 运维：`auto-merge` / `dependabot-auto-merge` 竞态修复说明补入「CI / 自动合并」小节（收敛等待 / 定向 dispatch / cron 兜底）。 |
 | 2026-08-29 (v0.2) | 文档同步：架构图补 30+ 源 / UODE 机遇引擎 / 10 catalog + industry_dimension；目录树同步 15 个子系统（cli/api/connectors/processors/rag/storage/scheduler/collect/industry/uode/export/client/adapters/config/lib）；API 端点表补 `industry-*` / `opportunity-*`；EMBED 后端补 `mock`；新增 `运维与发布` 章节（Pages 报表 / CI / 文档同步）。代码与设计真源仍以 [docs/design.md §零](./docs/design.md#零设计大纲当前态摘要) / [docs/plans/实施进度总览.md](./docs/plans/实施进度总览.md) 为准。 |
 | 2026-08-26 (#2) | 顶部一行 overview 句子 |
