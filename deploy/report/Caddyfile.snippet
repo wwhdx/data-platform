@@ -15,7 +15,8 @@ report.farview.cn {
 
     @noStore path / /index.html /report.json /sources/* /api/*
     header @noStore Cache-Control "no-store"
-    header /api/v1/samples.ndjson Content-Type "application/x-ndjson"
+    @ndjson path /api/v1/samples.ndjson
+    header @ndjson Content-Type "application/x-ndjson"
     @assets path /assets/*
     header @assets Cache-Control "public, max-age=3600"
 
