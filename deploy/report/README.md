@@ -75,6 +75,8 @@ docker exec openhands-caddy caddy validate --config /etc/caddy/Caddyfile
 docker exec openhands-caddy caddy reload --config /etc/caddy/Caddyfile
 ```
 
+> **重要**：`openhands-caddy` 以**文件 bind mount** 挂载 Caddyfile；`sed -i` 会替换 inode，容器内仍指向旧文件。修改后需 `docker restart openhands-caddy` 再 validate/reload，否则会出现“宿主机已改、容器仍跑旧配置”。
+
 ## 6. 验收
 
 ```bash
