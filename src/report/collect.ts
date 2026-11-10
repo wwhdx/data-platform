@@ -30,9 +30,11 @@ const VIRTUAL_SUPPORTED_BASES = new Set([
 const SAMPLE_LIMIT = 3;
 const CONCURRENCY = 4;
 const SOURCE_TIMEOUT_MS = 45_000;
+const SLOW_SOURCE_TIMEOUT_MS = 90_000;
 const TIMEOUT_MS = 10_000;
 const SLOW_TIMEOUT_MS = 20_000;
 const SLOW_SOURCES = new Set(["arxiv_oai", "biorxiv_oai", "medrxiv_oai", "wipo", "oecd", "faostat"]);
+const SLOW_SOURCE_IDS = new Set(["arxiv_oai", "biorxiv_oai", "medrxiv_oai", "ecb", "ecb_农业", "eurostat_食品安全", "oecd", "faostat", "wipo"]);
 
 interface ReportOptions {
   root: string;
@@ -159,7 +161,10 @@ export async function buildReport(options: ReportOptions): Promise<ReportDocumen
     const startedAt = Date.now();
     console.log(`[report] start ${row.sourceId}`);
     try {
-      const result = await withTimeout(buildSource(row), SOURCE_TIMEOUT_MS, row.sourceId);
+      const timeout = SLOW_SOURCE_IDS.has(row.sourceId)
+        ? SLOW_SOURCE_TIMEOUT_MS
+        : SOURCE_TIMEOUT_MS;
+      const result = await withTimeout(buildSource(row), timeout, row.sourceId);
       console.log(`[report] done  ${row.sourceId} ${Date.now() - startedAt}ms`);
       return result;
     } catch (err) {
