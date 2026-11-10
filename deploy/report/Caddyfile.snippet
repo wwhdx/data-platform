@@ -13,8 +13,9 @@ report.farview.cn {
     header X-Robots-Tag "noindex, nofollow"
     header Content-Security-Policy "default-src 'none'; style-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 
-    @html path / /index.html /report.json
-    header @html Cache-Control "no-store"
+    @noStore path / /index.html /report.json /sources/* /api/*
+    header @noStore Cache-Control "no-store"
+    header /api/v1/samples.ndjson Content-Type "application/x-ndjson"
     @assets path /assets/*
     header @assets Cache-Control "public, max-age=3600"
 

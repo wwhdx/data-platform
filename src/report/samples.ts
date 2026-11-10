@@ -9,8 +9,8 @@ export interface CollectedSample {
 }
 
 /**
- * 先走 search（轻量、通常 1 次请求）；空结果再走 collect。
- * 单源失败只返回错误，不抛出，避免一个源拖垮整张报表。
+ * 指标类源优先 collect（带数值/单位/周期），失败再退回 search；
+ * 其他源优先 search（轻量），空结果再 collect。单源失败不抛出。
  */
 export async function collectSample(
   connector: BaseConnector,
@@ -19,30 +19,46 @@ export async function collectSample(
   maxItems = 3,
 ): Promise<CollectedSample> {
   let searchError: string | null = null;
-  try {
-    const results = await connector.search(query, { maxResults: maxItems });
-    if (results.length > 0) {
-      return { items: results.slice(0, maxItems).map(formatSearchItem), error: null };
+  let collectError: string | null = null;
+
+  const runSearch = async (): Promise<ReportSampleItem[]> => {
+    try {
+      const results = await connector.search(query, { maxResults: maxItems });
+      return results.slice(0, maxItems).map(formatSearchItem);
+    } catch (err) {
+      searchError = sanitizeError(err);
+      return [];
     }
-  } catch (err) {
-    searchError = sanitizeError(err);
+  };
+
+  const runCollect = async (): Promise<ReportSampleItem[]> => {
+    try {
+      const items: ReportSampleItem[] = [];
+      for await (const doc of connector.collect({ query, maxItems })) {
+        items.push(formatRawItem(doc, kind, connector.meta.name));
+        if (items.length >= maxItems) break;
+      }
+      return items;
+    } catch (err) {
+      collectError = sanitizeError(err);
+      return [];
+    }
+  };
+
+  if (kind === "indicator") {
+    const collected = await runCollect();
+    if (collected.length > 0) return { items: collected, error: null };
+    const searched = await runSearch();
+    if (searched.length > 0) return { items: searched, error: null };
+  } else {
+    const searched = await runSearch();
+    if (searched.length > 0) return { items: searched, error: null };
+    const collected = await runCollect();
+    if (collected.length > 0) return { items: collected, error: null };
   }
 
-  try {
-    const items: ReportSampleItem[] = [];
-    for await (const doc of connector.collect({ query, maxItems })) {
-      items.push(formatRawItem(doc, kind, connector.meta.name));
-      if (items.length >= maxItems) break;
-    }
-    if (items.length > 0) return { items, error: null };
-    return {
-      items: [],
-      error: searchError ?? "未返回样本（search/collect 均为空）",
-    };
-  } catch (err) {
-    return {
-      items: [],
-      error: searchError ?? sanitizeError(err),
-    };
-  }
+  return {
+    items: [],
+    error: collectError ?? searchError ?? "未返回样本（search/collect 均为空）",
+  };
 }
