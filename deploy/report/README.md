@@ -21,7 +21,7 @@ chmod 600 /home/ubuntu/work/projects/farview-report/.env.report
 git clone git@github.com:wwhdx/data-platform.git \
   /home/ubuntu/work/projects/data-platform
 cd /home/ubuntu/work/projects/data-platform
-git checkout feat/report-mvp
+git checkout master && git pull
 
 # tx-cloud 访问 Docker Hub 偶发超时；可先用镜像站拉基础镜像
 # docker pull mirror.ccs.tencentyun.com/library/node:20-alpine
@@ -29,6 +29,9 @@ git checkout feat/report-mvp
 
 docker build -f Dockerfile.report -t farview-report:latest .
 ```
+
+> 首次部署时若报表代码尚未并入 `master`（还停留在实装分支），先显式检出该分支构建，
+> 或用 `REPORT_BRANCH=<分支>` 覆盖 `update-report.sh` 的默认值；合并后默认跟 `master`。
 
 后续更新：
 
