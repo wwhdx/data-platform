@@ -22,6 +22,11 @@ git clone git@github.com:wwhdx/data-platform.git \
   /home/ubuntu/work/projects/data-platform
 cd /home/ubuntu/work/projects/data-platform
 git checkout feat/report-mvp
+
+# tx-cloud 访问 Docker Hub 偶发超时；可先用镜像站拉基础镜像
+# docker pull mirror.ccs.tencentyun.com/library/node:20-alpine
+# docker tag mirror.ccs.tencentyun.com/library/node:20-alpine node:20-alpine
+
 docker build -f Dockerfile.report -t farview-report:latest .
 ```
 
