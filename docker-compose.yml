@@ -85,6 +85,9 @@ services:
       EMBED_API_URL: http://ollama:11434
       NODE_ENV: production
       PORT: "3400"
+      # 容器内无 IPv6 路由：Node happy-eyeballs 对多地址域名
+      #（如 ec.europa.eu 2×v4+2×v6）会 ETIMEDOUT，须关闭自动选族
+      NODE_OPTIONS: --no-network-family-autoselection
     volumes:
       - ./config:/app/config:ro
       - ./data/raw:/data/raw
