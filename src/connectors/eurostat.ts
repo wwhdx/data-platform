@@ -11,7 +11,6 @@ import { BaseConnector } from "./base";
 import { RateLimiter } from "./rateLimiter";
 import {
   EUROSTAT_CORE_QUERIES,
-  buildEurostatAccessibleUrl,
   buildEurostatCanonicalUrl,
   buildEurostatDataParams,
   buildEurostatDataPath,
@@ -140,10 +139,8 @@ export class EurostatConnector extends BaseConnector {
       if (!first) continue;
       results.push({
         title: String(first.rawJson.title),
-        url: buildEurostatAccessibleUrl(
-          item.code,
-          (first.rawJson.dimensions as Record<string, string>) ?? {},
-        ),
+        // 结果列表优先指向 Data Browser 表格页；原始 API URL 仅供采集内部使用。
+        url: buildEurostatCanonicalUrl(item.code),
         snippet: String(first.rawJson.abstract ?? "").slice(0, 300),
         sourceId: EUROSTAT_META.id,
         sourceName: EUROSTAT_META.name,

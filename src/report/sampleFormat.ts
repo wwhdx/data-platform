@@ -1,6 +1,7 @@
 import type { RawDocument, SearchResult } from "../types";
 import type { ReportSampleField, ReportSampleItem, ReportSampleKind } from "./types";
-import { sanitizeUrl, truncate } from "./sanitize";
+import { truncate } from "./sanitize";
+import { humanUrl } from "./urlKind";
 
 type Raw = Record<string, unknown>;
 
@@ -50,19 +51,19 @@ function compact(fields: Array<ReportSampleField | null>): ReportSampleField[] {
   return fields.filter((f): f is ReportSampleField => Boolean(f));
 }
 
-function pickUrl(raw: Raw): string | null {
-  const direct = sanitizeUrl(pickString(raw, ["url", "landing_page_url", "html_url", "link", "source_url"]));
-  if (direct) return direct;
-  const doi = pickString(raw, ["doi", "DOI"]);
-  if (doi) return sanitizeUrl(doi.startsWith("10.") ? `https://doi.org/${doi}` : doi);
-  return null;
+function pickDate(raw: Raw): string | null {
+  return pickString(raw, ["publishedAt", "published_at", "publication_date", "published", "date", "period", "time", "updated_at", "updatedAt"]);
 }
 
-function pickDate(raw: Raw): string | null {
-  return pickString(raw, [
-    "publishedAt", "published_at", "publication_date", "published",
-    "date", "period", "time", "updated_at", "updatedAt",
-  ]);
+function pickUrl(doc: RawDocument, raw: Raw): string | null {
+  const direct = pickString(raw, ["url", "landing_page_url", "html_url", "link", "source_url"]);
+  const doi = pickString(raw, ["doi", "DOI"]);
+  // provenance.canonicalUrl 是连接器声明的「人类页面」，优先于 API URL。
+  const candidates = [
+    doc.fetchProvenance?.canonicalUrl, direct,
+    doi ? (doi.startsWith("10.") ? `https://doi.org/${doi}` : doi) : null,
+  ];
+  return candidates.map(humanUrl).find((url): url is string => Boolean(url)) ?? null;
 }
 
 function pickSnippet(raw: Raw): string | null {
@@ -73,7 +74,7 @@ function pickSnippet(raw: Raw): string | null {
 export function formatSearchItem(result: SearchResult): ReportSampleItem {
   return {
     title: truncate(result.title || result.sourceName || "未命名条目", 240),
-    url: sanitizeUrl(result.url),
+    url: humanUrl(result.url),
     publishedAt: result.publishedAt ?? null,
     snippet: result.snippet ? truncate(result.snippet, 300) : null,
     fields: [],
@@ -90,12 +91,12 @@ export function formatRawItem(
     "title", "name", "display_name", "indicator_name", "series_title",
     "dataset_name", "headline", "label",
   ]) ?? doc.externalId ?? fallbackTitle;
-  let url = pickUrl(raw);
+  let url = pickUrl(doc, raw);
   if (!url && kind === "indicator") {
     const code = pickString(raw, ["indicator_code", "series_key"]);
     const country = pickString(raw, ["country_code", "countryiso3code"]);
     if (code) {
-      url = sanitizeUrl(
+      url = humanUrl(
         `https://data.worldbank.org/indicator/${encodeURIComponent(code)}${country ? `?locations=${encodeURIComponent(country)}` : ""}`,
       );
     }

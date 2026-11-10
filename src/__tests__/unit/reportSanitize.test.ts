@@ -13,6 +13,14 @@ describe("report sanitize", () => {
     ).toBe("https://api.example.com/x?api_key=***&q=1");
   });
 
+  it("redacts BEA UserID query param", () => {
+    expect(
+      sanitizeUrl(
+        "https://apps.bea.gov/api/data/?UserID=test-user-id&method=GetData",
+      ),
+    ).toBe("https://apps.bea.gov/api/data/?UserID=***&method=GetData");
+  });
+
   it("collapses duplicated DOI prefix", () => {
     expect(
       sanitizeUrl("https://doi.org/https://doi.org/10.1000/xyz"),
@@ -28,6 +36,7 @@ describe("report sanitize", () => {
     expect(redactSecrets("x?token=abc&q=1 Authorization: Bearer xyz")).toBe(
       "x?token=***&q=1 Authorization: Bearer ***",
     );
+    expect(redactSecrets("UserID=test-user-id BEA failed")).toBe("UserID=*** BEA failed");
   });
 
   it("truncates long text", () => {

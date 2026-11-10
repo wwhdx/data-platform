@@ -63,4 +63,35 @@ describe("report sample format", () => {
     expect(item.snippet).toBe("A short abstract");
     expect(item.fields.some((f) => f.label === "引用")).toBe(true);
   });
+
+  it("prefers provenance canonical URL over a raw API URL", () => {
+    const doc: RawDocument = {
+      sourceId: "bea",
+      externalId: "bea:NIPA:T10101:1:2025",
+      fetchedAt: new Date(),
+      rawJson: { title: "GDP", value: "1" },
+      fetchProvenance: {
+        provenanceSchemaVersion: 1,
+        capturedAt: new Date().toISOString(),
+        connectorId: "bea",
+        canonicalUrl: "https://apps.bea.gov/iTable/?reqid=19",
+      },
+    };
+    const item = formatRawItem(doc, "indicator", "BEA");
+    expect(item.url).toBe("https://apps.bea.gov/iTable/?reqid=19");
+  });
+
+  it("hides raw API URLs from search samples", () => {
+    const item = formatSearchItem({
+      title: "BEA table",
+      url: "https://apps.bea.gov/api/data/?UserID=secret&method=GetData",
+      snippet: "NIPA",
+      sourceId: "bea",
+      sourceName: "BEA",
+      score: 0,
+      license: "Public Domain",
+      commercialUse: true,
+    } satisfies SearchResult);
+    expect(item.url).toBeNull();
+  });
 });

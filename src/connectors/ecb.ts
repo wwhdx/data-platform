@@ -10,7 +10,6 @@ import { BaseConnector } from "./base";
 import { RateLimiter } from "./rateLimiter";
 import {
   ECB_CORE_QUERIES,
-  buildEcbAccessibleUrl,
   buildEcbCanonicalUrl,
   buildEcbDataParams,
   buildEcbDataPath,
@@ -143,7 +142,8 @@ export class EcbConnector extends BaseConnector {
       if (!first) continue;
       results.push({
         title: String(first.rawJson.title),
-        url: buildEcbAccessibleUrl(this.runtimeBaseUrl, item),
+        // 结果列表指向 ECB 数据集页；SDMX API URL 只用于内部采集。
+        url: buildEcbCanonicalUrl(item),
         snippet: String(first.rawJson.abstract ?? "").slice(0, 300),
         sourceId: ECB_META.id,
         sourceName: ECB_META.name,

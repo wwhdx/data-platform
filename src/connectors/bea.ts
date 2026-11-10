@@ -114,7 +114,7 @@ export class BeaConnector extends BaseConnector {
       if (!first) continue;
       results.push({
         title: String(first.rawJson.title),
-        url: buildBeaDataUrl(this.apiKey, item),
+        url: buildBeaCanonicalUrl(item), // 不带 UserID 的人类页面
         snippet: String(first.rawJson.value ?? "").slice(0, 300),
         sourceId: BEA_META.id,
         sourceName: BEA_META.name,

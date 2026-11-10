@@ -3,7 +3,8 @@ import type { ExpandedSourceConfig } from "../config/types";
 import type { ScheduleReportRow } from "../scheduler/scheduleReport";
 import { SOURCE_CREDENTIAL_SPECS } from "../connectors/credentials";
 import { CONNECTOR_REGISTRY, fallbackQueryFor, sampleKindFor } from "./catalog";
-import { sanitizeError } from "./sanitize";
+import { sanitizeError, sanitizeUrl } from "./sanitize";
+import { isDataApiUrl } from "./urlKind";
 import type {
   ReportProbeInfo,
   ReportSampleInfo,
@@ -25,7 +26,13 @@ export function readCache(file?: string): Map<string, ReportSampleInfo> {
     const data = JSON.parse(fs.readFileSync(file, "utf8")) as CacheFile;
     const map = new Map<string, ReportSampleInfo>();
     for (const row of data.sources ?? []) {
-      if (row.id && row.sample) map.set(row.id, row.sample);
+      if (!row.id || !row.sample) continue;
+      // 旧缓存可能保存了 API URL（BEA UserID 等）；读入时统一剔除。
+      const items = (row.sample.items ?? []).map((item) => {
+        const url = sanitizeUrl(item.url);
+        return { ...item, url: url && !isDataApiUrl(url) ? url : null };
+      });
+      map.set(row.id, { ...row.sample, items });
     }
     return map;
   } catch {

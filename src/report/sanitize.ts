@@ -1,5 +1,5 @@
 const SECRET_PARAM =
-  /^(api[_-]?key|apikey|key|token|access[_-]?token|secret|authorization|auth)$/i;
+  /^(api[_-]?key|apikey|key|token|access[_-]?token|secret|authorization|auth|user[_-]?id|access[_-]?key|subscription[_-]?key|client[_-]?secret)$/i;
 
 /** 只保留 http(s) URL；移除命中敏感键的查询参数值，去掉 userinfo。 */
 export function sanitizeUrl(value: string | null | undefined): string | null {
@@ -25,7 +25,7 @@ export function sanitizeUrl(value: string | null | undefined): string | null {
 export function redactSecrets(input: string): string {
   return input
     .replace(
-      /(api[_-]?key|apikey|token|access[_-]?token|secret)\s*[=:]\s*[^&\s,;]+/gi,
+      /(api[_-]?key|apikey|token|access[_-]?token|secret|user[_-]?id|access[_-]?key|subscription[_-]?key|client[_-]?secret)\s*[=:]\s*[^&\s,;]+/gi,
       "$1=***",
     )
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer ***");

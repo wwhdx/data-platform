@@ -19,6 +19,7 @@ export interface ReportSampleField {
 
 export interface ReportSampleItem {
   title: string;
+  /** 人类可读页面；API URL 与带密钥的链接会被剔除 */
   url: string | null;
   publishedAt: string | null;
   snippet: string | null;

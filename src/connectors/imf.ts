@@ -10,7 +10,6 @@ import { BaseConnector } from "./base";
 import { RateLimiter } from "./rateLimiter";
 import {
   IMF_CORE_QUERIES,
-  buildImfAccessibleUrl,
   buildImfCanonicalUrl,
   buildImfDataParams,
   buildImfDataPath,
@@ -139,7 +138,8 @@ export class ImfConnector extends BaseConnector {
       if (!first) continue;
       results.push({
         title: String(first.rawJson.title),
-        url: buildImfAccessibleUrl(this.runtimeBaseUrl, item),
+        // 结果列表指向 IMF 数据页；SDMX API URL 只用于内部采集。
+        url: buildImfCanonicalUrl(item),
         snippet: String(first.rawJson.abstract ?? "").slice(0, 300),
         sourceId: IMF_META.id,
         sourceName: IMF_META.name,
