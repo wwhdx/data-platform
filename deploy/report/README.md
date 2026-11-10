@@ -1,0 +1,88 @@
+# report.farview.cn — 服务器部署
+
+> 设计真源：[`docs/plans/数据报表站点设计方案.md`](../../docs/plans/数据报表站点设计方案.md)  
+> 鉴权：Authentik forward_auth（组 `farview-ops`）  
+> 数据：每源 3 条样本；生成失败保留上一份成功 `report.json`。
+
+## 1. 准备服务器目录
+
+```bash
+mkdir -p /home/ubuntu/work/projects/farview-report/{data,cache,logs}
+cp deploy/report/run-report.sh /home/ubuntu/work/projects/farview-report/
+chmod +x /home/ubuntu/work/projects/farview-report/run-report.sh
+cp deploy/report/.env.report.example /home/ubuntu/work/projects/farview-report/.env.report
+chmod 600 /home/ubuntu/work/projects/farview-report/.env.report
+# 编辑 .env.report，填写实际 Key；不要提交
+```
+
+## 2. 克隆代码并构建镜像
+
+```bash
+git clone git@github.com:wwhdx/data-platform.git \
+  /home/ubuntu/work/projects/data-platform
+cd /home/ubuntu/work/projects/data-platform
+git checkout feat/report-mvp
+docker build -f Dockerfile.report -t farview-report:latest .
+```
+
+后续更新：
+
+```bash
+/home/ubuntu/work/projects/farview-report/update-report.sh
+```
+
+## 3. 首次生成
+
+```bash
+/home/ubuntu/work/projects/farview-report/run-report.sh
+ls -lh /home/ubuntu/work/projects/farview-report/data/report.json
+```
+
+产物：
+
+```text
+data/index.html
+data/assets/app.js
+data/assets/styles.css
+data/report.json
+cache/report.json      # 上次成功样本，不对外
+```
+
+## 4. Cron
+
+```cron
+30 12 * * * /home/ubuntu/work/projects/farview-report/run-report.sh >> /home/ubuntu/work/projects/farview-report/logs/report.log 2>&1
+```
+
+北京时间 12:30，晚于 03:00 UTC 的采集批次。
+
+## 5. Caddy + Authentik
+
+1. 将 [`Caddyfile.snippet`](./Caddyfile.snippet) 追加到  
+   `/home/ubuntu/work/projects/openhands-assets/Caddyfile`；
+2. DNS 添加 `report.farview.cn A <tx-cloud IP>`；
+3. 在 Authentik 中创建组 `farview-ops`、Proxy Provider（`https://report.farview.cn`，Forward auth）与 Application；
+4. 将 Provider 加入 Embedded Outpost；
+5. 校验并 reload：
+
+```bash
+docker exec openhands-caddy caddy validate --config /etc/caddy/Caddyfile
+docker exec openhands-caddy caddy reload --config /etc/caddy/Caddyfile
+```
+
+## 6. 验收
+
+```bash
+curl -sSI https://report.farview.cn/ | head
+# 未登录应 302 到 auth.farview.cn
+```
+
+登录后应看到 KPI、筛选和每个源的 3 条样本（无凭证/失败的源显示原因）。
+
+## 7. 安全
+
+- `.env.report` 仅服务器、`600`；
+- `report.json` 不含 Key；URL/错误已脱敏；
+- 容器 `--read-only`、`--cap-drop ALL`、非 root；
+- 不挂 Docker socket；
+- 日志不记录 Key。

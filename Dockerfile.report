@@ -1,0 +1,20 @@
+# report.farview.cn 报表生成镜像（Node 20 + data-platform 源码 + 静态 UI）
+FROM node:20-alpine
+
+WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@9 --activate
+
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+COPY tsconfig.json ./
+COPY src ./src
+COPY scripts ./scripts
+COPY config ./config
+COPY report-ui ./report-ui
+
+ENV NODE_ENV=production
+ENV HOME=/tmp
+USER node
+
+CMD ["node", "--import", "tsx", "scripts/generate-report.mjs", "--out", "/out", "--cache", "/cache/report.json"]

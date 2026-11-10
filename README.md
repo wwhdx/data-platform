@@ -384,15 +384,15 @@ pnpm cli config list              # 按 DB 查看源状态
 
 ## 运维与发布
 
-### 每日数据报表（GitHub Pages）
+### 内部数据报表（report.farview.cn）
 
-`.github/workflows/report.yml` 方案 B：每日 20:00 UTC（北京时间次日 04:00，避开整点高峰）跑
+报表由 tx-cloud 上的 `farview-report` 容器生成，Caddy + Authentik 托管，**不再使用 GitHub Pages**：
 
-1. `pnpm cli config validate`（与 app 门闸同源）
-2. `node --import tsx scripts/generate-report.mjs` → 产出 `reports/data.json` + 自包含 HTML
-3. `actions/upload-pages-artifact` → 部署到 GitHub Pages
+```bash
+pnpm report -- --out reports   # 本地生成 reports/report.json + 静态 UI
+```
 
-`push master` 与 `workflow_dispatch` 也触发。同一时间 `concurrency: pages` 防并发。详见 `scripts/generate-report.mjs` 与 `docs/plans/实施进度总览.md` 中对应任务条目。
+部署、DNS 与鉴权见 [`deploy/report/README.md`](deploy/report/README.md)、[`docs/plans/数据报表站点设计方案.md`](docs/plans/数据报表站点设计方案.md)。
 
 ### CI / 自动合并
 

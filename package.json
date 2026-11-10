@@ -29,7 +29,8 @@
     "test:smoke": "pnpm test:api",
     "smoke:live": "pnpm test:live",
     "e2e:loop": "bash scripts/e2e-loop.sh",
-    "lint:docs": "bash scripts/doc-lint.sh"
+    "lint:docs": "bash scripts/doc-lint.sh",
+    "report": "node --import tsx scripts/generate-report.mjs"
   },
   "dependencies": {
     "@google-cloud/bigquery": "^8.3.1",

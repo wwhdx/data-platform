@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>望野 · 数据采集报表</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="https://farview.cn">望野<span>Farview</span></a>
+    <div class="topbar-meta">
+      <span id="env" class="env"></span>
+      <span id="generated" class="muted"></span>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="hero">
+      <p class="eyebrow">DATA PLATFORM / SOURCE REPORT</p>
+      <h1>数据采集报表</h1>
+      <p class="lede">每个数据源的探活、凭证与最近样本；生成于 tx-cloud，仅内部可见。</p>
+    </section>
+
+    <section id="kpis" class="kpis" aria-label="核心指标"></section>
+
+    <section id="warnings" class="warnings" aria-label="需要关注" hidden></section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>数据源</h2>
+        <span id="count" class="count" aria-live="polite"></span>
+      </div>
+
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="搜索源 / 行业 / 协议 / 样本标题…" autocomplete="off">
+        <select id="status" aria-label="状态筛选">
+          <option value="">全部状态</option>
+          <option value="healthy">探活正常</option>
+          <option value="degraded">降级 / 限流</option>
+          <option value="error">探活失败</option>
+          <option value="skipped">未探活 / 未启用</option>
+        </select>
+        <select id="industry" aria-label="行业筛选"><option value="">全部行业</option></select>
+        <select id="protocol" aria-label="协议筛选"><option value="">全部协议</option></select>
+        <label class="check"><input id="withSample" type="checkbox"> 只看有样本</label>
+      </div>
+
+      <div id="sources" class="sources"></div>
+      <p id="empty" class="empty" hidden>没有匹配的数据源。</p>
+    </section>
+
+    <footer class="footer">
+      <span>data-platform report · 由 <code>scripts/generate-report.mjs</code> 生成</span>
+      <span><a href="/report.json">report.json</a> · <a href="https://farview.cn">farview.cn</a></span>
+    </footer>
+  </main>
+
+  <noscript>
+    <p class="noscript">需要启用 JavaScript 才能渲染报表。可直接查看 <a href="/report.json">report.json</a>。</p>
+  </noscript>
+  <script type="module" src="/assets/app.js"></script>
+</body>
+</html>
