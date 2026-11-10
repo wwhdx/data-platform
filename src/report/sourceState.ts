@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import type { ExpandedSourceConfig } from "../config/types";
+import type { ScheduleReportRow } from "../scheduler/scheduleReport";
 import { SOURCE_CREDENTIAL_SPECS } from "../connectors/credentials";
-import { CONNECTOR_REGISTRY, fallbackQueryFor } from "./catalog";
+import { CONNECTOR_REGISTRY, fallbackQueryFor, sampleKindFor } from "./catalog";
+import { sanitizeError } from "./sanitize";
 import type {
   ReportProbeInfo,
   ReportSampleInfo,
@@ -78,6 +80,34 @@ export function summarize(sources: ReportSource[]): ReportSummary {
     samplesFailed: enabled.filter((s) => !s.sample.ok).length,
     credentialMissing: enabled.filter((s) => s.credential.required && !s.credential.configured).length,
     industries: industries.size,
+  };
+}
+
+/** 单源硬超时/异常时的降级行：保留源元数据，样本标记为失败。 */
+export function fallbackSource(
+  row: ScheduleReportRow,
+  source: ExpandedSourceConfig | undefined,
+  err: unknown,
+): ReportSource {
+  const baseId = source?.connector?.trim() || row.sourceId;
+  const enabled = row.yamlEnabled === true;
+  const message = sanitizeError(err);
+  return {
+    id: row.sourceId,
+    name: source?.name ?? row.sourceId,
+    connector: baseId,
+    virtual: Boolean(source?.connector),
+    enabled,
+    industry: source?.industry_tag ?? null,
+    protocol: source?.protocol ?? null,
+    license: source?.license ?? null,
+    commercialUse: source?.commercial_use === true,
+    cron: enabled ? row.cronExpr ?? null : null,
+    nextRunAt: enabled ? row.nextRunAt ?? null : null,
+    credential: credentialInfo(baseId),
+    probe: skippedProbe("单源超时/异常，未完成"),
+    sample: emptySample(sampleKindFor(baseId), message),
+    error: message,
   };
 }
 

@@ -1,7 +1,7 @@
 import path from "node:path";
 import { parseConfigFile, loadConfigFromFile } from "../config/loader";
 import { setExpandedSources } from "../config/runtime";
-import { buildScheduleReport, attachNextRunTimes } from "../scheduler/scheduleReport";
+import { buildScheduleReport, attachNextRunTimes, type ScheduleReportRow } from "../scheduler/scheduleReport";
 import { REGISTERED_CONNECTOR_IDS } from "../connectors/bootstrap";
 import { validateCredentialsForCollect } from "../connectors/credentials";
 import { resolveConnectorConfig } from "../connectors/factory";
@@ -10,10 +10,12 @@ import type { ReportDocument, ReportProbeInfo, ReportSampleInfo, ReportSource } 
 import { CONNECTOR_REGISTRY, sampleKindFor } from "./catalog";
 import { collectSample } from "./samples";
 import { redactSecrets, sanitizeError, truncate } from "./sanitize";
+import { mapLimit, withTimeout } from "./async";
 import {
   buildWarnings,
   credentialInfo,
   emptySample,
+  fallbackSource,
   nowIso,
   queryFor,
   readCache,
@@ -27,6 +29,7 @@ const VIRTUAL_SUPPORTED_BASES = new Set([
 ]);
 const SAMPLE_LIMIT = 3;
 const CONCURRENCY = 4;
+const SOURCE_TIMEOUT_MS = 45_000;
 const TIMEOUT_MS = 10_000;
 const SLOW_TIMEOUT_MS = 20_000;
 const SLOW_SOURCES = new Set(["arxiv_oai", "biorxiv_oai", "medrxiv_oai", "wipo", "oecd", "faostat"]);
@@ -34,20 +37,6 @@ const SLOW_SOURCES = new Set(["arxiv_oai", "biorxiv_oai", "medrxiv_oai", "wipo",
 interface ReportOptions {
   root: string;
   cacheFile?: string;
-}
-
-async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
-  const out = new Array<R>(items.length);
-  let cursor = 0;
-  const workers = Array.from({ length: Math.min(limit, Math.max(1, items.length)) }, async () => {
-    for (;;) {
-      const index = cursor++;
-      if (index >= items.length) return;
-      out[index] = await fn(items[index], index);
-    }
-  });
-  await Promise.all(workers);
-  return out;
 }
 
 export async function buildReport(options: ReportOptions): Promise<ReportDocument> {
@@ -95,7 +84,7 @@ export async function buildReport(options: ReportOptions): Promise<ReportDocumen
     return task;
   };
 
-  const sources = await mapLimit(rows, CONCURRENCY, async (row): Promise<ReportSource> => {
+  const buildSource = async (row: ScheduleReportRow): Promise<ReportSource> => {
     const source = byId.get(row.sourceId);
     const baseId = source?.connector?.trim() || row.sourceId;
     const entry = CONNECTOR_REGISTRY[baseId];
@@ -164,6 +153,19 @@ export async function buildReport(options: ReportOptions): Promise<ReportDocumen
       sample,
       error: entry ? null : "无已注册 Connector",
     };
+  };
+
+  const sources = await mapLimit(rows, CONCURRENCY, async (row) => {
+    const startedAt = Date.now();
+    console.log(`[report] start ${row.sourceId}`);
+    try {
+      const result = await withTimeout(buildSource(row), SOURCE_TIMEOUT_MS, row.sourceId);
+      console.log(`[report] done  ${row.sourceId} ${Date.now() - startedAt}ms`);
+      return result;
+    } catch (err) {
+      console.log(`[report] fail  ${row.sourceId} ${sanitizeError(err)}`);
+      return fallbackSource(row, byId.get(row.sourceId), err);
+    }
   });
 
   return {

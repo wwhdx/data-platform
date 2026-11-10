@@ -72,7 +72,12 @@ async function main() {
   );
 }
 
-main().catch((err) => {
-  console.error(`[report] 生成失败：${err instanceof Error ? err.message : String(err)}`);
-  process.exitCode = 1;
-});
+main()
+  .then(() => {
+    // 某些源 SDK 会留下未关闭的 socket；确认产物写完后主动退出，避免容器悬挂。
+    setTimeout(() => process.exit(0), 50);
+  })
+  .catch((err) => {
+    console.error(`[report] 生成失败：${err instanceof Error ? err.message : String(err)}`);
+    process.exitCode = 1;
+  });
