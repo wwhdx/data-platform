@@ -7,7 +7,7 @@
 ## 1. 准备服务器目录
 
 ```bash
-mkdir -p /home/ubuntu/work/projects/farview-report/{data,cache,logs}
+mkdir -p /home/ubuntu/work/projects/farview-report/{cache,logs}
 cp deploy/report/run-report.sh /home/ubuntu/work/projects/farview-report/
 chmod +x /home/ubuntu/work/projects/farview-report/run-report.sh
 cp deploy/report/.env.report.example /home/ubuntu/work/projects/farview-report/.env.report
@@ -40,18 +40,20 @@ docker build -f Dockerfile.report -t farview-report:latest .
 
 ```bash
 /home/ubuntu/work/projects/farview-report/run-report.sh
-ls -lh /home/ubuntu/work/projects/farview-report/data/report.json
+docker exec openhands-caddy ls -lh /data/farview-report
 ```
 
-产物：
+产物写入 openhands-caddy 的 `caddy-data` 卷：
 
 ```text
-data/index.html
-data/assets/app.js
-data/assets/styles.css
-data/report.json
+/data/farview-report/index.html
+/data/farview-report/assets/app.js
+/data/farview-report/assets/styles.css
+/data/farview-report/report.json
 cache/report.json      # 上次成功样本，不对外
 ```
+
+> 宿主机路径（只读查看）：`/var/lib/docker/volumes/caddy-data/_data/farview-report/`。
 
 ## 4. Cron
 
