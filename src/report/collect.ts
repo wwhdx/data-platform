@@ -19,6 +19,7 @@ import {
   nowIso,
   queryFor,
   readCache,
+  reuseCachedSample,
   skippedProbe,
   summarize,
 } from "./sourceState";
@@ -128,16 +129,6 @@ export async function buildReport(options: ReportOptions): Promise<ReportDocumen
       }
     }
 
-    const prior = previous.get(row.sourceId);
-    if (!sample.ok && prior?.ok && prior.items.length > 0) {
-      sample = {
-        ...prior,
-        stale: true,
-        error: sample.error,
-        lastSuccessAt: prior.lastSuccessAt ?? prior.fetchedAt,
-      };
-    }
-
     return {
       id: row.sourceId,
       name: source?.name ?? row.sourceId,
@@ -166,10 +157,11 @@ export async function buildReport(options: ReportOptions): Promise<ReportDocumen
         : SOURCE_TIMEOUT_MS;
       const result = await withTimeout(buildSource(row), timeout, row.sourceId);
       console.log(`[report] done  ${row.sourceId} ${Date.now() - startedAt}ms`);
-      return result;
+      return reuseCachedSample(result, previous.get(row.sourceId));
     } catch (err) {
       console.log(`[report] fail  ${row.sourceId} ${sanitizeError(err)}`);
-      return fallbackSource(row, byId.get(row.sourceId), err);
+      const fallback = fallbackSource(row, byId.get(row.sourceId), err);
+      return reuseCachedSample(fallback, previous.get(row.sourceId));
     }
   });
 

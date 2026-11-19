@@ -32,29 +32,28 @@ export async function collectSample(
   };
 
   const runCollect = async (): Promise<ReportSampleItem[]> => {
+    const items: ReportSampleItem[] = [];
     try {
-      const items: ReportSampleItem[] = [];
       for await (const doc of connector.collect({ query, maxItems })) {
         items.push(formatRawItem(doc, kind, connector.meta.name));
         if (items.length >= maxItems) break;
       }
-      return items;
     } catch (err) {
       collectError = sanitizeError(err);
-      return [];
     }
+    return items;
   };
 
   if (kind === "indicator") {
     const collected = await runCollect();
-    if (collected.length > 0) return { items: collected, error: null };
+    if (collected.length > 0) return { items: collected, error: collectError };
     const searched = await runSearch();
     if (searched.length > 0) return { items: searched, error: null };
   } else {
     const searched = await runSearch();
     if (searched.length > 0) return { items: searched, error: null };
     const collected = await runCollect();
-    if (collected.length > 0) return { items: collected, error: null };
+    if (collected.length > 0) return { items: collected, error: collectError };
   }
 
   return {
