@@ -151,6 +151,8 @@ export interface DomainSignal {
 // ── 搜索 ──
 export interface SearchOptions {
   maxResults?: number;
+  /** Opt-in provider ordering; report sampling uses this without changing normal search. */
+  sortBy?: "recent";
   industryTag?: string | null;
   industryStrict?: boolean;
   filters?: {
@@ -171,6 +173,7 @@ export interface SearchResult {
   sourceId: string;
   sourceName: string;
   publishedAt?: string;
+  updatedAt?: string;
   score: number;
   license: string;
   commercialUse: boolean;

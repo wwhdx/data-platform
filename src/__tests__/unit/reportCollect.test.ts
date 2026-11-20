@@ -65,7 +65,7 @@ describe("report collection recovery", () => {
     await vi.advanceTimersByTimeAsync(45_000);
     const report = await pending;
 
-    expect(report.sources[0].sample).toEqual({
+    expect(report.sources[0].sample).toMatchObject({
       ...prior, stale: true, error: "openalex 超过 45000ms，已跳过",
     });
     expect(report.sources[0].error).toContain("45000ms");
@@ -80,7 +80,7 @@ describe("report collection recovery", () => {
 
   it("keeps normal failure recovery and the original cache timestamps", async () => {
     const report = await buildReport({ root, cacheFile });
-    expect(report.sources[0].sample).toEqual({ ...prior, stale: true, error: "empty" });
+    expect(report.sources[0].sample).toMatchObject({ ...prior, stale: true, error: "empty" });
     expect(report.summary.samplesOk).toBe(0);
   });
 

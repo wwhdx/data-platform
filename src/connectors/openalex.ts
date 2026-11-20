@@ -83,7 +83,14 @@ export class OpenAlexConnector extends BaseConnector {
 
   async search(query: string, opts?: SearchOptions): Promise<SearchResult[]> {
     const maxResults = opts?.maxResults ?? 10;
-    const url = `${this.runtimeBaseUrl}/works?search=${encodeURIComponent(query)}&per_page=${maxResults}${this.authParam}`;
+    const params = new URLSearchParams({ search: query, per_page: String(maxResults) });
+    if (opts?.sortBy === "recent") params.set("sort", "publication_date:desc");
+    const dates = [
+      opts?.filters?.dateFrom ? `from_publication_date:${opts.filters.dateFrom}` : "",
+      opts?.filters?.dateTo ? `to_publication_date:${opts.filters.dateTo}` : "",
+    ].filter(Boolean);
+    if (dates.length) params.set("filter", dates.join(","));
+    const url = `${this.runtimeBaseUrl}/works?${params}${this.authParam}`;
 
     const res = await this.fetch(url);
     if (!res.ok) return [];

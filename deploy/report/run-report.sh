@@ -5,6 +5,7 @@ set -euo pipefail
 
 BASE_DIR="${REPORT_BASE_DIR:-/home/ubuntu/work/projects/farview-report}"
 CADDY_DATA_VOLUME="${CADDY_DATA_VOLUME:-caddy-data}"
+IMAGE="${REPORT_IMAGE:-farview-report:latest}"
 mkdir -p "$BASE_DIR/cache" "$BASE_DIR/logs"
 
 docker run --rm --name farview-report \
@@ -14,7 +15,7 @@ docker run --rm --name farview-report \
   --env-file "$BASE_DIR/.env.report" \
   -v "$CADDY_DATA_VOLUME:/caddy-data" \
   -v "$BASE_DIR/cache:/cache" \
-  farview-report:latest \
+  "$IMAGE" \
   node --import tsx scripts/generate-report.mjs \
     --out /caddy-data/farview-report \
     --cache /cache/report.json

@@ -85,6 +85,8 @@ export class YouTubeConnector extends BaseConnector {
     maxResults: number,
     since?: string,
     pageToken?: string,
+    recent = false,
+    until?: string,
   ): Promise<YtSearchListResponse> {
     const apiKey = this.requireApiKey();
     const lang = this.sourceOptions.relevance_language;
@@ -97,6 +99,8 @@ export class YouTubeConnector extends BaseConnector {
       relevanceLanguage:
         typeof lang === "string" && lang.length >= 2 ? lang : undefined,
     });
+    if (recent) sp.set("order", "date");
+    if (until) sp.set("publishedBefore", `${until}T23:59:59Z`);
     const res = await this.fetch(this.apiUrl("search", sp));
     this.assertAuthorizedResponse(res);
     if (!res.ok) return { items: [] };
@@ -138,7 +142,10 @@ export class YouTubeConnector extends BaseConnector {
 
   async search(query: string, opts?: SearchOptions): Promise<SearchResult[]> {
     const max = opts?.maxResults ?? 10;
-    const body = await this.searchList(query, Math.min(max, 50));
+    const body = await this.searchList(
+      query, Math.min(max, 50), opts?.filters?.dateFrom, undefined,
+      opts?.sortBy === "recent", opts?.filters?.dateTo,
+    );
     const items = body.items ?? [];
     if (!this.enrichEnabled()) {
       return items

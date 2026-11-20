@@ -64,10 +64,10 @@ function renderIndicatorTable(items: ReportSampleItem[]): string {
   const rows = items.map((item, index) => {
     const values = fieldMap(item);
     const cells = labels.map((label) => `<td>${esc(values.get(label) ?? "—")}</td>`).join("");
-    return `<tr id="sample-${index + 1}">${cells}</tr>`;
+    return `<tr id="sample-${esc(item.id ?? index + 1)}">${cells}</tr>`;
   }).join("");
   return `<div class="table-wrap"><table class="data-table">
-    <caption>样本观测值 · 最新 ${items.length} 条</caption>
+    <caption>样本观测值 · ${items.length} 条（数据周期不代表发布时间）</caption>
     <thead><tr>${head}</tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
@@ -86,10 +86,12 @@ function renderSampleCards(items: ReportSampleItem[]): string {
     const url = externalUrl(item.url);
     const title = esc(item.title);
     const meta = [
-      item.publishedAt ? esc(item.publishedAt) : "",
+      item.publishedAt ? `发布 ${esc(item.publishedAt)}` : "",
+      item.updatedAt ? `更新 ${esc(item.updatedAt)}` : "",
+      item.period ? `数据周期 ${esc(item.period)}` : "",
       url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">官方页面 ↗</a>` : "",
     ].filter(Boolean).join(" · ");
-    return `<article class="article-sample" id="sample-${index + 1}">
+    return `<article class="article-sample" id="sample-${esc(item.id ?? index + 1)}">
       <h2>${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${title}</a>` : title}</h2>
       ${meta ? `<p class="article-meta">${meta}</p>` : ""}
       ${item.snippet ? `<p class="article-snippet">${esc(item.snippet)}</p>` : ""}
@@ -135,6 +137,9 @@ function renderFacts(source: ReportSource, report: ReportDocument): string {
     ["HTTP / 耗时", `${source.probe.httpStatus ?? "—"} / ${source.probe.latencyMs == null ? "—" : `${source.probe.latencyMs} ms`}`],
     ["检查时间", time(source.probe.checkedAt)],
     ["报表生成", time(report.generatedAt)],
+    ["样本最新内容", source.freshness?.latestContentAt ?? "待确认"],
+    ["样本时效说明", source.freshness?.reason ?? "待确认"],
+    ["样本抓取成功", time(source.sample.lastSuccessAt)],
   ];
   const rows = facts.map(([label, value]) =>
     `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`,

@@ -279,7 +279,7 @@ data-platform search --query "transformer"
 data-platform collect --all
 ```
 
-**命令全表** → [docs/plans/实施进度总览.md](./docs/plans/实施进度总览.md) §2.3（唯一真源）；含通用、per-source、`industry` 与 `config` 子命令。
+**命令全表** → [docs/plans/实施进度总览.md](./docs/plans/实施进度总览.md) §2.3（唯一真源）；含通用、per-source、`industry`、`config` 与数据库报表 `report` 子命令。
 
 ## 常用命令
 

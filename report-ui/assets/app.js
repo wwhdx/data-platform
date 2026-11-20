@@ -1,6 +1,9 @@
 import { renderKpis, renderWarnings, sourceCard } from "./render.js";
+import { GROUP_LABELS } from "./time.js";
 
 const $ = (selector) => document.querySelector(selector);
+let report;
+let cards = new Map();
 const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
 }[char]));
@@ -17,32 +20,63 @@ function applyFilters() {
   const industry = $("#industry").value;
   const protocol = $("#protocol").value;
   const onlySample = $("#withSample").checked;
+  const group = $("#group").value;
+  const order = $("#order").value;
   let visible = 0;
-  const cards = document.querySelectorAll(".source");
-  for (const card of cards) {
+  let lastGroup;
+  const fragment = document.createDocumentFragment();
+  const ids = report.sourceOrders?.[order] ?? report.sources.map((s) => s.id);
+  for (const id of ids) {
+    const card = cards.get(id);
+    if (!card) continue;
     const ok = (!query || card.dataset.search.includes(query))
       && (!status || card.dataset.status === status)
       && (!industry || card.dataset.industry === industry)
       && (!protocol || card.dataset.protocol === protocol)
-      && (!onlySample || card.dataset.sample === "yes");
+      && (!onlySample || card.dataset.sample === "yes")
+      && (!group || card.dataset.group === group);
     card.hidden = !ok;
-    if (ok) visible++;
+    if (!ok) continue;
+    if (order === "recent" && card.dataset.group !== lastGroup) {
+      const heading = document.createElement("h3");
+      heading.className = "source-group";
+      heading.textContent = GROUP_LABELS[card.dataset.group] ?? "时间待确认";
+      fragment.append(heading);
+      lastGroup = card.dataset.group;
+    }
+    fragment.append(card);
+    visible++;
   }
-  $("#count").textContent = `${visible} / ${cards.length} 个源`;
+  $("#sources").replaceChildren(fragment);
+  $("#count").textContent = `${visible} / ${cards.size} 个源`;
   $("#empty").hidden = visible > 0;
+  const params = new URLSearchParams();
+  for (const id of ["search", "status", "industry", "protocol", "group", "order"]) {
+    const value = $(`#${id}`).value;
+    if (value && !(id === "order" && value === "recent")) params.set(id, value);
+  }
+  if (onlySample) params.set("withSample", "true");
+  history.replaceState(null, "", `${location.pathname}${params.size ? `?${params}` : ""}`);
 }
 
 function render(data) {
+  report = data;
   $("#env").textContent = data.environment ?? "production";
   $("#generated").textContent = `生成于 ${new Date(data.generatedAt).toLocaleString("zh-CN", { hour12: false })}`;
   renderKpis(data.summary);
   renderWarnings(data.warnings);
-  const sources = [...(data.sources ?? [])].sort((a, b) =>
-    Number(b.enabled) - Number(a.enabled) || a.id.localeCompare(b.id));
+  const sources = data.sources ?? [];
   fillSelect("#industry", [...new Set(sources.map((s) => s.industry).filter(Boolean))].sort(), "全部行业");
   fillSelect("#protocol", [...new Set(sources.map((s) => s.protocol).filter(Boolean))].sort(), "全部协议");
-  $("#sources").innerHTML = sources.map(sourceCard).join("");
-  for (const id of ["#search", "#status", "#industry", "#protocol", "#withSample"]) {
+  $("#sources").innerHTML = sources.map((source) => sourceCard(source)).join("");
+  cards = new Map([...document.querySelectorAll(".source")].map((card) => [card.dataset.id, card]));
+  const params = new URLSearchParams(location.search);
+  for (const id of ["search", "status", "industry", "protocol", "group", "order"]) {
+    if (params.has(id)) $(`#${id}`).value = params.get(id);
+  }
+  $("#withSample").checked = params.get("withSample") === "true";
+  if (!$("#order").value) $("#order").value = "recent";
+  for (const id of ["#search", "#status", "#industry", "#protocol", "#withSample", "#group", "#order"]) {
     $(id).addEventListener("input", applyFilters);
     $(id).addEventListener("change", applyFilters);
   }

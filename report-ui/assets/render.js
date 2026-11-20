@@ -1,3 +1,5 @@
+import { contentTime, GROUP_LABELS, observationText, sampleTimes } from "./time.js";
+
 const $ = (selector) => document.querySelector(selector);
 const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
@@ -75,11 +77,11 @@ function sampleCard(item, sourceId, index) {
     `<span class="field"><b>${esc(f.label)}</b> ${esc(f.value)}</span>`,
   ).join("");
   return `<article class="sample">
-    <h3><a href="${esc(articlePath(sourceId))}#sample-${index + 1}">${esc(item.title)}</a></h3>
+    <h3><a href="${esc(articlePath(sourceId))}#sample-${esc(item.id ?? index + 1)}">${esc(item.title)}</a></h3>
     ${item.snippet ? `<p>${esc(item.snippet)}</p>` : ""}
     ${fields ? `<div class="fields">${fields}</div>` : ""}
     <div class="sample-foot">
-      ${item.publishedAt ? `<span class="when">${esc(when(item.publishedAt))}</span>` : ""}
+      <span class="when">${esc(sampleTimes(item))}</span>
       ${sourceUrl ? `<a class="sample-source" href="${esc(sourceUrl)}" target="_blank" rel="noopener noreferrer">官方页面 ↗</a>` : ""}
     </div>
   </article>`;
@@ -89,6 +91,8 @@ export function sourceCard(source) {
   const sample = source.sample ?? {};
   const probe = source.probe ?? {};
   const items = sample.items ?? [];
+  const freshness = source.freshness;
+  const group = freshness?.group ?? (source.enabled ? "unknown" : "disabled");
   const status = source.enabled ? (STATUS[probe.status] ?? ["未知", "muted"]) : ["未启用", "muted"];
   const samples = items.length
     ? items.map((item, index) => sampleCard(item, source.id, index)).join("")
@@ -97,6 +101,7 @@ export function sourceCard(source) {
     ...items.map((i) => i.title), ...items.flatMap((i) => (i.fields ?? []).map((f) => f.value))]
     .filter(Boolean).join(" ").toLowerCase();
   return `<article class="source"
+    data-id="${esc(source.id)}" data-group="${esc(group)}"
     data-status="${esc(source.enabled ? probe.status ?? "skipped" : "skipped")}"
     data-industry="${esc(source.industry ?? "")}" data-protocol="${esc(source.protocol ?? "")}"
     data-sample="${sample.ok ? "yes" : "no"}" data-search="${esc(search)}">
@@ -112,6 +117,16 @@ export function sourceCard(source) {
         ${source.protocol ? `<span>${esc(source.protocol)}</span>` : ""}
       </div>
     </header>
+    <div class="source-timing">
+      <strong>${esc(GROUP_LABELS[group])}</strong>
+      <span>样本最新内容：${esc(contentTime(freshness?.latestContentAt))}</span>
+      ${freshness?.latestPeriod ? `<span>样本数据周期：${esc(freshness.latestPeriod)}</span>` : ""}
+      <span>抓取成功：${esc(when(sample.lastSuccessAt))}${sample.stale ? " · 使用缓存" : ""}</span>
+      <small>${esc(freshness?.reason ?? "需要重新生成报表以确认时效")}</small>
+      <small>${esc(observationText(sample))}</small>
+      ${sample.selection ? `<small>展示范围：${esc(sample.selection.mode === "recent" ? `近 ${sample.selection.windowDays} 天查询` : sample.selection.mode === "historical" ? "历史查询样本" : "普通抽样")}</small>` : ""}
+      ${sample.observation?.lastChangeObservedAt ? `<small>上次观察到变化：${esc(when(sample.observation.lastChangeObservedAt))}</small>` : ""}
+    </div>
     <p class="source-line">${items.length
       ? `${esc(KIND[sample.kind] ?? sample.kind ?? "数据")} · ${items.length} 条样本${sample.stale ? " · 缓存" : ""}`
       : "暂无可用样本"}</p>
@@ -123,7 +138,7 @@ export function sourceCard(source) {
       <span>探活 ${esc(status[0])}${probe.httpStatus ? ` · HTTP ${esc(probe.httpStatus)}` : ""}${probe.latencyMs != null ? ` · ${esc(probe.latencyMs)} ms` : ""}</span>
     </div>
     <footer class="source-foot">
-      <span class="muted">生成于 ${esc(when(source.sample?.fetchedAt))}</span>
+      <span class="muted">样本抓取于 ${esc(when(source.sample?.fetchedAt))}</span>
       <span><a href="${esc(articlePath(source.id))}">完整页面</a> · <a href="${esc(apiPath(source.id))}">JSON</a></span>
     </footer>
   </article>`;

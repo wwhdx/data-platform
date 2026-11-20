@@ -54,6 +54,7 @@ export function mapStudyToRawJson(study: CtStudy): {
       title,
       abstract: summary,
       publication_date: date,
+      updated_at: status?.lastUpdatePostDateStruct?.date,
       type: "clinical-trial",
       url: nctId ? `https://clinicaltrials.gov/study/${nctId}` : undefined,
       nct_id: nctId,

@@ -39,6 +39,38 @@ docker build -f Dockerfile.report -t farview-report:latest .
 /home/ubuntu/work/projects/farview-report/update-report.sh
 ```
 
+### 分支镜像与隔离验收
+
+当前更新脚本从 Git 分支构建镜像，没有自动推送镜像仓库的 CI。分支内容必须先提交并推送，服务器才能拉到；本地未提交快照须用独立构建标签注明来源。
+
+服务器可指定分支和测试标签，构建过程包含 `pnpm build`：
+
+```bash
+REPORT_BRANCH=fix/report-sample-recovery \
+REPORT_IMAGE=farview-report:branch-test \
+bash /home/ubuntu/work/projects/farview-report/update-report.sh
+
+REPORT_IMAGE=farview-report:branch-test \
+bash /home/ubuntu/work/projects/data-platform/deploy/report/test-report.sh
+```
+
+如果镜像已发布到仓库，先执行 `docker pull <完整镜像标签>`，再将该标签传给 `REPORT_IMAGE`。测试脚本使用已存在的镜像，不负责发布。
+
+`test-report.sh` 复制现有报表快照到私有测试目录，创建独立 PostgreSQL、CLI 容器和静态预览容器。它执行报表迁移、CLI 导入/查询/导出、页面与数据 HTTP 检查、排序及详情锚点一致性检查，不触发外部源重新采集。
+
+可选参数：`REPORT_TEST_PORT`（默认 `18735`）、`REPORT_TEST_SNAPSHOT`（改用指定快照）、`REPORT_TEST_ROOT`（测试目录根）。凭证在服务器生成，仅写入权限受限的测试 env 文件；不使用正式报表凭证或 Authentik 数据库。
+
+成功后保留测试容器，预览只监听远端回环地址；通过 SSH 查看：
+
+```bash
+ssh -N -L 18735:127.0.0.1:18735 tx-cloud
+# 在本机打开 http://127.0.0.1:18735/
+```
+
+脚本输出的测试目录中，`test-info.json` 记录镜像、容器、网络和验证结果，`test-script.sha256` 固定测试脚本版本。结束测试后，按脚本输出的清理命令删除本次容器与网络；历史产物和日志保留在测试目录。
+
+正式使用新生成器前，须在 `.env.report` 配置可达的独立 `DATA_PLATFORM_DATABASE_URL` 并应用报表读模型迁移。`run-report.sh` 也接受 `REPORT_IMAGE`，便于明确选择已验证的镜像；上线时沿用既有 Authentik 保护。
+
 ## 3. 首次生成
 
 ```bash

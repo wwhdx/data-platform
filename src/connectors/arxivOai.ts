@@ -58,6 +58,15 @@ export class ArxivOaiConnector extends BaseConnector {
       start: "0",
       max_results: String(Math.min(maxResults, 50)),
     });
+    if (opts?.sortBy === "recent") {
+      params.set("sortBy", "submittedDate");
+      params.set("sortOrder", "descending");
+    }
+    if (opts?.filters?.dateFrom || opts?.filters?.dateTo) {
+      const from = (opts.filters.dateFrom ?? "1900-01-01").replace(/-/g, "") + "0000";
+      const to = (opts.filters.dateTo ?? new Date().toISOString().slice(0, 10)).replace(/-/g, "") + "2359";
+      params.set("search_query", `(all:${query}) AND submittedDate:[${from} TO ${to}]`);
+    }
 
     const url = `${this.searchBaseUrl}?${params}`;
     const res = await this.fetch(url);

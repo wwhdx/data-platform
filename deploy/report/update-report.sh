@@ -5,6 +5,7 @@ set -euo pipefail
 REPO_DIR="${REPORT_REPO_DIR:-/home/ubuntu/work/projects/data-platform}"
 # 默认 master；若本地代码仍是分支快照（本改动尚未并入 master），显式 REPORT_BRANCH=<分支>
 BRANCH="${REPORT_BRANCH:-master}"
+IMAGE="${REPORT_IMAGE:-farview-report:latest}"
 
 cd "$REPO_DIR"
 if [ -n "$(git status --porcelain)" ]; then
@@ -15,5 +16,6 @@ fi
 git fetch origin "$BRANCH"
 git checkout -B "$BRANCH" "origin/$BRANCH"
 git pull --ff-only origin "$BRANCH"
-docker build -f Dockerfile.report -t farview-report:latest .
-echo "[report] 镜像已更新：farview-report:latest"
+docker build -f Dockerfile.report -t "$IMAGE" \
+  --label "org.opencontainers.image.revision=$(git rev-parse HEAD)" .
+echo "[report] 镜像已更新：$IMAGE（分支 $BRANCH）"

@@ -2,6 +2,8 @@ import type { RawDocument, SearchResult } from "../types";
 import type { ReportSampleField, ReportSampleItem, ReportSampleKind } from "./types";
 import { truncate } from "./sanitize";
 import { humanUrl } from "./urlKind";
+import { rawSampleTimes } from "./sampleTime";
+import { reportItemId } from "./history";
 
 type Raw = Record<string, unknown>;
 
@@ -51,10 +53,6 @@ function compact(fields: Array<ReportSampleField | null>): ReportSampleField[] {
   return fields.filter((f): f is ReportSampleField => Boolean(f));
 }
 
-function pickDate(raw: Raw): string | null {
-  return pickString(raw, ["publishedAt", "published_at", "publication_date", "published", "date", "period", "time", "updated_at", "updatedAt"]);
-}
-
 function pickUrl(doc: RawDocument, raw: Raw): string | null {
   const direct = pickString(raw, ["url", "landing_page_url", "html_url", "link", "source_url"]);
   const doi = pickString(raw, ["doi", "DOI"]);
@@ -71,11 +69,13 @@ function pickSnippet(raw: Raw): string | null {
   return text ? truncate(text, 300) : null;
 }
 
-export function formatSearchItem(result: SearchResult): ReportSampleItem {
+export function formatSearchItem(result: SearchResult, kind: ReportSampleKind = "generic"): ReportSampleItem {
   return {
     title: truncate(result.title || result.sourceName || "未命名条目", 240),
     url: humanUrl(result.url),
-    publishedAt: result.publishedAt ?? null,
+    publishedAt: kind === "indicator" || kind === "trial" ? null : result.publishedAt ?? null,
+    updatedAt: result.updatedAt ?? null,
+    period: kind === "indicator" ? result.publishedAt ?? null : null,
     snippet: result.snippet ? truncate(result.snippet, 300) : null,
     fields: [],
   };
@@ -102,9 +102,10 @@ export function formatRawItem(
     }
   }
   return {
+    id: reportItemId(doc.sourceId, doc.externalId),
     title: truncate(title, 240),
     url,
-    publishedAt: pickDate(raw),
+    ...rawSampleTimes(raw, kind),
     snippet: pickSnippet(raw),
     fields: extractFields(kind, raw),
   };

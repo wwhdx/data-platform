@@ -60,7 +60,8 @@ export class ClinicalTrialsConnector extends BaseConnector {
 
   async search(query: string, opts?: SearchOptions): Promise<SearchResult[]> {
     const maxResults = opts?.maxResults ?? 10;
-    const sp = buildStudiesSearchParams(query, undefined, Math.min(maxResults, 100));
+    const sp = buildStudiesSearchParams(query, opts?.filters?.dateFrom, Math.min(maxResults, 100));
+    if (opts?.sortBy === "recent") sp.set("sort", "LastUpdatePostDate:desc");
     const body = await this.fetchStudies(sp);
     return (body.studies ?? []).slice(0, maxResults).map((s) =>
       this.toSearchResult(s),
@@ -128,6 +129,7 @@ export class ClinicalTrialsConnector extends BaseConnector {
       sourceId: CLINICALTRIALS_META.id,
       sourceName: CLINICALTRIALS_META.name,
       publishedAt: rawJson.publication_date as string | undefined,
+      updatedAt: rawJson.updated_at as string | undefined,
       score: 1,
       license: CLINICALTRIALS_META.license,
       commercialUse: CLINICALTRIALS_META.commercialUse,

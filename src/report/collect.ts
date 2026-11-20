@@ -9,6 +9,7 @@ import { probeExternalSourceDetailed } from "../lib/sourceProbe";
 import type { ReportDocument, ReportProbeInfo, ReportSampleInfo, ReportSource } from "./types";
 import { CONNECTOR_REGISTRY, sampleKindFor } from "./catalog";
 import { collectSample } from "./samples";
+import { prepareReportSource } from "./prepareSource";
 import { redactSecrets, sanitizeError, truncate } from "./sanitize";
 import { mapLimit, withTimeout } from "./async";
 import {
@@ -122,6 +123,7 @@ export async function buildReport(options: ReportOptions): Promise<ReportDocumen
             stale: false,
             items: result.items,
             error: result.error,
+            ...(result.selection ? { selection: result.selection } : {}),
           };
         } catch (err) {
           sample = emptySample(kind, sanitizeError(err));
@@ -165,13 +167,17 @@ export async function buildReport(options: ReportOptions): Promise<ReportDocumen
     }
   });
 
+  const generatedAt = nowIso();
+  const prepared = sources.map((source) => prepareReportSource(
+    source, previous.get(source.id), queryFor(byId.get(source.id), source.connector), generatedAt,
+  ));
   return {
     schemaVersion: 1,
-    generatedAt: nowIso(),
+    generatedAt,
     environment: process.env.NODE_ENV === "production" ? "production" : "development",
     durationMs: Date.now() - started,
-    summary: summarize(sources),
-    warnings: buildWarnings(sources),
-    sources,
+    summary: summarize(prepared),
+    warnings: buildWarnings(prepared),
+    sources: prepared,
   };
 }
