@@ -13,7 +13,6 @@ import {
   buildSearchListParams,
   buildVideosListParams,
   buildCommentThreadsParams,
-  mapSearchItemToRawJson,
   mapVideoToRawJson,
   itemToSearchResult,
   readYoutubeIntOption,
@@ -255,16 +254,13 @@ export class YouTubeConnector extends BaseConnector {
         if (!vid) continue;
         const video = byId?.get(vid);
         const topComments = withComments ? await this.fetchTopComments(vid) : undefined;
-        const mapped = enrich
-          ? mapVideoToRawJson(
-              vid,
-              video?.snippet ?? item.snippet,
-              video?.statistics,
-              video?.contentDetails,
-              topComments,
-            )
-          : mapSearchItemToRawJson(item);
-        if (!mapped) continue;
+        const mapped = mapVideoToRawJson(
+          vid,
+          video?.snippet ?? item.snippet,
+          video?.statistics,
+          video?.contentDetails,
+          topComments,
+        );
         const doc: RawDocument = {
           sourceId: YOUTUBE_META.id,
           externalId: mapped.externalId,

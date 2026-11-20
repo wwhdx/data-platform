@@ -105,6 +105,7 @@ interface SearchResult {
   commercialUse: boolean;
   citationCount?: number;
   industryTag?: string | null;
+  links?: Array<{ kind: string; label: string; url: string }>; // 来源支持时提供讨论/引用等入口
   domainSignal?: {              // U1：L2 认知信号
     citationCount?: number;
     trendScore?: number;
@@ -157,7 +158,8 @@ GET /api/library/text        # 净化后的标题、摘要、正文下载
 - `from` / `to` 使用有效的 `YYYY-MM-DD`，按当前排序字段过滤，结束日包含整日。内容未知日期在内容排序末尾；指标参考周期保留在 `facets`，不冒充发布日期。返回时间戳保留微秒，`content_label` 与 `precision` 保留原始年/月精度。
 - 标题范围也支持业务标识符精确定位；`content` 合并标题与摘要/正文分块命中，包括恢复补充正文；`raw` 检索原始记录 JSON 字段。词法采用 PostgreSQL `english`，不代表中文或跨语言检索。结果仍按所选时间排序，不按相关度截取固定 Top N。
 - 列表返回 `{dataset, rows, hasMore, nextCursor}`，不计算搜索总命中数。`rows` 含 `key`、来源、标题、短摘要、时间、内容状态及类型字段，不附大正文。游标绑定目录、筛选和排序，使用微秒时间与记录 ID 稳定翻页；客户端将其作为不透明字符串保存。
-- `document`、`raw`、`text` 接受 `key`、`dataset`、可选 `version`。`key` 由列表返回，编码来源与外部标识，不能用临时数字 ID 跨库定位。详情返回 `{dataset, item, supplements, version, title, abstract, fulltext, authors, url, fields}`；历史版本的状态和时间取自该版。`fields` 为有截断说明的预览，完整下载仍会隐藏凭证。
+- `document`、`raw`、`text` 接受 `key`、`dataset`、可选 `version`。`key` 由列表返回，编码来源与外部标识，不能用临时数字 ID 跨库定位。详情返回 `{dataset, item, supplements, version, title, abstract, fulltext, authors, url, fields, links, references, referenceTotal, comments}`；历史版本的状态、关系及摘录取自该版。`fields` 为有截断说明的预览，完整下载仍会隐藏凭证。
+- `links` 为 `{kind,label,url}[]`，提供来源页、讨论页、引用列表、Stars 或引文两端的独立入口；URL 从来源标识构造，读取详情不请求上游。`references` 使用同一结构，最多展示 200 条去重后的可跳转参考文献，`referenceTotal` 为该类链接总数，不等同于上游参考文献计数。`comments` 为已有 `top_comments` 的文本摘录，最多 20 条；两者均来自当前所选记录，不承诺完整评论区或引文图。统计字段在详情 `item.facets` 中补充，目录列表仍为轻量投影。`text` 下载保持标题、摘要与正文口径。
 - `versions` 接受 `key`、`dataset`、`cursor`，每批最多 50 个不同内容版本，返回 `version_id`、`origin`、`fetched_at`、`observations` 和分页信息；同内容观察汇总展示，归档记录保留。`series` 接受 `seriesKey`、`dataset`、`limit`、`cursor`，默认每批 100 条，按参考周期倒序；序列键包含来源、指标和全部非时间维度。
 - 所有路由均为 GET；非法参数为 `400`，记录或目录不存在为 `404`，目录/筛选与分页游标冲突为 `409`，数据库查询超时为 `503`，其它查询错误为 `500`。错误响应为 `{error}`，不返回连接凭证。普通未知路由返回 `404`。
 

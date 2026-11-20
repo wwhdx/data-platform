@@ -4,6 +4,7 @@ import { getDataset, TIME_COLUMNS } from "./queries";
 import { clip, fulltext, plain, redact, text } from "./text";
 import { LibraryError, type CatalogRow, type LibraryDb } from "./types";
 import { normalizeDocument } from "./normalize";
+import { documentRelations, relationCounts } from "../lib/documentRelations";
 export { getVersions } from "./versions";
 export { getSeries } from "./series";
 export async function locateDocument(db: LibraryDb, key: string, datasetId?: string) {
@@ -45,11 +46,14 @@ export async function getDocument(db: LibraryDb, key: string, datasetId?: string
    external_id:result.item.external_id,raw_json:raw,fetched_at:info.fetched_at,
    industry_tag:result.item.industry},result.dataset.created_at).document};
  }
- const candidate = text(raw.url || raw.URL) || extractDocumentUrl(raw, { sourceId: result.item.source_id, externalId: result.item.external_id });
+ const relations = documentRelations(result.item.source_id, result.item.external_id, raw);
+ result.item = { ...result.item, facets: { ...result.item.facets, ...relationCounts(raw) } };
+ const candidate = text(raw.url || raw.URL) || extractDocumentUrl(raw, { sourceId: result.item.source_id, externalId: result.item.external_id })
+  || relations.links.find(link => link.kind === "citing" || link.kind === "cited" || link.kind === "source")?.url || "";
  let url = "";
  try { const checked = new URL(candidate); if (["http:","https:"].includes(checked.protocol)) url = String(redact(checked.toString())); } catch { /* No navigable URL. */ }
  const authors = raw.author || raw.authors || raw.authorships;
  return { ...result, title: plain(raw.title || raw.patent_title || raw.name) || result.item.title,
   abstract: plain(raw.abstract || raw.brief_summary || raw.description || raw.text), fulltext: fulltext(raw),
-  authors: preview(redact(authors)), url, fields: preview(redact(raw)) };
+  authors: preview(redact(authors)), url, fields: preview(redact(raw)), ...relations };
 }

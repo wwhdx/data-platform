@@ -1,3 +1,5 @@
+import type { DocumentLink } from "../lib/documentRelations";
+
 export type ReportSampleKind =
   | "paper"
   | "patent"
@@ -15,6 +17,7 @@ export type ReportProbeStatus = "healthy" | "degraded" | "error" | "skipped";
 export interface ReportSampleField {
   label: string;
   value: string;
+  url?: string;
 }
 
 export interface ReportSampleItem {
@@ -29,6 +32,10 @@ export interface ReportSampleItem {
   period?: string | null;
   snippet: string | null;
   fields: ReportSampleField[];
+  links?: DocumentLink[];
+  references?: DocumentLink[];
+  referenceTotal?: number;
+  comments?: string[];
 }
 
 export interface ReportCredentialInfo {

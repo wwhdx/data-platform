@@ -1,12 +1,12 @@
 import type {
   ReportDocument,
-  ReportSampleField,
   ReportSampleItem,
   ReportSource,
 } from "./types";
 import { sanitizeUrl } from "./sanitize";
 import { isDataApiUrl } from "./urlKind";
 import { sourceApiPath } from "./paths";
+import { renderSampleCards } from "./articleSamples";
 
 const KIND: Record<string, string> = {
   paper: "论文",
@@ -71,33 +71,6 @@ function renderIndicatorTable(items: ReportSampleItem[]): string {
     <thead><tr>${head}</tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
-}
-
-function renderFields(fields: ReportSampleField[]): string {
-  if (fields.length === 0) return "";
-  const rows = fields.map((field) =>
-    `<div><dt>${esc(field.label)}</dt><dd>${esc(field.value)}</dd></div>`,
-  ).join("");
-  return `<dl class="article-fields">${rows}</dl>`;
-}
-
-function renderSampleCards(items: ReportSampleItem[]): string {
-  return items.map((item, index) => {
-    const url = externalUrl(item.url);
-    const title = esc(item.title);
-    const meta = [
-      item.publishedAt ? `发布 ${esc(item.publishedAt)}` : "",
-      item.updatedAt ? `更新 ${esc(item.updatedAt)}` : "",
-      item.period ? `数据周期 ${esc(item.period)}` : "",
-      url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">官方页面 ↗</a>` : "",
-    ].filter(Boolean).join(" · ");
-    return `<article class="article-sample" id="sample-${esc(item.id ?? index + 1)}">
-      <h2>${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${title}</a>` : title}</h2>
-      ${meta ? `<p class="article-meta">${meta}</p>` : ""}
-      ${item.snippet ? `<p class="article-snippet">${esc(item.snippet)}</p>` : ""}
-      ${renderFields(item.fields)}
-    </article>`;
-  }).join("");
 }
 
 function renderSampleSection(source: ReportSource): string {

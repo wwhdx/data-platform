@@ -1,5 +1,6 @@
 import { captureFromRequest } from "../../lib/httpCapture";
 import type { HttpRequestCapture } from "../../types";
+import { doiUrl } from "../../lib/documentRelations";
 import {
   buildOcApiPath,
   type OcCitationMode,
@@ -32,9 +33,5 @@ export function buildOpenCitationsCanonicalUrl(
   citingDoi?: string,
   citedDoi?: string,
 ): string | undefined {
-  if (citingDoi?.trim() && citedDoi?.trim()) {
-    return `https://doi.org/${citingDoi.trim()} → https://doi.org/${citedDoi.trim()}`;
-  }
-  if (citingDoi?.trim()) return `https://doi.org/${citingDoi.trim()}`;
-  return undefined;
+  return doiUrl(citingDoi) ?? doiUrl(citedDoi);
 }

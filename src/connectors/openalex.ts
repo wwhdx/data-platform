@@ -9,6 +9,7 @@ import type {
 } from "../types";
 import { captureFromRequest } from "../lib/httpCapture";
 import { BaseConnector } from "./base";
+import { documentRelations } from "../lib/documentRelations";
 import { RateLimiter } from "./rateLimiter";
 import { attachProvenance } from "./provenance/attach";
 import {
@@ -189,6 +190,7 @@ export class OpenAlexConnector extends BaseConnector {
       score: work.cited_by_count ?? 0,
       license: OPENALEX_META.license,
       commercialUse: OPENALEX_META.commercialUse,
+      links: documentRelations(this.docSourceId(), work.id, work as unknown as Record<string, unknown>).links,
     };
   }
 

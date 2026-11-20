@@ -7,6 +7,7 @@ import type {
   SearchOptions,
 } from "../types";
 import { BaseConnector } from "./base";
+import { documentRelations } from "../lib/documentRelations";
 import { RateLimiter } from "./rateLimiter";
 import {
   itemPassesSince,
@@ -86,7 +87,7 @@ export class HackerNewsConnector extends BaseConnector {
       if (!item?.title) continue;
       const hay = `${item.title} ${item.text ?? ""}`.toLowerCase();
       if (q && !hay.includes(q)) continue;
-      const { rawJson } = mapHnItemToRawJson(item);
+      const { externalId, rawJson } = mapHnItemToRawJson(item);
       results.push({
         title: String(rawJson.title),
         url: String(rawJson.url),
@@ -97,6 +98,7 @@ export class HackerNewsConnector extends BaseConnector {
         score: item.score ?? 0,
         license: HACKERNEWS_META.license,
         commercialUse: HACKERNEWS_META.commercialUse,
+        links: documentRelations(HACKERNEWS_META.id, externalId, rawJson).links,
       });
     }
     return results;

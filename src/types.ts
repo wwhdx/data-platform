@@ -1,3 +1,5 @@
+import type { DocumentLink } from "./lib/documentRelations";
+
 // ── 认证模式（对应数据 API 协议 §7.2）──
 export type AuthType =
   | "query_param_key"
@@ -179,6 +181,7 @@ export interface SearchResult {
   commercialUse: boolean;
   citationCount?: number;
   industryTag?: string | null;
+  links?: DocumentLink[];
   domainSignal?: DomainSignal;
 }
 

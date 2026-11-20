@@ -73,16 +73,27 @@ export function renderWarnings(warnings = []) {
 
 function sampleCard(item, sourceId, index) {
   const sourceUrl = safeUrl(item.url);
-  const fields = (item.fields ?? []).map((f) =>
-    `<span class="field"><b>${esc(f.label)}</b> ${esc(f.value)}</span>`,
-  ).join("");
+  const fields = (item.fields ?? []).map((f) => {
+    const url = safeUrl(f.url);
+    return `<span class="field"><b>${esc(f.label)}</b> ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(f.value)}</a>` : esc(f.value)}</span>`;
+  }).join("");
+  const links = (item.links ?? []).map(link => {
+    const url = safeUrl(link.url);
+    return url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(link.label)} ↗</a>` : "";
+  }).join(" · ");
+  const refs = (item.references ?? []).filter(link => safeUrl(link.url));
+  const references = refs.length ? `<details><summary>参考文献链接（${refs.length}/${esc(item.referenceTotal ?? refs.length)}）</summary><ol>${refs
+    .map(link => `<li><a href="${esc(safeUrl(link.url))}" target="_blank" rel="noopener noreferrer">${esc(link.label)}</a></li>`).join("")}</ol></details>` : "";
+  const comments = item.comments?.length ? `<details><summary>评论摘录（${item.comments.length} 条）</summary><p>采集时的热门评论摘录，非完整评论区。</p><ol>${item.comments.map(value => `<li>${esc(value)}</li>`).join("")}</ol></details>` : "";
   return `<article class="sample">
     <h3><a href="${esc(articlePath(sourceId))}#sample-${esc(item.id ?? index + 1)}">${esc(item.title)}</a></h3>
     ${item.snippet ? `<p>${esc(item.snippet)}</p>` : ""}
     ${fields ? `<div class="fields">${fields}</div>` : ""}
+    ${references}${comments}
     <div class="sample-foot">
       <span class="when">${esc(sampleTimes(item))}</span>
-      ${sourceUrl ? `<a class="sample-source" href="${esc(sourceUrl)}" target="_blank" rel="noopener noreferrer">官方页面 ↗</a>` : ""}
+      ${sourceUrl && !(item.links ?? []).some(link => link.url === sourceUrl) ? `<a class="sample-source" href="${esc(sourceUrl)}" target="_blank" rel="noopener noreferrer">官方页面 ↗</a>` : ""}
+      ${links}
     </div>
   </article>`;
 }

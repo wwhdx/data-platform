@@ -15,6 +15,8 @@ export function sampleFingerprint(items: ReportSampleItem[]): string {
   const rows = items.map((item) => JSON.stringify([
     item.id, item.url, item.title, item.publishedAt, item.updatedAt, item.period, item.snippet,
     item.fields.map((f) => [f.label, f.value]).sort((a, b) => a[0].localeCompare(b[0])),
+    (item.references ?? []).map(link => [link.url, link.label]).sort((a, b) => a[0].localeCompare(b[0])),
+    item.comments ?? [],
   ])).sort();
   return digest(JSON.stringify(rows));
 }

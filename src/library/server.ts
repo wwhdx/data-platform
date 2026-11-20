@@ -7,7 +7,7 @@ import { assertReaderRole } from "./readOnly";
 import { libraryRoutes } from "./routes";
 import { LibraryError, type LibraryDb } from "./types";
 const ASSETS: Record<string,string>={"app.js":"text/javascript","state.js":"text/javascript","list.js":"text/javascript",
- "reader.js":"text/javascript","versions.js":"text/javascript","styles.css":"text/css","responsive.css":"text/css"};
+ "reader.js":"text/javascript","related.js":"text/javascript","versions.js":"text/javascript","styles.css":"text/css","responsive.css":"text/css"};
 export async function buildLibraryApp(db: LibraryDb = getPool()) {
  const app=Fastify({logger:false,bodyLimit:1024});
  const root=path.resolve(__dirname,"../../library-ui");
