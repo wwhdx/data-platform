@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>望野 · 内容库</title>
+<link rel="stylesheet" href="/assets/styles.css"><link rel="stylesheet" href="/assets/responsive.css">
+</head>
+<body>
+<header class="topbar">
+ <a class="brand" href="/">望野 <span>内容库</span></a>
+ <nav aria-label="主导航"><button id="browse" class="active" type="button">阅览</button><button id="overview" type="button">数据源</button><a href="https://report.farview.cn/" target="_blank" rel="noopener">运行报表 ↗</a></nav>
+ <span id="dataset" class="dataset">正在连接语料目录…</span><span class="badge">只读</span>
+</header>
+<form id="filters" class="toolbar" role="search">
+ <button id="toggle-nav" type="button" aria-label="展开来源导航" aria-expanded="false">来源</button>
+ <label class="search"><span class="sr-only">搜索记录或精确标识符</span><input id="q" name="q" type="search" placeholder="搜索标题 / DOI / PMID / 指标标识…" autocomplete="off"><button type="submit">搜索</button></label>
+ <label><span class="sr-only">搜索范围</span><select id="scope" name="scope"><option value="title">标题 / 标识符</option><option value="content">标题＋摘要正文</option><option value="raw">原始字段</option></select></label>
+ <label><span class="sr-only">类型</span><select id="kind" name="kind"><option value="">全部类型</option><option value="paper">文献</option><option value="indicator">指标</option><option value="entity">生物 / 材料</option><option value="trial">临床试验</option><option value="patent">专利</option><option value="activity">社区 / 行情</option><option value="video">视频</option><option value="other">其他</option></select></label>
+ <label><span class="sr-only">内容状态</span><select id="availability" name="availability"><option value="">全部内容状态</option><option value="fulltext">有全文</option><option value="abstract">摘要</option><option value="metadata">仅元数据</option><option value="structured">结构化数据</option></select></label>
+ <label><span class="sr-only">排序依据</span><select id="order" name="order"><option value="fetched">最新采集</option><option value="content">最新内容</option></select></label>
+ <details class="date-filter"><summary>时间范围</summary><div><label>起始<input id="from" name="from" type="date"></label><label>结束<input id="to" name="to" type="date"></label><button type="submit">应用</button></div></details>
+ <label><span class="sr-only">每批条数</span><select id="limit" name="limit"><option value="50">50 条 / 批</option><option value="100">100 条 / 批</option></select></label>
+ <button id="density" type="button" aria-pressed="true">紧凑</button><button id="reset" type="button">重置</button>
+</form>
+<main id="workspace" class="workspace">
+ <aside id="sidebar" class="sidebar" aria-label="来源导航">
+  <div class="side-head"><strong>数据源</strong><span id="source-count"></span></div>
+  <label class="source-search"><span class="sr-only">过滤来源名称</span><input id="source-search" type="search" placeholder="筛选来源…"></label>
+  <label class="source-sort"><span class="sr-only">来源顺序</span><select id="source-order"><option value="fetched">最近采集优先</option><option value="content">最新内容优先</option><option value="count">记录数优先</option><option value="name">名称顺序</option></select></label>
+  <button id="all-sources" type="button" class="source-row selected"><span>全部来源</span><span id="all-count"></span></button>
+  <div id="sources" class="source-list"></div>
+  <p class="side-note">来源为本快照内有记录的源。多选可按住 Ctrl / ⌘ 点击。记录数包含指标观测及元数据。</p>
+ </aside>
+ <section id="listing" class="listing" aria-label="记录目录">
+  <div class="list-head"><div><strong id="list-title">全部记录</strong><span id="range" class="muted"></span></div><span id="loading" hidden>加载中…</span></div>
+  <div id="error" class="notice error" role="alert" hidden></div>
+  <div id="result-info" class="result-info">目录准备就绪后将显示完整记录。</div>
+  <div id="list-columns" class="list-columns"><span>标题</span><span>来源</span><span>内容 / 周期</span><span>采集时间</span><span>内容</span></div>
+  <div id="records" class="records" aria-label="记录列表"></div>
+  <footer class="pagination"><button id="previous" type="button" disabled>上一批</button><button id="first" type="button" hidden>回到首批</button><span id="page-info"></span><button id="next" type="button" disabled>下一批</button></footer>
+ </section>
+ <div id="divider" class="divider" role="separator" aria-label="调整列表与阅读区宽度" aria-orientation="vertical"></div>
+ <section id="reader" class="reader" aria-label="记录阅读区"><div class="welcome"><h1>完整语料，连续阅读</h1><p>选择左侧来源或中间记录，查看正文、结构化字段与版本。</p><p>只有元数据的记录也会保留在目录中。</p></div></section>
+</main>
+<div id="status" class="statusbar" role="status" aria-live="polite">正在连接…</div>
+<noscript><p>完整阅览需要启用 JavaScript；数据库也可通过 library CLI 查询。</p></noscript>
+<script type="module" src="/assets/app.js"></script>
+</body>
+</html>

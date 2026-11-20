@@ -1,6 +1,6 @@
 # data-platform 数据平台设计方案
 
-> **v0.5.3** — 设计大纲 + 架构真源（2026-11-20）
+> **v0.5.4** — 设计大纲 + 架构真源（2026-11-20）
 > 基于望野 UODE 理念与多源 API 协议；**实现进度/Connector 数量/测试数** → [plans/实施进度总览.md](plans/实施进度总览.md) §2（本文不维护进度表与数字快照）  
 > **文档地图** → [README.md](./README.md) · **短入口** → [overview.md](./overview.md)
 
@@ -325,6 +325,20 @@ flowchart LR
 | 迁移与调度发布 | 🟡 Warning | 同上 |
 
 ---
+
+#### 2.4.6 阅览服务与可重建查询投影
+
+全库阅览是与采集、探活报表分离的只读消费者；交互与布局提案见[报表与阅览方案 §3.9](plans/数据报表站点设计方案.md#39-全库阅览与紧凑布局提案)。记录范围来自 `raw_documents`，报表样本表不能充当全量目录。业务键仍为 `(source_id, external_id)`，不把跨源相同 DOI 或 URL 静默合并；数量称为“记录”，不统一称为“文章”。
+
+迁移 `039_library_catalog.sql` 创建可重建的 `library.datasets/documents/search_chunks/sources` 查询投影。目录只保存文档关联、源、类型、规范化标题、短摘要、内容时间及精度、原始采集时间、正文可用性和类型字段；原文和完整正文保留在既有存储。时间解析按源适配，异常与未知值明确标记；指标参考周期不冒充发布时间，来源分类不冒充历史文档行业标签。列表只读取目录字段，选中后再加载正文、结构化字段和版本，避免对每页全部大 JSON 做解析与传输。
+
+目录由显式管理命令分批构建，以 advisory lock 排除重复构建，按 ID 水位续跑并核对覆盖范围；完成后切换 ready 目录，浏览请求不执行建表、回填或采集。构建跨多个事务，正文按需读取原库，因此固定历史数据须使用冻结恢复/开发副本，不能将活跃采集库的 ID 水位视为一致性快照。全库、单源和类型筛选分别使用采集时间/ID 组合索引，内容时间排序另建含空值分区的索引。游标绑定数据集版本、筛选条件和排序，保留微秒时间，未知日期进入末尾游标区间。总量与源分面使用带统计时点的汇总，不在每次搜索中计算总命中数。[PostgreSQL 分页说明](https://www.postgresql.org/docs/16/queries-limit.html)要求稳定排序，并指出深 OFFSET 的计算成本。
+
+`src/library/` 查询层统一向 CLI 和 HTTP 提供目录、定位、内容、版本及指标序列能力；Web 仅管理交互与渲染。CLI 入口为 `library prepare/datasets/sources/list/search/show/versions/series/serve`；HTTP 契约见[协议 §0.7](knowledge/数据平台API协议.md#07-全库阅览只读服务)，操作见[阅览手册](library-reader.md)。恢复库适配器通过 `library.document_bodies/observations` 视图读取 `recovery.enriched_documents` 和版本来源；普通库使用原始记录回退视图，界面不依赖恢复内部表或宿主机文件路径。详情链接以业务键定位并携带数据集身份，避免刷新开发快照后数值 ID 指向另一条内容。
+
+内容检索明确区分标题、摘要/正文与原始字段。原始 JSON 的现有英文 GIN 索引可提供原始字段搜索，但不能作为“正文全文”覆盖的证明；补充正文也须进入对应检索投影。分词、相关度排序和中文/跨语言能力分别验收，不以少量已有向量宣称全库语义可搜。长文按段索引并汇总到业务记录，保留完整文本下载，避免超过[全文检索限制](https://www.postgresql.org/docs/16/textsearch-limitations.html)；命中高亮转义或净化后渲染，不直接信任上游 HTML 或 `ts_headline` 输出，见[官方检索与高亮说明](https://www.postgresql.org/docs/16/textsearch-controls.html)。
+
+阅览进程使用只拥有所需 SELECT 权限的专用角色，通过独立 `DATA_PLATFORM_DATABASE_URL` 连接；启动时拒绝管理角色、库所有者、业务写权限和 schema 创建权限，并要求默认只读事务。`library serve` 只注册阅览接口和静态页面，不执行配置同步，不注册采集、catalog、Embedding 或校准任务，也不挂载写入型管理路由。管理命令持有的写入权限不传给浏览服务。`Dockerfile.library` 提供独立运行镜像，排除原始数据与凭证，默认只绑定本机；远端接入沿用鉴权与容量验收流程，不因增加网页而迁移整库。实施与验证记录归实施进度 §4.12。
 
 ## 三、数据模型
 
@@ -1171,6 +1185,7 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-11-20 | v0.5.4 | §2.4.6 登记全库目录投影、共享 CLI/HTTP、正文与版本适配及独立只读容器；操作与验收分别归阅览手册和实施进度 REP-10 |
 | 2026-11-20 | v0.5.3 | §2.4 增加开发/远端数据库角色、快照刷新、容量、历史数据对账、备份恢复；登记 `DATA_PLATFORM_TEST_DATABASE_URL`、隔离测试入口与发布边界；运行证据及实施状态归实施进度 §4.13 |
 | 2026-10-16 | v0.5.2 | 登记测试限速缩放 ENV `DATA_PLATFORM_RATE_LIMIT_SCALE`（vitest 0.001；见 `.env.example` / `CLAUDE.md` 环境变量表） |
 | 2026-10-16 | v0.5.1 | §7.1 端点表对齐 `src/api/server.ts` 实测；§3.1 数据模型补落地状态标注；§4.3 首批 MVP 源修正（OpenAlex/CrossRef/WorldBank）；§8.2 补现行 cron 注记；§2.3 补 Ollama 默认（§六 并入 §五 的 v0.5 结构保持不变） |
@@ -1190,7 +1205,7 @@ FixtureConnector → Scheduler.trigger → dedup → embedDocuments
 | 2026-05-15 | v0.2 | 职责边界澄清：移除 `/api/context`（LLM 摘要生成 → engine-core）；§9.1 接入点从 3 个精简为 2 个；§1.2 边界表新增 LLM 摘要/实体抽取行；Phase 4 移除 `/api/context` |
 | 2025-05-15 | v0.1 | 初始草案 |
 
-> **版本**: v0.5.3 | **状态**: 架构真源（数字见实施进度 §2）· 波次 10 进行中
+> **版本**: v0.5.4 | **状态**: 架构真源（数字见实施进度 §2）· 波次 10 进行中
 >
 > 相关文档：
 > - 实施进度总览：`docs/plans/实施进度总览.md`

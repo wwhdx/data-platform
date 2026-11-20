@@ -8,6 +8,7 @@ data/logs/
 data/catalog/
 data/backups/
 data/recovery/
+data/library/
 secrets/
 reports/
 .report-cache.json

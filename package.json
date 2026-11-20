@@ -22,7 +22,7 @@
     "test": "vitest",
     "test:run": "vitest --run",
     "test:api": "vitest --run src/__tests__/integration/api",
-    "test:integration": "vitest --run --config vitest.integration.config.ts src/__tests__/integration/pipeline src/__tests__/integration/parent src/__tests__/integration/report src/__tests__/integration/cli",
+    "test:integration": "vitest --run --config vitest.integration.config.ts src/__tests__/integration/pipeline src/__tests__/integration/parent src/__tests__/integration/report src/__tests__/integration/cli src/__tests__/integration/library",
     "test:integration:isolated": "node scripts/run-integration-tests.mjs",
     "test:integration:parent": "vitest --run --config vitest.integration.config.ts src/__tests__/integration/parent",
     "test:integration:full": "EMBED_BACKEND=ollama vitest --run --config vitest.integration.config.ts",

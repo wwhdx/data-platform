@@ -266,6 +266,7 @@ pnpm cli schedules       # cron live 对照（--offline 仅 YAML）
 pnpm cli migrate
 pnpm cli export --help
 pnpm cli serve --port 3400
+pnpm cli library --help  # 全库目录、内容、版本、指标序列；独立只读阅览服务
 
 # per-source 命令（10 个，轨 T/H3/T+ catalog 与 verify）
 pnpm cli eia --help      # 同构：eurostat / fred / oecd / imf / ecb / census / bea / faostat / worldbank
@@ -279,7 +280,7 @@ data-platform search --query "transformer"
 data-platform collect --all
 ```
 
-**命令全表** → [docs/plans/实施进度总览.md](./docs/plans/实施进度总览.md) §2.3（唯一真源）；含通用、per-source、`industry`、`config` 与数据库报表 `report` 子命令。
+**命令全表** → [docs/plans/实施进度总览.md](./docs/plans/实施进度总览.md) §2.3（唯一真源）；含通用、per-source、`industry`、`config`、数据库报表 `report` 与全库阅览 `library` 子命令。阅览只读连接与启动步骤见[操作手册](./docs/library-reader.md)。
 
 ## 常用命令
 
