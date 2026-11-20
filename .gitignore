@@ -6,6 +6,8 @@ data/export/
 data/raw/
 data/logs/
 data/catalog/
+data/backups/
+data/recovery/
 secrets/
 reports/
 .report-cache.json

@@ -743,10 +743,15 @@ rawJson = { ...esummaryRecord, abstract: "<AbstractText>" }
 
 ---
 
+## 8. 测试连接与采集环境
+
+应用与 CLI 使用 `DATA_PLATFORM_DATABASE_URL`；Vitest 中仅使用显式进程环境 `DATA_PLATFORM_TEST_DATABASE_URL`，不加载采集 `.env` 或回退采集连接。推荐 `pnpm test:integration:isolated` 自动生成专用环境。连接验证、角色和清理范围见[集成测试方案 §3.3](./集成测试最小闭环方案.md#33-测试-harness)，实施状态见[实施进度 §4.13](./实施进度总览.md#413-开发机与远端数据库部署及同步)。
+
 ## §变更记录
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| v1.8 | 2026-11-20 | §8 登记测试专用连接与采集库隔离，操作指向集成测试方案 |
 | v1.0 | 2026-05-15 | 初版：Connector 框架、采集协议、RAG 流水线 |
 | v1.1 | 2026-05-19 | §7 新增：内容层评估（PubMed esummary 无摘要、OpenAlex 倒排索引问题）、RSS vs API 分析、各信源 RAG 可用性表、A10/A11 修复方案 |
 | v1.2 | 2026-05-19 | A4：`SemanticScholarConnector`（search + offset 采集 + abstract/tldr）；bootstrap 注册；默认 YAML disabled |
