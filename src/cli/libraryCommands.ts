@@ -31,7 +31,12 @@ export async function cmdLibrary(args: string[]): Promise<void> {
  const [command, ...rest] = args;
  if (!command || ["help", "--help", "-h"].includes(command)) { console.log(HELP); return; }
  const opts = options(rest);
- if (opts["env-file"]) Object.assign(process.env, parseEnvContent(fs.readFileSync(path.resolve(opts["env-file"]), "utf8")));
+ if (opts["env-file"]) {
+  const explicit = parseEnvContent(fs.readFileSync(path.resolve(opts["env-file"]), "utf8"));
+  if (!explicit.DATA_PLATFORM_DATABASE_URL?.trim())
+   throw new LibraryError("--env-file must define a non-empty DATA_PLATFORM_DATABASE_URL; inherited connections are not accepted");
+  Object.assign(process.env, explicit);
+ }
  if (command === "serve") {
   await (await import("../library/server")).serveLibrary(Number(opts.port ?? 8736)); return;
  }

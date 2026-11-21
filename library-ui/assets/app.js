@@ -3,13 +3,18 @@ import{renderSources,renderPage,markSelected,renderOverview}from'./list.js';
 import{renderDocument,renderTab,bodyError}from'./reader.js';
 import{renderVersions,renderSeries}from'./versions.js';
 const cache=new Map();
+function cancelDocumentRequest(){
+ state.bodyRequest?.abort();state.bodyRequest=null;
+ $('reader').removeAttribute('aria-busy');
+}
 async function loadPage({keepDoc=false}={}){
- state.request?.abort();const controller=new AbortController();state.request=controller;
+ state.request?.abort();cancelDocumentRequest();const controller=new AbortController();state.request=controller;
  const p=queryParams(),signature=p.toString(),restore=history.state?.listTop??0;
  $('loading').hidden=false;$('error').hidden=true;$('records').setAttribute('aria-busy','true');
  try{
   const page=cache.get(signature)??await api('documents',p,controller.signal);
   if(controller.signal.aborted)return;
+  cancelDocumentRequest();
   cache.set(signature,page);if(cache.size>6)cache.delete(cache.keys().next().value);
   state.page=page;state.dataset=page.dataset;
   const key=keepDoc&&urlParams().get('doc')?urlParams().get('doc'):page.rows[0]?.key;
@@ -24,13 +29,15 @@ async function loadPage({keepDoc=false}={}){
 }
 async function openDocument(key,version=null,{replace=false,reveal=true}={}){
  state.bodyRequest?.abort();const controller=new AbortController();state.bodyRequest=controller;
+ const dataset=state.dataset.id;
+ const isCurrent=()=>state.bodyRequest===controller&&!controller.signal.aborted&&state.selected===key&&state.dataset?.id===dataset;
  state.selected=key;state.versions=null;state.series=null;state.tab='body';
  updateUrl({doc:key,version},{replace});markSelected();
  if(reveal)document.body.classList.add('reading');
  $('reader').setAttribute('aria-busy','true');
- try{const body=await api('document',{key,dataset:state.dataset.id,version},controller.signal);
-  if(controller.signal.aborted)return;renderDocument(body);$('reader').scrollTop=0;syncFocus();
- }catch(error){if(error.name!=='AbortError')bodyError(error.message);}
+ try{const body=await api('document',{key,dataset,version},controller.signal);
+  if(!isCurrent())return;renderDocument(body);$('reader').scrollTop=0;syncFocus();
+ }catch(error){if(error.name!=='AbortError'&&isCurrent())bodyError(error.message);}
  finally{if(state.bodyRequest===controller)$('reader').removeAttribute('aria-busy');}
 }
 function clearPaging(){state.pageStack=[];document.body.classList.remove('reading');}
