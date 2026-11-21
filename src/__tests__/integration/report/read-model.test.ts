@@ -86,4 +86,22 @@ describe("report SQL read model", () => {
     const saved = await client.query("SELECT COUNT(*)::int AS count FROM report_runs WHERE generated_at='2026-11-24T00:00:00Z'");
     expect(saved.rows[0].count).toBe(0);
   });
+
+  it("preserves legacy statistical dimensions through SQL import and export", async (context) => {
+    if (!client) { context.skip(); return; }
+    const original = { ...reportItem("Government accounts", "2025"), url: null,
+      snippet: "na_item: Net borrowing; value: -3.1", fields: [{ label: "国家/地区", value: "EU" }] };
+    const distinct = { ...original, snippet: "na_item: Capital formation; value: 3.9" };
+    const source = reportSource("eurostat-legacy", [original, distinct]);
+    source.sample.kind = "indicator";
+    const document = reportDocument([source], "2026-11-25T00:00:00Z");
+    const runId = await saveReport(document, client);
+    const exported = await loadStoredReport(runId, client);
+    expect(exported.sources[0].sample.items).toHaveLength(2);
+    expect(new Set(exported.sources[0].sample.items.map(item => item.id)).size).toBe(2);
+    expect(new Set(exported.sources[0].sample.items.map(item => item.snippet)))
+      .toEqual(new Set([original.snippet, distinct.snippet]));
+    expect((await queryReportItems({ runId }, client)).total).toBe(2);
+    expect(await saveReport(document, client)).toBe(runId);
+  });
 });

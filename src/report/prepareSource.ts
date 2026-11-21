@@ -1,5 +1,5 @@
 import { sourceFreshness } from "./freshness";
-import { observeSample, sampleItemId } from "./history";
+import { observeSample, reportItemId, sampleFingerprint, sampleItemId } from "./history";
 import { normalizeSampleTime, sampleActivity } from "./sampleTime";
 import { humanUrl } from "./urlKind";
 import { redactSecrets, sanitizeError } from "./sanitize";
@@ -13,9 +13,21 @@ export function prepareReportSource(
 ): ReportSource {
   const normalized = source.sample.items.map((item) => {
     const normalizedTime = { ...normalizeSampleTime(item, source.sample.kind), url: humanUrl(item.url) };
-    return { ...normalizedTime, id: sampleItemId(normalizedTime, source.id) };
+    return { item: { ...normalizedTime, id: sampleItemId(normalizedTime, source.id) },
+      legacy: source.sample.kind === "indicator" && item.id == null };
   });
-  const items = [...new Map(normalized.map((item) => [item.id, item])).values()];
+  const variants = new Map<string, Set<string>>();
+  for (const { item, legacy } of normalized) {
+    if (!legacy) continue;
+    const fingerprints = variants.get(item.id) ?? new Set<string>();
+    fingerprints.add(sampleFingerprint([item]));
+    variants.set(item.id, fingerprints);
+  }
+  // Old snapshots can omit statistical dimensions from their structured fields.
+  // Keep conflicting legacy payloads; explicit upstream IDs retain their semantics.
+  const resolved = normalized.map(({ item, legacy }) => legacy && variants.get(item.id)!.size > 1
+    ? { ...item, id: reportItemId(source.id, `${item.id}|legacy|${sampleFingerprint([item])}`) } : item);
+  const items = [...new Map(resolved.map((item) => [item.id, item])).values()];
   items.sort((a, b) => {
     const at = sampleActivity(a, asOf)?.timestamp ?? -Infinity;
     const bt = sampleActivity(b, asOf)?.timestamp ?? -Infinity;
