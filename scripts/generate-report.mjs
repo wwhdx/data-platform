@@ -2,7 +2,7 @@
 /**
  * Generate probe samples, persist a report snapshot, then export database query results.
  * node --import tsx scripts/generate-report.mjs --out reports --cache .report-cache.json
- * --from-db exports the latest stored snapshot without any external source requests.
+ * --from-db exports the latest stored snapshot and its cache without external requests.
  */
 import "../src/config/loadEnv.js";
 import fs from "node:fs";
@@ -47,13 +47,11 @@ async function main() {
   }
   const report = await loadStoredReport(runId);
   writeReportArtifacts(report, out, ROOT);
-  if (!argv.includes("--from-db")) {
-    fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
-    const temporary = `${cacheFile}.${process.pid}.tmp`;
-    fs.writeFileSync(temporary, JSON.stringify({ generatedAt: report.generatedAt,
-      sources: report.sources.map(({ id, sample }) => ({ id, sample })) }));
-    fs.renameSync(temporary, cacheFile);
-  }
+  fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
+  const temporary = `${cacheFile}.${process.pid}.tmp`;
+  fs.writeFileSync(temporary, JSON.stringify({ generatedAt: report.generatedAt,
+    sources: report.sources.map(({ id, sample }) => ({ id, sample })) }));
+  fs.renameSync(temporary, cacheFile);
   console.log(JSON.stringify({ generatedAt: report.generatedAt, sources: report.sources.length, out }));
 }
 

@@ -9,7 +9,10 @@ import { loadStoredReport } from "../../../report/readReport";
 import { reportDocument, reportItem, reportSource } from "../../fixtures/reportFixture";
 import { connectTestDatabase } from "../helpers/dbAvailable";
 import { closePool } from "../../../storage/db";
-import { assertTestDatabase } from "../../../storage/testDatabase";
+import { assertTestDatabase, getTestDatabaseUrl } from "../../../storage/testDatabase";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import os from "node:os";
 
 const schema = `report_test_${randomUUID().replace(/-/g, "")}`;
 let client: PoolClient;
@@ -103,5 +106,32 @@ describe("report SQL read model", () => {
       .toEqual(new Set([original.snippet, distinct.snippet]));
     expect((await queryReportItems({ runId }, client)).total).toBe(2);
     expect(await saveReport(document, client)).toBe(runId);
+  });
+
+  it("exports the latest database snapshot with a matching cache without creating a new run", async () => {
+    const cliClient = await connectTestDatabase();
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "report-db-export-"));
+    const cache = path.join(directory, "cache.json"), out = path.join(directory, "site");
+    fs.writeFileSync(cache, JSON.stringify({ generatedAt: "2026-11-19T00:00:00Z", sources: [] }));
+    const env = { ...process.env, VITEST: "true", DATA_PLATFORM_DATABASE_URL: getTestDatabaseUrl() };
+    let runId: number | undefined;
+    try {
+      const latest = await cliClient.query("SELECT MAX(generated_at) AS latest FROM report_runs");
+      const generatedAt = new Date(new Date(latest.rows[0].latest ?? "2026-11-26T00:00:00Z").getTime() + 1000).toISOString();
+      runId = await saveReport(reportDocument([reportSource("export-cache", [reportItem("Latest paper")])], generatedAt), cliClient);
+      const before = await cliClient.query("SELECT COUNT(*)::int AS count FROM report_runs");
+      await promisify(execFile)(process.execPath, ["--import", "tsx", "scripts/generate-report.mjs", "--from-db",
+        "--out", out, "--cache", cache], { env, timeout: 10_000 });
+      const report = JSON.parse(fs.readFileSync(path.join(out, "report.json"), "utf8"));
+      expect(JSON.parse(fs.readFileSync(cache, "utf8"))).toEqual({ generatedAt: report.generatedAt,
+        sources: report.sources.map(({ id, sample }: { id: string; sample: unknown }) => ({ id, sample })) });
+      expect(report.generatedAt).toBe((await loadStoredReport(runId, cliClient)).generatedAt);
+      expect((await cliClient.query("SELECT COUNT(*)::int AS count FROM report_runs")).rows).toEqual(before.rows);
+    } finally {
+      try {
+        await assertTestDatabase(cliClient);
+        if (runId !== undefined) await cliClient.query("DELETE FROM report_runs WHERE id=$1", [runId]);
+      } finally { cliClient.release(); fs.rmSync(directory, { recursive: true, force: true }); }
+    }
   });
 });
