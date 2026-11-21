@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import type { SearchResult } from "../types";
+import { documentRelations } from "../lib/documentRelations";
 
 /** OpenCitations Index REST v2 引文边行 */
 export interface OcCitationRow {
@@ -95,17 +97,7 @@ export function mapOcCitationToSearchResult(
   seedDoi: string,
   mode: OcCitationMode,
   meta: { id: string; name: string; license: string; commercialUse: boolean },
-): {
-  title: string;
-  url: string;
-  snippet: string;
-  sourceId: string;
-  sourceName: string;
-  publishedAt?: string;
-  score: number;
-  license: string;
-  commercialUse: boolean;
-} {
+): SearchResult {
   const citingDoi = extractDoiFromPid(row.citing);
   const citedDoi = extractDoiFromPid(row.cited);
   const title =
@@ -126,6 +118,7 @@ export function mapOcCitationToSearchResult(
     score: 0,
     license: meta.license,
     commercialUse: meta.commercialUse,
+    links: documentRelations(meta.id, opencitationsExternalId(row), { citing_doi: citingDoi, cited_doi: citedDoi }).links,
   };
 }
 

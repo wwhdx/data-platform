@@ -1565,9 +1565,11 @@ function printHelp() {
   config list              运行时数据源表格（读 API）
 
 命令（直连数据库 / 本地文件）:
+  library   全库阅览 prepare/list/search/show/sources/versions/series/serve
   migrate   执行数据库迁移
   db-clear  清空业务数据（全库 TRUNCATE 或 --source 按源 DELETE；须 --yes）
   export    原始 JSON 导出到本地目录（见 docs/plans/原始数据本地导出与镜像方案.md）
+  report    报表 sources/items/show/import/export（共享数据库查询；report --help 查看选项）
   serve     启动 API 服务
   schedules 查看 cron 调度计划（需 API；不可达时 exit 1）
   config validate|sync|diff|export|profiles|list --by-profile
@@ -1703,6 +1705,12 @@ async function main(): Promise<void> {
   const rest = process.argv.slice(3);
 
   switch (cmd) {
+    case "library":
+      await (await import("./libraryCommands")).cmdLibrary(rest);
+      break;
+    case "report":
+      await (await import("./reportCommands")).cmdReport(rest);
+      break;
     case "search":
       await cmdSearch(rest);
       break;

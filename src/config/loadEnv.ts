@@ -47,4 +47,5 @@ export function loadProjectEnv(root: string = PACKAGE_ROOT): boolean {
   return true;
 }
 
-loadProjectEnv();
+// Vitest must not load collection credentials or replace an explicit test connection.
+if (process.env.VITEST === undefined) loadProjectEnv();

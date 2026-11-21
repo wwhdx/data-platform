@@ -105,6 +105,7 @@ interface SearchResult {
   commercialUse: boolean;
   citationCount?: number;
   industryTag?: string | null;
+  links?: Array<{ kind: string; label: string; url: string }>; // 来源支持时提供讨论/引用等入口
   domainSignal?: {              // U1：L2 认知信号
     citationCount?: number;
     trendScore?: number;
@@ -136,6 +137,33 @@ curl -sS -X POST "${DATA_PLATFORM_URL:-http://localhost:3400}/api/search" \
 | 401 | Admin 路由 Bearer 不匹配 |
 | 503 | Admin 路由未配置 `DATA_PLATFORM_ADMIN_KEY`；`GET /health` DB 不可用 |
 | 5xx | 未捕获异常（Fastify 默认处理） |
+
+### 0.7 全库阅览只读服务
+
+阅览由 `src/library/server.ts` 独立启动，默认 Base URL 为 `http://127.0.0.1:8736`；不属于 `:3400` 采集 API，也不挂载其管理路由。服务仅监听本机，要求数据库专用 SELECT 角色；对外访问须另行配置受保护的反向代理。启动与授权步骤见[阅览手册](../library-reader.md)。
+
+```text
+GET /api/library/bootstrap   # 数据集、来源统计、检索能力
+GET /api/library/documents   # 轻量目录、筛选及游标分页
+GET /api/library/document    # 当前或指定历史版本的阅读内容
+GET /api/library/versions    # 不同内容版本及重复观察次数
+GET /api/library/series      # 相同非时间维度的指标观测
+GET /api/library/raw         # 脱敏完整 JSON 下载
+GET /api/library/text        # 净化后的标题、摘要、正文下载
+```
+
+- 通用 `dataset` 可选，省略时选择最新 ready 目录；目录由管理 CLI 显式构建，GET 不执行迁移或采集。数据集记录目录构建水位和统计时点，固定历史正文须使用冻结数据库副本。
+- `bootstrap` 接受 `dataset`、`order=fetched|content|count|name`；返回 `{dataset, rows, capabilities}`，其中 `rows` 为源统计，能力标明 `readOnly: true`、`semantic: false`。
+- `documents` 接受 `dataset`、`source`（逗号分隔多源）、`kind`、`availability`、`q`、`scope=title|content|raw`、`order=fetched|content`、`from`、`to`、`limit`、`cursor`。默认标题范围、采集时间倒序、每批 50 条，`limit` 为 1–100；`q` 最长 500 字符。类型为 `paper|indicator|patent|activity|video|entity|trial|other`，内容状态为 `fulltext|abstract|metadata|structured`。
+- `from` / `to` 使用有效的 `YYYY-MM-DD`，按当前排序字段过滤，结束日包含整日。内容未知日期在内容排序末尾；指标参考周期保留在 `facets`，不冒充发布日期。返回时间戳保留微秒，`content_label` 与 `precision` 保留原始年/月精度。
+- 标题范围也支持业务标识符精确定位；`content` 合并标题与摘要/正文分块命中，包括恢复补充正文；`raw` 检索原始记录 JSON 字段。词法采用 PostgreSQL `english`，不代表中文或跨语言检索。结果仍按所选时间排序，不按相关度截取固定 Top N。
+- 列表返回 `{dataset, rows, hasMore, nextCursor}`，不计算搜索总命中数。`rows` 含 `key`、来源、标题、短摘要、时间、内容状态及类型字段，不附大正文。游标绑定目录、筛选和排序，使用微秒时间与记录 ID 稳定翻页；客户端将其作为不透明字符串保存。
+- `document`、`raw`、`text` 接受 `key`、`dataset`、可选 `version`。`key` 由列表返回，编码来源与外部标识，不能用临时数字 ID 跨库定位。详情返回 `{dataset, item, supplements, version, title, abstract, fulltext, authors, url, fields, links, references, referenceTotal, comments}`；历史版本的状态、关系及摘录取自该版。`fields` 为有截断说明的预览，完整下载仍会隐藏凭证。
+- `links` 为 `{kind,label,url}[]`，提供来源页、讨论页、引用列表、Stars 或引文两端的独立入口；URL 从来源标识构造，读取详情不请求上游。`references` 使用同一结构，最多展示 200 条去重后的可跳转参考文献，`referenceTotal` 为该类链接总数，不等同于上游参考文献计数。`comments` 为已有 `top_comments` 的文本摘录，最多 20 条；两者均来自当前所选记录，不承诺完整评论区或引文图。统计字段在详情 `item.facets` 中补充，目录列表仍为轻量投影。`text` 下载保持标题、摘要与正文口径。
+- `versions` 接受 `key`、`dataset`、`cursor`，每批最多 50 个不同内容版本，返回 `version_id`、`origin`、`fetched_at`、`observations` 和分页信息；同内容观察汇总展示，归档记录保留。`series` 接受 `seriesKey`、`dataset`、`limit`、`cursor`，默认每批 100 条，按参考周期倒序；序列键包含来源、指标和全部非时间维度。
+- 所有路由均为 GET；非法参数为 `400`，记录或目录不存在为 `404`，目录/筛选与分页游标冲突为 `409`，数据库查询超时为 `503`，其它查询错误为 `500`。错误响应为 `{error}`，不返回连接凭证。普通未知路由返回 `404`。
+
+查询参数实现真源为 `src/library/queryOptions.ts`，CLI 使用同一查询服务；HTTP 与 CLI 参数命名映射见手册。
 
 ---
 

@@ -12,6 +12,7 @@ COPY src ./src
 COPY scripts ./scripts
 COPY config ./config
 COPY report-ui ./report-ui
+RUN pnpm build
 
 ENV NODE_ENV=production
 ENV HOME=/tmp

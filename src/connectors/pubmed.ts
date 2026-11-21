@@ -84,7 +84,10 @@ export class PubMedConnector extends BaseConnector {
 
   async search(query: string, opts?: SearchOptions): Promise<SearchResult[]> {
     const maxResults = opts?.maxResults ?? 10;
-    const search = await this.esearch(query, { retmax: maxResults });
+    const search = await this.esearch(query, {
+      retmax: maxResults, sort: opts?.sortBy === "recent" ? "pub_date" : undefined,
+      dateFrom: opts?.filters?.dateFrom, dateTo: opts?.filters?.dateTo,
+    });
     const ids = search.idlist ?? [];
     if (ids.length === 0) return [];
 
@@ -181,7 +184,7 @@ export class PubMedConnector extends BaseConnector {
 
   private async esearch(
     term: string,
-    opts: { retmax?: number; usehistory?: boolean },
+    opts: { retmax?: number; usehistory?: boolean; sort?: string; dateFrom?: string; dateTo?: string },
   ): Promise<ESearchResult> {
     const sp = new URLSearchParams({
       db: this.entrezDb,
@@ -190,6 +193,12 @@ export class PubMedConnector extends BaseConnector {
       retmax: String(opts.retmax ?? 20),
     });
     if (opts.usehistory) sp.set("usehistory", "y");
+    if (opts.sort) sp.set("sort", opts.sort);
+    if (opts.dateFrom || opts.dateTo) {
+      sp.set("datetype", "pdat");
+      sp.set("mindate", (opts.dateFrom ?? "1000-01-01").replace(/-/g, "/"));
+      sp.set("maxdate", (opts.dateTo ?? new Date().toISOString().slice(0, 10)).replace(/-/g, "/"));
+    }
 
     const url = `${this.endpoint("esearch")}?${sp.toString()}${this.toolParam()}${this.apiKeyParam()}`;
     const res = await this.fetch(url);

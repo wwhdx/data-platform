@@ -1,6 +1,6 @@
 # data-platform 文档索引
 
-> **导航真源**（2026-09-07 修订）· 各文档职责互斥，避免重复维护同一段架构/进度叙述。
+> **导航真源**（2026-11-20 修订）· 各文档职责互斥，避免重复维护同一段架构/进度叙述。
 
 ## 阅读顺序
 
@@ -14,6 +14,8 @@
 | HTTP 契约与检索字段 | [knowledge/数据平台API协议.md](./knowledge/数据平台API协议.md) | Connector 分页实现细节 |
 | 外部 API 按协议/认证分类 | [knowledge/免费数据源接口分类分析.md](./knowledge/免费数据源接口分类分析.md) | 排期与任务编号 |
 | 存储形态评估（PG vs 多库） | [storage-strategy.md](./storage-strategy.md) | RAG 检索 API |
+| 开发机与远端数据库部署、同步和恢复 | [主设计 §2.4](./design.md#24-开发机与远端数据库部署及同步设计)；[运行盘点与实施计划 §4.13](./plans/实施进度总览.md#413-开发机与远端数据库部署及同步) | 生产凭证 |
+| 全库阅览、共享查询 CLI 与只读服务 | [library-reader.md](./library-reader.md) | 运行结果与数据规模 |
 | bge-m3 / Ollama 部署 | [bge-m3-deployment.md](./bge-m3-deployment.md) | Embedding 业务代码 |
 | Agent 规则与接入点 | [agent-workflow.md](./agent-workflow.md) | 业务设计正文 |
 | 子包一页纸入口 | [overview.md](./overview.md) | 与 design / 实施进度总览 重复的长章节 |
@@ -35,6 +37,7 @@
 | [data-sources.md](./data-sources.md) | 各外部 API **Connector 实现速查** | 改 Connector / 上游 API 时 |
 | [storage-strategy.md](./storage-strategy.md) | 异构数据存储方案 **评估** | 存储架构决策时 |
 | [bge-m3-deployment.md](./bge-m3-deployment.md) | Embedding 运行时 **运维** | 改 compose / Ollama 时 |
+| [library-reader.md](./library-reader.md) | 全库阅览操作、查询 CLI、只读角色与独立容器 | 查询或部署流程变化时 |
 | [engine-core-analysis.md](./engine-core-analysis.md) | engine-core **模式摘录**（参考） | 极少；接入以 plans 为准 |
 | [agent-workflow.md](./agent-workflow.md) | AI Agent 工作流与规则入口 | 改 `.mdc` / 接入清单时 |
 | [doc-writing-guide.md](./doc-writing-guide.md) | **文档编写规范** + Agent 提示词 | 增删文档类型或规范时 |
@@ -83,6 +86,7 @@
 
 | 日期 | 说明 |
 |------|------|
+| 2026-11-20 | 补充开发机与远端数据库部署、同步和恢复的阅读入口；设计归主设计 §2.4，运行盘点与实施验收归实施进度 §4.13 |
 | 2026-10-16 | 收敛修复：knowledge 文件前置 HTTP 契约 §零（父仓真源指针复位）· design.md v0.5.1–v0.5.2（端点表/数据模型/首批源/限速 ENV；§六并入 §五沿用 v0.5）· plans/README 状态行对齐 · 波次 6–9 工单+历史变更归档 `archive/` · `documentUrl` 收敛 |
 | 2026-09-15 | 下一阶段实施方案.md 标为已归档（现行排期 → 实施进度 §4）；文档地图补充 ⑥ 结构检查（`scripts/doc-structure.py`） |
 | 2026-09-07 | 文档修订同步：design.md v0.4（§零 0.3 去数字化）· overview.md v2.2 · 实施进度 §2 追平代码真源（48 id/40 cron/001–037/96 files·398）· CLAUDE.md 目录树与 CLI 重写 · AGENTS.md 引擎路径注记 |

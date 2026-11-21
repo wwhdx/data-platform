@@ -62,6 +62,12 @@ h1 { margin: 0; font-family: var(--serif); font-size: clamp(30px, 5vw, 46px); li
 .sources { display: grid; grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); gap: 14px; padding: 18px; background: var(--paper); }
 .source { display: flex; flex-direction: column; gap: 10px; padding: 16px; border: 1px solid var(--rule); border-radius: 10px; background: var(--white); min-width: 0; content-visibility: auto; contain-intrinsic-size: auto 520px; }
 .source[hidden] { display: none; }
+.source-group { grid-column: 1 / -1; margin: 8px 0 0; padding-bottom: 8px; border-bottom: 1px solid var(--rule-2); font-family: var(--serif); font-size: 18px; }
+.source-timing { display: grid; gap: 5px; padding: 10px 12px; background: var(--paper-2); font-size: 11px; color: var(--ink-3); line-height: 1.5; }
+.source-timing strong { color: var(--ink); }
+.source-timing small { color: var(--ink-3); font-size: 10px; }
+.sort-note { margin: 0; padding: 10px 18px; font-size: 11px; line-height: 1.6; color: var(--ink-3); background: var(--paper-2); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .source-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .source-title { min-width: 0; }
 .source-title h2 { margin: 0; font-family: var(--serif); font-size: 17px; line-height: 1.35; }

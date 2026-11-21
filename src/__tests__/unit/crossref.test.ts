@@ -83,6 +83,11 @@ describe("CrossRef helpers", () => {
     it("returns undefined for missing dates", () => {
       expect(pickDate(w({}))).toBeUndefined();
     });
+
+    it("preserves the precision of year-only and month-only publication dates", () => {
+      expect(pickDate(w({ "published-print": { "date-parts": [[2026]] } }))).toBe("2026");
+      expect(pickDate(w({ "published-online": { "date-parts": [[2026, 11]] } }))).toBe("2026-11");
+    });
   });
 
   describe("pickLicense", () => {

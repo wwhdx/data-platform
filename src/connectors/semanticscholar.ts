@@ -7,6 +7,7 @@ import type {
   SearchOptions,
 } from "../types";
 import { BaseConnector } from "./base";
+import { documentRelations } from "../lib/documentRelations";
 import { RateLimiter } from "./rateLimiter";
 import { attachProvenance } from "./provenance/attach";
 import {
@@ -202,6 +203,7 @@ export class SemanticScholarConnector extends BaseConnector {
       score: paper.citationCount ?? 0,
       license: SEMANTIC_SCHOLAR_META.license,
       commercialUse: SEMANTIC_SCHOLAR_META.commercialUse,
+      links: documentRelations(SEMANTIC_SCHOLAR_META.id, paper.paperId, paper as unknown as Record<string, unknown>).links,
     };
   }
 

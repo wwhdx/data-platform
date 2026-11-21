@@ -61,6 +61,20 @@ export function emptySample(kind: ReportSampleInfo["kind"], error: string): Repo
   return { kind, ok: false, fetchedAt: null, lastSuccessAt: null, stale: false, items: [], error };
 }
 
+/** 所有失败路径共用缓存恢复；保留旧时间与本次异常，不把缓存计作新样本。 */
+export function reuseCachedSample(source: ReportSource, prior?: ReportSampleInfo): ReportSource {
+  if (!source.enabled || source.sample.ok || !prior?.ok || prior.items.length === 0) return source;
+  return {
+    ...source,
+    sample: {
+      ...prior,
+      stale: true,
+      error: source.sample.error,
+      lastSuccessAt: prior.lastSuccessAt ?? prior.fetchedAt,
+    },
+  };
+}
+
 export function queryFor(source: ExpandedSourceConfig | undefined, baseId: string): string {
   const scheduleQuery = source?.schedule_query?.trim();
   if (scheduleQuery) return scheduleQuery;
@@ -134,7 +148,10 @@ export function buildWarnings(sources: ReportSource[]): ReportWarning[] {
     if (!source.sample.ok) {
       out.push({ level: "warn", sourceId: source.id, message: `样本不可用：${source.sample.error ?? "未知原因"}` });
     } else if (source.sample.stale) {
-      out.push({ level: "info", sourceId: source.id, message: "样本为上次成功缓存，可能已过期" });
+      const reason = source.sample.error ? `；本次失败：${source.sample.error}` : "";
+      out.push({ level: "info", sourceId: source.id, message: `样本为上次成功缓存，可能已过期${reason}` });
+    } else if (source.sample.error) {
+      out.push({ level: "warn", sourceId: source.id, message: `样本采集不完整：${source.sample.error}` });
     }
   }
   return out;

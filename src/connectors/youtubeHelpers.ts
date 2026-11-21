@@ -1,4 +1,6 @@
 /** YouTube Data API v3 — search.list / videos.list 响应片段 */
+import type { SearchResult } from "../types";
+import { documentRelations } from "../lib/documentRelations";
 
 export interface YtThumbnail {
   url?: string;
@@ -205,7 +207,7 @@ export function itemToSearchResult(
   item: YtSearchItem,
   meta: YoutubeSearchResultMeta,
   video?: YtVideoItem,
-): { title: string; url: string; snippet: string; sourceId: string; sourceName: string; publishedAt?: string; score: number; license: string; commercialUse: boolean } | null {
+): SearchResult | null {
   const videoId = videoIdFromSearchItem(item);
   if (!videoId) return null;
   const { rawJson } = mapVideoToRawJson(
@@ -223,6 +225,7 @@ export function itemToSearchResult(
     score: (rawJson.view_count as number | undefined) ?? 0,
     license: meta.license,
     commercialUse: meta.commercialUse,
+    links: documentRelations(meta.sourceId, videoId, rawJson).links,
   };
 }
 

@@ -7,6 +7,7 @@ import type {
   SearchOptions,
 } from "../types";
 import { BaseConnector } from "./base";
+import { documentRelations } from "../lib/documentRelations";
 import { RateLimiter } from "./rateLimiter";
 import {
   buildRepoSearchQuery,
@@ -120,7 +121,7 @@ export class GitHubConnector extends BaseConnector {
     const max = Math.min(opts?.maxResults ?? 10, 30);
     if (this.useGraphql()) {
       const mapped = await this.searchReposGraphql(buildRepoSearchQuery(query), max);
-      return mapped.map(({ rawJson }) => ({
+      return mapped.map(({ externalId, rawJson }) => ({
         title: String(rawJson.title),
         url: String(rawJson.url),
         snippet: String(rawJson.abstract ?? "").slice(0, 300),
@@ -130,11 +131,12 @@ export class GitHubConnector extends BaseConnector {
         score: (rawJson.stars as number | undefined) ?? 0,
         license: GITHUB_META.license,
         commercialUse: GITHUB_META.commercialUse,
+        links: documentRelations(GITHUB_META.id, externalId, rawJson).links,
       }));
     }
     const repos = await this.searchReposRest(buildRepoSearchQuery(query), 1, max);
     return repos.map((r) => {
-      const { rawJson } = mapRepoToRawJson(r);
+      const { externalId, rawJson } = mapRepoToRawJson(r);
       return {
         title: String(rawJson.title),
         url: String(rawJson.url),
@@ -145,6 +147,7 @@ export class GitHubConnector extends BaseConnector {
         score: r.stargazers_count ?? 0,
         license: GITHUB_META.license,
         commercialUse: GITHUB_META.commercialUse,
+        links: documentRelations(GITHUB_META.id, externalId, rawJson).links,
       };
     });
   }

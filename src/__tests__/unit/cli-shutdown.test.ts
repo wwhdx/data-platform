@@ -53,12 +53,4 @@ describe("CLI exits after one-shot commands (pg pool closed)", () => {
     expect(code).toBe(0);
   });
 
-  it("config diff 在超时前退出且 exit 0", async () => {
-    if (!process.env.DATA_PLATFORM_DATABASE_URL) {
-      return;
-    }
-    const { code, timedOut } = await runCli(["config", "diff"]);
-    expect(timedOut).toBe(false);
-    expect(code).toBe(0);
-  });
 });

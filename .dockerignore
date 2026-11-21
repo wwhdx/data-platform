@@ -5,3 +5,8 @@ dist/
 .git/
 .gitignore
 docs/
+data/
+reports/
+secrets/
+.report-cache.json
+**/.env*

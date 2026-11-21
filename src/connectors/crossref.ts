@@ -80,6 +80,15 @@ export class CrossRefConnector extends BaseConnector {
       query,
       rows: String(Math.min(maxResults, 100)),
     });
+    if (opts?.sortBy === "recent") {
+      params.set("sort", "published");
+      params.set("order", "desc");
+    }
+    const dates = [
+      opts?.filters?.dateFrom ? `from-pub-date:${opts.filters.dateFrom}` : "",
+      opts?.filters?.dateTo ? `until-pub-date:${opts.filters.dateTo}` : "",
+    ].filter(Boolean);
+    if (dates.length) params.set("filter", dates.join(","));
     const url = `${this.runtimeBaseUrl}/works?${params.toString()}${this.politeParam()}`;
 
     const res = await this.fetch(url);
@@ -207,7 +216,8 @@ export function pickDate(work: CRWork): string | undefined {
     work.created?.["date-parts"]?.[0];
   if (!parts) return undefined;
   const [y, m, d] = parts;
-  return `${y!}-${pad(m ?? 1)}-${pad(d ?? 1)}`;
+  if (!y) return undefined;
+  return `${y}${m ? `-${pad(m)}` : ""}${m && d ? `-${pad(d)}` : ""}`;
 }
 
 function pad(n: number): string {

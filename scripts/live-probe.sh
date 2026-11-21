@@ -1,58 +1,14 @@
 #!/usr/bin/env bash
-# L2-live：真进程探活（需 PostgreSQL :5433，docker compose up -d db）
+# L2-live：探活已运行服务；不迁移数据库、不启动额外调度器。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-export DATA_PLATFORM_DATABASE_URL="${DATA_PLATFORM_DATABASE_URL:-postgresql://lumina:lumina_pass@localhost:5433/data_platform}"
 export DATA_PLATFORM_URL="${DATA_PLATFORM_URL:-http://localhost:3400}"
-PORT="${PORT:-3400}"
-
-echo "== L0: typecheck + vitest（含 integration/api inject）=="
-pnpm typecheck
-pnpm test:run
-
-if ! command -v pg_isready >/dev/null 2>&1; then
-  echo "SKIP live: pg_isready 不可用"
-  exit 0
-fi
-
-if ! pg_isready -h localhost -p 5433 -U lumina >/dev/null 2>&1; then
-  echo "SKIP live: PostgreSQL :5433 未就绪（可先 docker compose up -d db）"
-  exit 0
-fi
-
-echo "== L2-live: migrate + config sync =="
-pnpm cli migrate
-pnpm cli config sync
-
-echo "== L2-live: 启动 serve (port ${PORT}) =="
-pnpm cli serve --port "${PORT}" &
-SERVE_PID=$!
-cleanup() {
-  kill "${SERVE_PID}" 2>/dev/null || true
-  wait "${SERVE_PID}" 2>/dev/null || true
-}
-trap cleanup EXIT
-
-for _ in $(seq 1 30); do
-  if curl -sf "http://localhost:${PORT}/health" >/dev/null 2>&1; then
-    break
-  fi
-  sleep 1
-done
-
-if ! curl -sf "http://localhost:${PORT}/health" >/dev/null 2>&1; then
-  echo "FAIL: serve 未在 30s 内就绪"
-  exit 1
-fi
-
-echo "== L2-live: CLI 探活 =="
+command -v pnpm >/dev/null
+echo "== L2-live: 已运行服务的 CLI 探活 =="
 pnpm cli health --json
-pnpm cli schedules --json | head -c 500
-echo ""
-pnpm cli search --query "machine learning" --max-results 3 --json | head -c 800
-echo ""
-
-echo "✅ live-probe 完成"
+pnpm cli schedules --json
+pnpm cli search --query "machine learning" --max-results 3 --json
+echo "live-probe 完成"

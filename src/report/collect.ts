@@ -9,6 +9,7 @@ import { probeExternalSourceDetailed } from "../lib/sourceProbe";
 import type { ReportDocument, ReportProbeInfo, ReportSampleInfo, ReportSource } from "./types";
 import { CONNECTOR_REGISTRY, sampleKindFor } from "./catalog";
 import { collectSample } from "./samples";
+import { prepareReportSource } from "./prepareSource";
 import { redactSecrets, sanitizeError, truncate } from "./sanitize";
 import { mapLimit, withTimeout } from "./async";
 import {
@@ -19,6 +20,7 @@ import {
   nowIso,
   queryFor,
   readCache,
+  reuseCachedSample,
   skippedProbe,
   summarize,
 } from "./sourceState";
@@ -121,21 +123,12 @@ export async function buildReport(options: ReportOptions): Promise<ReportDocumen
             stale: false,
             items: result.items,
             error: result.error,
+            ...(result.selection ? { selection: result.selection } : {}),
           };
         } catch (err) {
           sample = emptySample(kind, sanitizeError(err));
         }
       }
-    }
-
-    const prior = previous.get(row.sourceId);
-    if (!sample.ok && prior?.ok && prior.items.length > 0) {
-      sample = {
-        ...prior,
-        stale: true,
-        error: sample.error,
-        lastSuccessAt: prior.lastSuccessAt ?? prior.fetchedAt,
-      };
     }
 
     return {
@@ -166,20 +159,25 @@ export async function buildReport(options: ReportOptions): Promise<ReportDocumen
         : SOURCE_TIMEOUT_MS;
       const result = await withTimeout(buildSource(row), timeout, row.sourceId);
       console.log(`[report] done  ${row.sourceId} ${Date.now() - startedAt}ms`);
-      return result;
+      return reuseCachedSample(result, previous.get(row.sourceId));
     } catch (err) {
       console.log(`[report] fail  ${row.sourceId} ${sanitizeError(err)}`);
-      return fallbackSource(row, byId.get(row.sourceId), err);
+      const fallback = fallbackSource(row, byId.get(row.sourceId), err);
+      return reuseCachedSample(fallback, previous.get(row.sourceId));
     }
   });
 
+  const generatedAt = nowIso();
+  const prepared = sources.map((source) => prepareReportSource(
+    source, previous.get(source.id), queryFor(byId.get(source.id), source.connector), generatedAt,
+  ));
   return {
     schemaVersion: 1,
-    generatedAt: nowIso(),
+    generatedAt,
     environment: process.env.NODE_ENV === "production" ? "production" : "development",
     durationMs: Date.now() - started,
-    summary: summarize(sources),
-    warnings: buildWarnings(sources),
-    sources,
+    summary: summarize(prepared),
+    warnings: buildWarnings(prepared),
+    sources: prepared,
   };
 }

@@ -391,7 +391,7 @@ curl -X POST "https://api.uspto.gov/api/v1/patent/applications/search" \
 | 认证 | Query `key=`（`YOUTUBE_API_KEY`） |
 | 配额 | 默认 10,000 units/天；`search.list` = 100 units；`commentThreads.list` = 1 unit |
 | 端点 | `GET /search`；可选 `GET /videos`（`part=snippet,statistics,contentDetails`）；可选 `GET /commentThreads` |
-| **波次 9 YT-B** | YAML `enrich_statistics: true` 拉 contentDetails；`enrich_comments` 或 `YOUTUBE_ENRICH_COMMENTS_ENABLED=1` 拉热评 |
+| **波次 9 YT-B** | YAML `enrich_statistics: true` 拉 contentDetails；`enrich_comments` 或 `YOUTUBE_ENRICH_COMMENTS_ENABLED=1` 独立拉取并保存 `top_comments` 热评摘录，不依赖统计开关；摘录只含首批热门顶层评论文本 |
 | 代码 | `src/connectors/youtube.ts`、`youtubeHelpers.ts` |
 | YAML | `enabled: true`；`max_search_pages: 1`；`enrich_statistics` / `enrich_comments` 默认 `false` |
 | **RAG 适用性** | ⭐⭐⭐（`snippet.description` 作 abstract） |

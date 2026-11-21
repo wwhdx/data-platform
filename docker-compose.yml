@@ -101,5 +101,4 @@ services:
         condition: service_completed_successfully
 
 volumes:
-  pgdata:
   ollama_models:

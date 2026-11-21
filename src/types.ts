@@ -1,3 +1,5 @@
+import type { DocumentLink } from "./lib/documentRelations";
+
 // ── 认证模式（对应数据 API 协议 §7.2）──
 export type AuthType =
   | "query_param_key"
@@ -151,6 +153,8 @@ export interface DomainSignal {
 // ── 搜索 ──
 export interface SearchOptions {
   maxResults?: number;
+  /** Opt-in provider ordering; report sampling uses this without changing normal search. */
+  sortBy?: "recent";
   industryTag?: string | null;
   industryStrict?: boolean;
   filters?: {
@@ -171,11 +175,13 @@ export interface SearchResult {
   sourceId: string;
   sourceName: string;
   publishedAt?: string;
+  updatedAt?: string;
   score: number;
   license: string;
   commercialUse: boolean;
   citationCount?: number;
   industryTag?: string | null;
+  links?: DocumentLink[];
   domainSignal?: DomainSignal;
 }
 

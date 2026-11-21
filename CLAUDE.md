@@ -142,6 +142,7 @@ pnpm cli migrate
 | 变量 | 必须 | 说明 |
 |------|------|------|
 | `DATA_PLATFORM_DATABASE_URL` | 是 | 独立数据库，不共享父项目 |
+| `DATA_PLATFORM_TEST_DATABASE_URL` | 真 DB 测试 | Vitest 专用进程环境连接；不回退采集库；由 `pnpm test:integration:isolated` 自动生成，实际库名、非管理角色与只读测试标记均须校验 |
 | `EMBED_BACKEND` | 否 | Embedding 后端：`ollama`（默认）/ `openai` / `voyage` / `mock`（测试）· 详见 [bge-m3-deployment.md](docs/bge-m3-deployment.md) |
 | `EMBED_API_URL` | 否 | Embedding API 地址（openai/voyage 时必填） |
 | `CROSSREF_MAILTO` | 否 | CrossRef polite pool 邮箱（提升限额，无强制） |
@@ -265,6 +266,7 @@ pnpm cli schedules       # cron live 对照（--offline 仅 YAML）
 pnpm cli migrate
 pnpm cli export --help
 pnpm cli serve --port 3400
+pnpm cli library --help  # 全库目录、内容、版本、指标序列；独立只读阅览服务
 
 # per-source 命令（10 个，轨 T/H3/T+ catalog 与 verify）
 pnpm cli eia --help      # 同构：eurostat / fred / oecd / imf / ecb / census / bea / faostat / worldbank
@@ -278,7 +280,7 @@ data-platform search --query "transformer"
 data-platform collect --all
 ```
 
-**命令全表** → [docs/plans/实施进度总览.md](./docs/plans/实施进度总览.md) §2.3（唯一真源）；概览：13 个通用顶层命令 + 10 个 per-source 命令 + `industry` + `config` 子命令。
+**命令全表** → [docs/plans/实施进度总览.md](./docs/plans/实施进度总览.md) §2.3（唯一真源）；含通用、per-source、`industry`、`config`、数据库报表 `report` 与全库阅览 `library` 子命令。阅览只读连接与启动步骤见[操作手册](./docs/library-reader.md)。
 
 ## 常用命令
 
@@ -286,8 +288,9 @@ data-platform collect --all
 pnpm dev                   # 开发服务器（tsx watch src/index.ts）
 pnpm build                 # TypeScript 编译
 pnpm exec tsc --noEmit     # 类型检查
-pnpm test                  # 运行测试
-pnpm test -- --run         # 单次运行
+pnpm test                  # 单元与 API mock 测试，不接真实 DB
+pnpm test:run              # 单次 L0
+pnpm test:integration:isolated  # 临时 PG + 完整迁移 + 专用角色 + DB 闭环；结束自动清理
 
 # 本地数据库（不使用 Docker 时）：迁移用 CLI 而非手工 psql
 pnpm cli migrate

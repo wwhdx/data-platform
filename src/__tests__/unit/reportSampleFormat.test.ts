@@ -61,7 +61,7 @@ describe("report sample format", () => {
     const item = formatRawItem(doc, "paper", "OpenAlex");
     expect(item.url).toBe("https://doi.org/10.1000/xyz");
     expect(item.snippet).toBe("A short abstract");
-    expect(item.fields.some((f) => f.label === "引用")).toBe(true);
+    expect(item.fields.some((f) => f.label === "被引次数")).toBe(true);
   });
 
   it("prefers provenance canonical URL over a raw API URL", () => {
