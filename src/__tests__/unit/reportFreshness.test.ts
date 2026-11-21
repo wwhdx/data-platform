@@ -45,6 +45,41 @@ describe("report content time", () => {
     expect(prepared.sample.items.map((i) => i.period)).toEqual(["2025", "2024", "2023"]);
   });
 
+  it("keeps legacy indicator dimensions that only survive in the description", () => {
+    const first = { ...reportItem("Government accounts", "2025"), url: null,
+      snippet: "period: 2025; value: -3.1; na_item: Net borrowing",
+      fields: [{ label: "国家/地区", value: "EU" }, { label: "数值", value: "-3.1" }] };
+    const second = { ...first, snippet: "period: 2025; value: -3.1; na_item: Capital formation" };
+    const source = reportSource("eurostat", [first, second, { ...first }]);
+    source.sample.kind = "indicator";
+    const ready = prepareReportSource(source, undefined, "q", REPORT_TIME);
+    expect(ready.sample.items).toHaveLength(2);
+    expect(new Set(ready.sample.items.map(item => item.id)).size).toBe(2);
+    source.sample.items.reverse();
+    const reordered = prepareReportSource(source, undefined, "q", REPORT_TIME);
+    expect(reordered.sample.items.map(item => item.id).sort()).toEqual(ready.sample.items.map(item => item.id).sort());
+    expect(prepareReportSource(ready, undefined, "q", REPORT_TIME).sample.items).toEqual(ready.sample.items);
+  });
+
+  it("keeps an unambiguous legacy indicator identity stable across value revisions", () => {
+    const source = reportSource("imf", [{ ...reportItem("GDP", "2025"), fields: [{ label: "数值", value: "42" }] }]);
+    source.sample.kind = "indicator";
+    const first = prepareReportSource(source, undefined, "q", REPORT_TIME);
+    source.sample.items[0].fields[0].value = "43";
+    const revised = prepareReportSource(source, first.sample, "q", REPORT_TIME);
+    expect(revised.sample.items[0].id).toBe(first.sample.items[0].id);
+    expect(revised.sample.observation?.state).toBe("changed");
+  });
+
+  it("retains explicit upstream identities when observations contain revisions", () => {
+    const original = { ...reportItem("GDP", "2025"), id: "upstream-series-key", snippet: "value: 42" };
+    const source = reportSource("imf", [original, { ...original, snippet: "value: 43" }]);
+    source.sample.kind = "indicator";
+    const ready = prepareReportSource(source, undefined, "q", REPORT_TIME);
+    expect(ready.sample.items).toHaveLength(1);
+    expect(ready.sample.items[0]).toMatchObject({ id: "upstream-series-key", snippet: "value: 43" });
+  });
+
   it("uses content dates rather than today's fetch timestamp and orders the samples", () => {
     const source = reportSource("papers", [reportItem("old", "1982-01-01"), reportItem("new", "2026-11-19")]);
     const ready = prepareReportSource(source, undefined, "q", REPORT_TIME);
